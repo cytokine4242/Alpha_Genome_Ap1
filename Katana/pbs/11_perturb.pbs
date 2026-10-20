@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N ag_perturb
-#PBS -l select=1:ncpus=6:mem=64gb:ngpus=1:gpu_model=H200
-#PBS -l walltime=24:00:00
+#PBS -l select=1:ncpus=6:mem=96gb:ngpus=1:gpu_model=H200
+#PBS -l walltime=12:00:00
 #PBS -j oe
 # Array job: qsub -J 0-N-1 -v SITES=cm,NCHUNKS=N (see submit_all.sh). SITES = cm or fb.
 source "$PBS_O_WORKDIR/pbs/common.sh"
