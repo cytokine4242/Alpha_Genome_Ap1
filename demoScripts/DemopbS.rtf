@@ -1,0 +1,37 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2870
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red236\green236\blue236;\red14\green14\blue14;}
+{\*\expandedcolortbl;;\cssrgb\c94118\c94118\c94118;\cssrgb\c6275\c6275\c6275;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs30 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 #!/bin/bash\
+#PBS -N t19_test_eval\
+#PBS -l select=1:ncpus=6:mem=128gb:ngpus=1:gpu_model=H200\
+#PBS -l walltime=10:00:00\
+#PBS -j oe\
+#PBS -m abe\
+#PBS -o /srv/scratch/wonglab/minh/alphagenome/result_files/T3_evaluating/insertion_trial19/logs\
+\
+# Step 7: pooled test-set evaluation of all 15 tracks (FOLD_3 test windows, 1 Mb context, scored over the full 1 Mb\
+# window as in validation), with the same evaluation script as the earlier test-set runs; used by step 8.\
+source /srv/scratch/wonglab/minh/alphagenome/scripts/T4_insertion_trial19_pipeline/common.sh\
+TRACKS="ACM B_cells CoreConductionCells Endocardial_endothelial Epicardial FB Lymphatic_EC Macrophages Mast_cells MuralCells NC NK_cells T_cells TzConductionCells VCM"  # checkpoint track order\
+BIGWIGS=$(for t in $TRACKS; do echo -n "$INSERTION_BW/$t.bw "; done)\
+mkdir -p $OUT/valid_test/test_eval\
+\
+python $REPO/alphagenome-pytorch/scripts/evaluate_finetuned_mem_safe.py \\\
+    --checkpoint $CHECKPOINT \\\
+    --pretrained-weights $REPO/weights/model_fold_3.safetensors \\\
+    --genome /srv/scratch/wonglab/minh/chrombpnet/prep_files/hg38.fa \\\
+    --test-bed $REPO/setup_files/alphagenome_folds/FOLD_3/test.bed \\\
+    --output-dir $OUT/valid_test/test_eval \\\
+    --metrics \\\
+    --sequence-length 1048576 \\\
+    --eval-window-size 1048576 \\\
+    --num-workers 4 --batch-size 4 --max-regions 0 \\\
+    --bigwig $BIGWIGS\
+echo "trial-19 pooled test-set evaluation is done!"\
+}

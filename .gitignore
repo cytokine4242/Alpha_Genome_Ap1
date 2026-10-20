@@ -1,0 +1,11 @@
+.DS_Store
+__pycache__/
+*.pyc
+# large inputs stay local (GitHub 100 MB limit); copy to Katana separately
+Data/*.gz
+Data/*.rds
+# job outputs and logs
+Katana/results/*
+!Katana/results/.keep
+Katana/logs/*
+!Katana/logs/.keep
