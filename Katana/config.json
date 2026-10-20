@@ -8,7 +8,7 @@
   "paths": {
     "genome": "/srv/scratch/wonglab/useful/genomes/mm10.fa",
     "gtf": "/srv/scratch/wonglab/useful/genomes/mm10.ncbiRefSeq.gtf.gz",
-    "weights": "/srv/scratch/wonglab/minh/alphagenome/weights/model_fold_3.safetensors"
+    "weights": "/srv/scratch/wonglab/minh/alphagenome/weights/model_all_folds.safetensors"
   },
   "model": {
     "window": 131072,

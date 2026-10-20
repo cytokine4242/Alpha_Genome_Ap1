@@ -19,7 +19,7 @@ output tables) was tested locally with a mock model. Do the check step first.
 2. **Check**: `bash submit_all.sh check`, then read `logs/ag_check_env.o*`. It confirms the genome, GTF and weights paths, loads the weights,
    writes `results/mouse_tracks.csv` (all mouse tracks), shows which tracks each trackset regex matched, and times a forward pass.
    Fix `config.json` (weights path, `tracksets`) until it passes. The weights path is a guess:
-   `/srv/scratch/wonglab/minh/alphagenome/weights/model_fold_3.safetensors`.
+   `/srv/scratch/wonglab/minh/alphagenome/weights/model_all_folds.safetensors`.
 3. **Pilot**: `bash submit_all.sh pilot` (10 CM + 10 FB sites, 3 insertion backgrounds, 20 MPRA elements). Check `results/` and s/site in the logs.
 4. **Full**: `bash submit_all.sh full` (array jobs; each chunk is resumable, rerun the same command to continue).
 
