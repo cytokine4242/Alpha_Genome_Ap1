@@ -9,7 +9,7 @@
 # Options (environment variables):
 #   GPU=H200 (default) | A100 | L40S | GH200 | ... | any     GPU model; "any" drops the gpu_model request so the
 #                                                           scheduler uses whichever GPU is free first
-#   ACCOUNT=mwac_wonglab   charge/run under a PBS account (-A), e.g. to use that group's private GPUs.
+#   ACCOUNT=...   PBS account (-A). Default mwac_wonglab (the lab's private GPUs); ACCOUNT= (empty) submits without one.
 #                 When ACCOUNT is set and GPU is not, GPU defaults to "any" (the private nodes' GPU model is not
 #                 requested explicitly). Single jobs (check, pilot, insertion) also get -m ae (email on abort/end);
 #                 array jobs do not, to avoid one email per task.
@@ -26,6 +26,7 @@
 #   bash submit_all.sh logs      lists the newest logs
 set -e
 cd "$(dirname "$0")"
+ACCOUNT=${ACCOUNT-mwac_wonglab}   # default account for all jobs; run with ACCOUNT= (empty) to submit without one
 mkdir -p logs/pbs results
 
 if [ -n "$ACCOUNT" ]; then GPU=${GPU:-any}; else GPU=${GPU:-H200}; fi
