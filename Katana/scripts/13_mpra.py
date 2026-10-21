@@ -42,8 +42,8 @@ def main():
     xm = pd.read_csv(L.ROOT / "data" / "fb_mpra_tobias_crossmap.csv")
     xm = xm[xm.overlap_status == "Matched"]
     mpra = mpra.iloc[args.chunk::args.n_chunks]
-    if args.limit:
-        mpra = mpra.head(args.limit)
+    if args.limit:  # pilot: random subset
+        mpra = mpra.sample(n=min(args.limit, len(mpra)), random_state=mc["seed"])
     out = Path(f"{args.out}_chunk{args.chunk}.csv")
     skip = L.done_ids(out, "mpra_id")
     t0, n_done = time.time(), 0

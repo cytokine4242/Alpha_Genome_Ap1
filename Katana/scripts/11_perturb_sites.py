@@ -41,8 +41,8 @@ def main():
 
     sites = pd.read_csv(args.sites)
     sites = sites.iloc[args.chunk::args.n_chunks]
-    if args.limit:
-        sites = sites.head(args.limit)
+    if args.limit:  # pilot: random subset (the tables are sorted by chromosome)
+        sites = sites.sample(n=min(args.limit, len(sites)), random_state=cfg["perturb"]["seed"])
     out = Path(f"{args.out}_chunk{args.chunk}.csv")
     skip = L.done_ids(out)
     log = Path(f"{args.out}_chunk{args.chunk}.skipped.txt")

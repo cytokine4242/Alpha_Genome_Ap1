@@ -1,0 +1,66 @@
+{
+  "_notes": [
+    "Pilot config: the main config.json plus CAGE tracks, to test whether CAGE adds signal. Used by 'submit_all.sh check' and 'pilot' (CONFIG= to override).",
+    "weights: pretrained AlphaGenome weights. A .safetensors/.pth/.pt file is accepted. CHECK this path on Katana.",
+    "tracksets: {name: {head: regex}}; head = atac | dnase | rna_seq | cage. Regex (case-insensitive) is searched in 'biosample_name | ontology_curie | track_name | assay_title | life_stage | strand | biosample_type' of the MOUSE tracks; matches are averaged. Optional extras (more heads = slower): CM dnase '^heart [|].*adult', CM cage 'cardiac muscle cell', FB dnase 'fibroblast of lung', FB cage '^fibroblast [|]'.",
+    "perturb.reps: random replicates per stochastic edit. Total forward passes per site = 1 + 3*reps.shuffle + 3*reps.random + 3*reps.dinuc + 2*reps.flank + 1 (core)."
+  ],
+  "paths": {
+    "genome": "/srv/scratch/wonglab/useful/genomes/mm10.fa",
+    "gtf": "/srv/scratch/wonglab/useful/genomes/mm10.ncbiRefSeq.gtf.gz",
+    "weights": "/srv/scratch/wonglab/minh/alphagenome/weights/model_all_folds.safetensors"
+  },
+  "model": {
+    "window": 131072,
+    "organism_index": 1,
+    "batch_size": 8,
+    "device": "cuda"
+  },
+  "tracksets": {
+    "CM": {
+      "atac": "^heart [|]",
+      "rna_seq": "heart.*polyA.*adult",
+      "cage": "cardiac muscle cell"
+    },
+    "FB": {
+      "atac": "^Patski [|]",
+      "rna_seq": "embryonic fibroblast",
+      "cage": "^fibroblast [|]"
+    }
+  },
+  "perturb": {
+    "seed": 1,
+    "reps": {
+      "shuffle": 10,
+      "random": 5,
+      "dinuc": 5,
+      "flank": 5
+    },
+    "motif_len": 11,
+    "w170": 170,
+    "max_peak_width": 6000,
+    "tss_prox_bp": 2000,
+    "local_bp": 50000
+  },
+  "insertion": {
+    "seed": 1,
+    "trackset": "CM",
+    "n_recipients": 4,
+    "recipient_pool": 200,
+    "recipient_quantiles": [
+      0.1,
+      0.4,
+      0.7,
+      0.95
+    ],
+    "n_donors_stable": 50,
+    "n_donors_dynamic": 25,
+    "n_backgrounds": 50,
+    "insert_motif": "TGAGTCA"
+  },
+  "mpra": {
+    "seed": 1,
+    "reps_motif_shuffle": 10,
+    "reps_full_shuffle": 10
+  }
+}

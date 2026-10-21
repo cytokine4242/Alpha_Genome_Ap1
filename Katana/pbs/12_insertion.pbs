@@ -4,4 +4,4 @@
 #PBS -l walltime=04:00:00
 #PBS -j oe
 source "$PBS_O_WORKDIR/pbs/common.sh"
-python 12_insertion.py --out ../results/insertion ${LIMIT:+--limit $LIMIT}
+python 12_insertion.py --out ../results/${PREFIX}insertion ${LIMIT:+--limit $LIMIT}

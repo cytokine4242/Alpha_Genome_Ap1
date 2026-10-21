@@ -1,7 +1,7 @@
 #!/bin/bash
 # Usage (from the Katana/ folder on Katana):
 #   bash submit_all.sh check            # environment + track check (do this first, read logs/)
-#   bash submit_all.sh pilot            # 10 CM sites, 10 FB sites, tiny insertion, 20 MPRA elements
+#   bash submit_all.sh pilot            # 30 CM sites, 30 FB sites, tiny insertion, 150 MPRA elements, with CAGE (pilot_* outputs)
 #   bash submit_all.sh full             # everything: 40 chunks CM, 40 chunks FB, insertion, 4 MPRA chunks
 #
 # Options (environment variables):
@@ -11,6 +11,7 @@
 #                 When ACCOUNT is set and GPU is not, GPU defaults to "any" (the private nodes' GPU model is not
 #                 requested explicitly). Single jobs (check, pilot, insertion) also get -m ae (email on abort/end);
 #                 array jobs do not, to avoid one email per task.
+#   CONFIG=file   config to use (default: config_pilot.json for check/pilot, which adds CAGE; config.json for full)
 #   BATCH=N       sequences per GPU batch (config.json model.batch_size). Default: config value on H200/GH200,
 #                 4 on any other model or "any" (smaller cards have less memory)
 #   DRY=1         print the qsub commands instead of submitting
@@ -30,6 +31,9 @@ RES="-l select=1:ncpus=6:mem=96gb:ngpus=1${GPU_SEL}"   # command-line resources 
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
 O="-o $PWD/logs/${ACCOUNT:+ -A $ACCOUNT}"
+case "$1" in full) CFG=${CONFIG:-config.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+[ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
+BATCH_VAR="${BATCH_VAR},AG_CONFIG=$PWD/$CFG"
 
 # sub <extra qsub args...> -- <comma-separated -v vars (may be empty)> <pbs file>
 sub() {
@@ -40,15 +44,15 @@ sub() {
   if [ -n "$DRY" ]; then echo "${cmd[@]}"; else "${cmd[@]}"; fi
 }
 
-echo "GPU=$GPU${ACCOUNT:+  account=$ACCOUNT}${BATCH:+  batch=$BATCH}  resources: $RES"
+echo "config=$CFG  GPU=$GPU${ACCOUNT:+  account=$ACCOUNT}${BATCH:+  batch=$BATCH}  resources: $RES"
 case "$1" in
   check) sub -m ae "" pbs/00_check_env.pbs ;;
   pilot)
-    W="-m ae -l walltime=01:00:00"  # short walltime starts sooner; one email per single job
-    sub $W -N ag_pilot_cm  "SITES=cm,NCHUNKS=1,LIMIT=10" pbs/11_perturb.pbs
-    sub $W -N ag_pilot_fb  "SITES=fb,NCHUNKS=1,LIMIT=10" pbs/11_perturb.pbs
-    sub $W -N ag_pilot_ins "LIMIT=3" pbs/12_insertion.pbs
-    sub $W -N ag_pilot_mpra "NCHUNKS=1,LIMIT=20" pbs/13_mpra.pbs ;;
+    W="-m ae -l walltime=01:30:00"  # short walltime starts sooner; one email per single job
+    sub $W -N ag_pilot_cm  "PREFIX=pilot_,SITES=cm,NCHUNKS=1,LIMIT=30" pbs/11_perturb.pbs
+    sub $W -N ag_pilot_fb  "PREFIX=pilot_,SITES=fb,NCHUNKS=1,LIMIT=30" pbs/11_perturb.pbs
+    sub $W -N ag_pilot_ins "PREFIX=pilot_,LIMIT=3" pbs/12_insertion.pbs
+    sub $W -N ag_pilot_mpra "PREFIX=pilot_,NCHUNKS=1,LIMIT=150" pbs/13_mpra.pbs ;;
   full)
     sub -J 0-39 "SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
     sub -J 0-39 "SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs

@@ -25,7 +25,7 @@ ONEHOT = np.eye(5, 4, dtype=np.float32)  # row 4 (N) is all zeros
 
 
 def load_config(path=None):
-    path = Path(path) if path else ROOT / "config.json"
+    path = Path(path or os.environ.get("AG_CONFIG") or ROOT / "config.json")
     with open(path) as f:
         cfg = json.load(f)
     if os.environ.get("AG_BATCH_SIZE"):  # set by submit_all.sh (BATCH=N)
