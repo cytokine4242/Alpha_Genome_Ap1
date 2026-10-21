@@ -33,7 +33,10 @@ def main():
         print("named_outputs: MISSING:", e)
     print("exported names:", [n for n in dir(ap) if not n.startswith("_")][:60])
     from alphagenome_pytorch import AlphaGenome
-    print("AlphaGenome.from_pretrained signature:", inspect.signature(AlphaGenome.from_pretrained))
+    if hasattr(AlphaGenome, "from_pretrained"):
+        print("AlphaGenome.from_pretrained signature:", inspect.signature(AlphaGenome.from_pretrained))
+    else:
+        print("AlphaGenome.from_pretrained: MISSING (old package)")
 
     from safetensors import safe_open
     with safe_open(wpath, "pt") as f:

@@ -255,20 +255,26 @@ def load_model(cfg):
     from alphagenome_pytorch import AlphaGenome
     path = cfg["paths"]["weights"]
     device = cfg["model"]["device"] if torch.cuda.is_available() else "cpu"
+    if hasattr(AlphaGenome, "from_pretrained"):
+        try:
+            model = AlphaGenome.from_pretrained(path, device=device)
+            print(f"loaded {path} with AlphaGenome.from_pretrained", flush=True)
+            return model, device
+        except Exception as e:  # e.g. a .safetensors file the package cannot read directly
+            print(f"from_pretrained failed ({type(e).__name__}: {str(e)[:300]}); trying a raw state dict", flush=True)
     if str(path).endswith(".safetensors"):
         from safetensors.torch import load_file
-        model = AlphaGenome()
-        res = model.load_state_dict(load_file(path), strict=False)
-        print(f"loaded {path}: {len(res.missing_keys)} missing, {len(res.unexpected_keys)} unexpected keys", flush=True)
-        if res.missing_keys or res.unexpected_keys:
-            print("missing (first 8):", res.missing_keys[:8], "\nunexpected (first 8):", res.unexpected_keys[:8], flush=True)
-            raise SystemExit("weights do not match the installed alphagenome_pytorch model (key names differ). "
-                             "Install the same alphagenome-pytorch version/commit the weights were made for; "
-                             "run scripts/00_inspect_weights.py for details.")
-        model = model.to(device).eval()
+        state = load_file(path)
     else:
-        model = AlphaGenome.from_pretrained(path, device=device)
-    return model, device
+        state = torch.load(path, map_location="cpu", weights_only=True)
+    model = AlphaGenome()
+    res = model.load_state_dict(state, strict=False)
+    print(f"loaded {path}: {len(res.missing_keys)} missing, {len(res.unexpected_keys)} unexpected keys", flush=True)
+    if res.missing_keys or res.unexpected_keys:
+        print("missing (first 8):", res.missing_keys[:8], "\nunexpected (first 8):", res.unexpected_keys[:8], flush=True)
+        raise SystemExit("weights do not match the installed alphagenome_pytorch model (key names differ). "
+                         "Install the version the weights were made for; run scripts/00_inspect_weights.py for details.")
+    return model.to(device).eval(), device
 
 
 class AG:
