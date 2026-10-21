@@ -6,6 +6,7 @@ A=0 C=1 G=2 T=3 N=4 (N encodes to an all-zero one-hot row).
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -26,7 +27,10 @@ ONEHOT = np.eye(5, 4, dtype=np.float32)  # row 4 (N) is all zeros
 def load_config(path=None):
     path = Path(path) if path else ROOT / "config.json"
     with open(path) as f:
-        return json.load(f)
+        cfg = json.load(f)
+    if os.environ.get("AG_BATCH_SIZE"):  # set by submit_all.sh (BATCH=N)
+        cfg["model"]["batch_size"] = int(os.environ["AG_BATCH_SIZE"])
+    return cfg
 
 
 def encode(seq: str) -> np.ndarray:

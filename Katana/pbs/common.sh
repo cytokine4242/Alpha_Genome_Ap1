@@ -6,3 +6,4 @@ conda activate $ENV_NAME
 export ROOT=${PBS_O_WORKDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 cd "$ROOT/scripts"
 mkdir -p "$ROOT/results" "$ROOT/logs"
+echo "host: $(hostname) | GPU: $(nvidia-smi -L 2>/dev/null | head -1) | batch override: ${AG_BATCH_SIZE:-none}"

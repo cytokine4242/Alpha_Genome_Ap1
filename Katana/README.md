@@ -23,6 +23,12 @@ output tables) was tested locally with a mock model. Do the check step first.
 3. **Pilot**: `bash submit_all.sh pilot` (10 CM + 10 FB sites, 3 insertion backgrounds, 20 MPRA elements). Check `results/` and s/site in the logs.
 4. **Full**: `bash submit_all.sh full` (40 CM + 40 FB array tasks at 12 h walltime, 4 MPRA tasks, 1 insertion job; each chunk is resumable, rerun the same command to continue).
 
+## Choosing the GPU
+`submit_all.sh` takes environment variables: `GPU=H200` (default), `GPU=A100`, `GPU=L40S`, ... or `GPU=any` (no `gpu_model` request, so whichever GPU frees up first),
+`BATCH=N` (sequences per GPU batch; defaults to the config value on H200/GH200 and 4 on anything else), and `DRY=1` (print the qsub commands only).
+Examples: `GPU=any bash submit_all.sh pilot`, `GPU=A100 bash submit_all.sh full`. The GPU each job landed on is printed at the top of its log.
+Avoid V100 (no native bf16): with `GPU=any` check the logs and resubmit chunks that landed on one if they fail.
+
 ## Site labels (in every site table and output)
 Three views of the same binding calls, so ageing, exercise and their combination can be tested separately.
 YS = young sedentary, MAS = aged sedentary, MAE = aged + exercise.
