@@ -87,14 +87,16 @@ CS = pd.DataFrame(cs)
 CS.to_csv(OUT / "tables" / "common_support_gap.csv", index=False)
 
 # figure 1: gap across models
-fig, axes = plt.subplots(1, 3, figsize=(13, 3.8), sharey=True)
+fig, axes = plt.subplots(1, 3, figsize=(14.5, 3.8))
 labs = list(dict.fromkeys(G.model))
+SHORT = ['raw', '+ peak accessibility (earlier model)', '+ matched-readout accessibility', '+ matched-readout, spline', '+ peak, width, TSS distance (splines)', '+ footprint score']
 for ax, (name, *_x) in zip(axes, COMBOS):
     g = G[(G.combo == name) & (G.width == "170")].set_index("model").reindex(labs)
     y = np.arange(len(labs))[::-1]
     ax.errorbar(g.gap, y, xerr=[g.gap - g.ci_lo, g.ci_hi - g.gap], fmt="o", color=BLUE, ms=5, lw=1.3, capsize=0)
     ax.axvline(0, color=MUTED, lw=0.8)
-    ax.set_yticks(y, [l if i == 0 or name == COMBOS[0][0] else "" for i, l in enumerate(labs)] if False else (labs if ax is axes[0] else [""] * len(labs)), fontsize=7.5)
+    ax.set_yticks(y)
+    ax.set_yticklabels(SHORT if ax is axes[0] else [])
     ax.set_title(name, fontsize=10, loc="left")
     ax.set_xlabel("Dynamic - Stable at the 170 bp shuffle (log2FC, 95% CI)")
 fig.text(0.01, -0.03, "Standard errors clustered by TOBIAS peak. Footprint score is partly a defining variable of the classes, so the last row is a sensitivity check, not a causal adjustment.", fontsize=8, color=MUTED)
