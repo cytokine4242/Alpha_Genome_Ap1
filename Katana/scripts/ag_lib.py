@@ -260,6 +260,11 @@ def load_model(cfg):
         model = AlphaGenome()
         res = model.load_state_dict(load_file(path), strict=False)
         print(f"loaded {path}: {len(res.missing_keys)} missing, {len(res.unexpected_keys)} unexpected keys", flush=True)
+        if res.missing_keys or res.unexpected_keys:
+            print("missing (first 8):", res.missing_keys[:8], "\nunexpected (first 8):", res.unexpected_keys[:8], flush=True)
+            raise SystemExit("weights do not match the installed alphagenome_pytorch model (key names differ). "
+                             "Install the same alphagenome-pytorch version/commit the weights were made for; "
+                             "run scripts/00_inspect_weights.py for details.")
         model = model.to(device).eval()
     else:
         model = AlphaGenome.from_pretrained(path, device=device)
