@@ -292,13 +292,18 @@ class AG:
         self.model.set_track_metadata_catalog(TrackMetadataCatalog.load_builtin("mouse"))
         self.tracksets = self._resolve_tracks()
 
-    def _named(self, x):
+    def _named(self, x, all_heads=False):
+        """Named predictions. Only the heads in config model.heads are computed unless all_heads (much less memory/time)."""
+        kw = {}
+        heads = None if all_heads else self.cfg["model"].get("heads")
+        if heads:
+            kw["heads"] = tuple(heads)
         with self.torch.no_grad():
-            return self.model.predict(x, organism_index=self.org, named_outputs=True)
+            return self.model.predict(x, organism_index=self.org, named_outputs=True, **kw)
 
     def track_table(self):
         x = self.torch.zeros((1, self.size, 4), dtype=self.torch.float32, device=self.device)
-        named = self._named(x)
+        named = self._named(x, all_heads=True)
         rows = []
         for head, res in (("atac", 1), ("rna_seq", 128), ("dnase", 128), ("cage", 128)):
             try:
