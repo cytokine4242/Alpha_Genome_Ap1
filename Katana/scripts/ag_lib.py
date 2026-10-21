@@ -293,6 +293,26 @@ EXPR_HEADS = {"rna_seq": "rna", "cage": "cage"}      # expression, read at 128 b
 TRACK_FIELDS = ("biosample_name", "ontology_curie", "track_name", "assay_title", "biosample_life_stage", "strand", "biosample_type")
 
 
+def catalog_tracks(organism, heads=("atac", "dnase", "rna_seq", "cage", "chip_tf", "chip_histone")):
+    """Track metadata straight from the package's built-in catalog (CPU only, no model). organism: 0 human, 1 mouse."""
+    from alphagenome_pytorch.named_outputs import TrackMetadataCatalog
+    cat = TrackMetadataCatalog.load_builtin(organism)
+    rows = []
+    for head in heads:
+        try:
+            tracks = cat.get_tracks(head, organism=organism)
+        except Exception as e:
+            print(f"skip head {head} (organism {organism}): {type(e).__name__}: {str(e)[:120]}")
+            continue
+        for tr in tracks:
+            if getattr(tr, "is_padding", False):
+                continue
+            d = {"head": head, "organism": organism, "index": tr.track_index, "track_name": tr.track_name}
+            d.update(getattr(tr, "extras", {}) or {})
+            rows.append(d)
+    return rows
+
+
 def track_text(row):
     return " | ".join(str(row.get(k, "")) for k in TRACK_FIELDS)
 

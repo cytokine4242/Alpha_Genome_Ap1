@@ -41,7 +41,7 @@ def main():
     print(f"all {len(df)} tracks written to {out}")
     print("heads computed in predictions:", ag.heads)
     try:  # human tracks too, to look for more cell-type-specific cardiac / fibroblast tracks (applied to mouse sequence)
-        hdf = pd.DataFrame(ag.track_table(organism=0))
+        hdf = pd.DataFrame(L.catalog_tracks(0))
         hdf.to_csv(L.ROOT / "results" / "human_tracks.csv", index=False)
         print(hdf.groupby("head").size().to_string())
         print(f"{len(hdf)} human tracks written to results/human_tracks.csv")
