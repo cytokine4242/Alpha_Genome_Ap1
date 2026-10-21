@@ -15,7 +15,7 @@ output tables) was tested locally with a mock model. Do the check step first.
 | `results/`, `logs/` | outputs (copy `results/` back for replotting) |
 
 ## Run order
-1. **Environment** (once): `bash setup_env.sh` (creates env `alphagenome2`, Python 3.12, alphagenome-pytorch from GitHub; the pip release is too old). To match Minh's code exactly: `REF=<commit> bash setup_env.sh` (commit from `git -c safe.directory='*' -C /srv/scratch/wonglab/minh/alphagenome/alphagenome-pytorch rev-parse HEAD`). Then run `python scripts/00_inspect_weights.py` once to confirm the weights match the package.
+1. **Environment** (once): `bash setup_env.sh` (creates a Python 3.12 env on scratch (home quota is small), path saved in `.env_prefix`, alphagenome-pytorch from GitHub; the pip release is too old). To match Minh's code exactly: `REF=<commit> bash setup_env.sh` (commit from `git -c safe.directory='*' -C /srv/scratch/wonglab/minh/alphagenome/alphagenome-pytorch rev-parse HEAD`). Then run `python scripts/00_inspect_weights.py` once to confirm the weights match the package.
 2. **Check**: `bash submit_all.sh check`, then read `logs/ag_check_env.o*`. It confirms the genome, GTF and weights paths, loads the weights,
    writes `results/mouse_tracks.csv` (all mouse tracks), shows which tracks each trackset regex matched, and times a forward pass.
    Fix `config.json` (weights path, `tracksets`) until it passes. The weights path is a guess:

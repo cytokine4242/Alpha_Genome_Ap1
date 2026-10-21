@@ -9,3 +9,4 @@ Katana/results/*
 !Katana/results/.keep
 Katana/logs/*
 !Katana/logs/.keep
+.env_prefix
