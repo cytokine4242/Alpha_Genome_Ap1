@@ -1,0 +1,25 @@
+combo,class,status,n,n_class
+"CM sites, heart ATAC",Stable,kept (tier C),1476,2907
+"CM sites, heart ATAC",Stable,below noise floor,596,2907
+"CM sites, heart ATAC",Stable,rank disagreement,604,2907
+"CM sites, heart ATAC",Stable,no measured peak,231,2907
+"CM sites, heart ATAC",Dynamic,kept (tier C),261,772
+"CM sites, heart ATAC",Dynamic,below noise floor,245,772
+"CM sites, heart ATAC",Dynamic,rank disagreement,183,772
+"CM sites, heart ATAC",Dynamic,no measured peak,83,772
+"FB sites, heart ATAC",Stable,kept (tier C),1900,3838
+"FB sites, heart ATAC",Stable,below noise floor,780,3838
+"FB sites, heart ATAC",Stable,rank disagreement,856,3838
+"FB sites, heart ATAC",Stable,no measured peak,302,3838
+"FB sites, heart ATAC",Dynamic,kept (tier C),403,1180
+"FB sites, heart ATAC",Dynamic,below noise floor,367,1180
+"FB sites, heart ATAC",Dynamic,rank disagreement,283,1180
+"FB sites, heart ATAC",Dynamic,no measured peak,127,1180
+"FB sites, Patski ATAC",Stable,kept (tier C),1951,3838
+"FB sites, Patski ATAC",Stable,below noise floor,812,3838
+"FB sites, Patski ATAC",Stable,rank disagreement,773,3838
+"FB sites, Patski ATAC",Stable,no measured peak,302,3838
+"FB sites, Patski ATAC",Dynamic,kept (tier C),421,1180
+"FB sites, Patski ATAC",Dynamic,below noise floor,335,1180
+"FB sites, Patski ATAC",Dynamic,rank disagreement,297,1180
+"FB sites, Patski ATAC",Dynamic,no measured peak,127,1180

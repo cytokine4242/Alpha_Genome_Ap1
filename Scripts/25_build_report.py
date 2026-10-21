@@ -374,40 +374,75 @@ PART_D = f"""
 
 # ======================= Part G: agreement-filtered analyses =======================
 AG_ = AN / "agreement"
+AG25 = AN / "agreement_floor25"
 G_ret = pd.read_csv(AG_ / "tables" / "retention_by_tier.csv")
 G_sv = pd.read_csv(AG_ / "tables" / "stable_vs_dynamic_by_tier.csv")
+G_sv25 = pd.read_csv(AG25 / "tables" / "stable_vs_dynamic_by_tier.csv")
 G_mu = pd.read_csv(AG_ / "tables" / "mutation_arm_by_tier.csv")
 G_ct = pd.read_csv(AG_ / "tables" / "controls_by_tier.csv")
+G_st = pd.read_csv(AG_ / "tables" / "status_counts.csv")
+G_kd = pd.read_csv(AG_ / "tables" / "effect_kept_vs_discarded.csv")
+G_kq = pd.read_csv(AG_ / "tables" / "kept_by_quintile.csv")
 G_ret_tab = G_ret[["combo", "tier", "n", "n_stable", "n_dynamic", "retained_stable", "retained_dynamic", "rho_pred_vs_meas_in_tier"]].copy()
 G_ret_tab.columns = ["Site set, track", "Tier", "Sites", "Stable", "Dynamic", "Stable kept", "Dynamic kept", "rho in tier"]
+G_st_tab = G_st.pivot_table(index=["combo", "class"], columns="status", values="n", aggfunc="sum").reset_index()
+G_st_tab = G_st_tab[["combo", "class", "kept (tier C)", "below noise floor", "rank disagreement", "no measured peak"]]
+G_st_tab.columns = ["Site set, track", "Class", "Kept (tier C)", "Dropped: below floor", "Dropped: rank disagreement", "Dropped: no measured peak"]
 G_sv170 = G_sv[G_sv.width == "170"][["combo", "tier", "n_stable", "n_dynamic", "median_stable", "median_dynamic", "diff_dyn_minus_stable", "ci_lo", "ci_hi", "sig"]].copy()
 G_sv170.columns = ["Site set, track", "Tier", "n Stable", "n Dynamic", "Stable median", "Dynamic median", "Dyn - Stable", "CI lo", "CI hi", "FDR"]
+G_sens = G_sv[(G_sv.width == "170") & (G_sv.tier.isin(["B", "C", "D"]))][["combo", "tier", "diff_dyn_minus_stable", "sig"]].merge(
+    G_sv25[(G_sv25.width == "170") & (G_sv25.tier.isin(["B", "C", "D"]))][["combo", "tier", "diff_dyn_minus_stable", "sig"]], on=["combo", "tier"], suffixes=(" low", " high"))
+G_sens.columns = ["Site set, track", "Tier", "Dyn - Stable (5% floor)", "FDR (5%)", "Dyn - Stable (25% floor)", "FDR (25%)"]
+G_kd_tab = G_kd[["combo", "class", "n_kept", "n_discarded_with_peak", "median_effect_kept", "median_effect_discarded", "p"]].copy()
+G_kd_tab["p"] = G_kd_tab.p.map(lambda v: "< 0.001" if v < 0.001 else f"{v:.2f}")
+G_kd_tab.columns = ["Site set, track", "Class", "Kept", "Dropped (has a peak)", "Median effect, kept", "Median effect, dropped", "p"]
 G_mu_tab = G_mu[["combo", "tier", "ratio_flank170_over_random170", "ratio_lo", "ratio_hi", "ratio_core_over_random_motif"]].copy()
 G_mu_tab.columns = ["Site set, track", "Tier", "Surroundings-only / full 170 bp loss", "CI lo", "CI hi", "Core / full motif loss"]
 gs = lambda c, w, t_: G_sv[(G_sv.combo == c) & (G_sv.width == w) & (G_sv.tier == t_)].iloc[0]
 gr = lambda c, t_: G_ret[(G_ret.combo == c) & (G_ret.tier == t_)].iloc[0]
+gk = lambda c, cl: G_kd[(G_kd.combo == c) & (G_kd["class"] == cl)].iloc[0]
+gq = lambda c, cl: G_kq[(G_kq.combo == c) & (G_kq.by == "pred") & (G_kq["class"] == cl) & (G_kq.quintile >= 4)].share_kept.mean()
 cmn, fbh, fbp = "CM sites, heart ATAC", "FB sites, heart ATAC", "FB sites, Patski ATAC"
 PART_G = f"""
 <h2 id="partG">Part G. Restricting to sites where predicted accessibility agrees with measured accessibility</h2>
-<p>To exclude noisy or poorly predicted regions, every analysis was repeated on nested subsets chosen <em>only</em> from the native prediction versus the measured snATAC (never from the perturbation effects), separately for each site set and track: <strong>A</strong> all sites; <strong>B</strong> a measured peak exists and predicted accessibility is above the 25th percentile; <strong>C</strong> B and the predicted-minus-measured rank (percentile) differs by at most 1 SD; <strong>D</strong> B and at most 0.5 SD (strict). Fibroblast sites are checked against measured fibroblast accessibility, with the heart and the Patski track each judged on their own agreement.</p>
-<figure>{img(AG_ / 'figures' / 'e1_tier_C_selection.png', 'Tier C selection')}<figcaption>Predicted native ATAC against measured snATAC for each site set and track. Blue = sites kept in tier C.</figcaption></figure>
-<h3>G1. What is kept</h3>
-<figure>{img(AG_ / 'figures' / 'e2_retention_by_class.png', 'Retention by class')}<figcaption>Share of each class retained per tier.</figcaption></figure>
+<p><strong>Aim.</strong> Exclude noisy or poorly predicted regions by keeping only sites whose predicted native accessibility agrees with the measured snATAC, then check whether the main results still hold. The selection uses only the native prediction and the measurement, never the perturbation effects.</p>
+<div class="box"><strong>The rule, in order</strong><ol>
+<li><strong>Has a measured peak.</strong> The site falls in a peak with measured accessibility (otherwise there is nothing to compare with).</li>
+<li><strong>Above a low noise floor</strong> (tier B). Predicted accessibility is above the 5th percentile of sites with a measured peak. This only removes sites with almost no predicted signal, where the log ratio is unstable. It is deliberately low: a high floor would also remove weak peaks that the model predicts correctly, and Dynamic sites are weaker on average.</li>
+<li><strong>Relative agreement</strong> (tier C). The predicted percentile minus the measured percentile (both ranked among sites with a measured peak) is within 1 SD of that difference. This compares relative accessibility, so a weak peak predicted as weak is kept. Tier D is the strict version (within 0.5 SD).</li></ol>
+<span class="small">Each site set and track has its own thresholds. Fibroblast sites are compared with measured fibroblast accessibility, with the heart and Patski tracks each judged on their own agreement.</span></div>
+
+<h3>G1. What was kept and what was dropped</h3>
+<figure>{img(AG_ / 'figures' / 'e0_funnel.png', 'Filtering funnel')}<figcaption>Number of sites left after each step, split into Stable and Dynamic, with the Dynamic share on the right. The Dynamic share stays roughly constant, so the filter does not remove one class wholesale.</figcaption></figure>
+<figure>{img(AG_ / 'figures' / 'e0b_rank_map.png', 'Rank map')}<figcaption>Every site with a measured peak, placed by its measured and predicted accessibility percentile. Blue sites are kept (tier C); orange sites fall below the floor; grey sites are dropped for rank disagreement (outside the dashed band). Sites without a measured peak are not shown (counts in the titles).</figcaption></figure>
+{table(G_st_tab)}
+<p>About {gr(cmn, 'C').retained_all:.0%} of cardiomyocyte sites ({gr(cmn, 'C').n:,}) reach tier C and {gr(cmn, 'D').retained_all:.0%} ({gr(cmn, 'D').n:,}) reach tier D. Most drops are for rank disagreement; the floor removes few sites. Correlations inside a tier (0.7 to 0.95) are circular, since the tier is defined by agreement, and only show that the selection worked.</p>
 {table(G_ret_tab, {'Stable kept': '{:.0%}', 'Dynamic kept': '{:.0%}', 'rho in tier': '{:.2f}'})}
-<p>Tier C keeps about {gr(cmn, 'C').retained_all:.0%} of cardiomyocyte sites ({gr(cmn, 'C').n:,}) and tier D about {gr(cmn, 'D').retained_all:.0%} ({gr(cmn, 'D').n:,}). <strong>Dynamic sites are kept less often</strong> (tier C: {gr(cmn, 'C').retained_dynamic:.0%} vs {gr(cmn, 'C').retained_stable:.0%} of Stable), mainly through the accessibility floor, because they are less accessible. The correlation inside a tier (0.7 to 0.9) is circular, since the tier is defined by agreement; it only shows the selection worked.</p>
-<h3>G2. Does Stable vs Dynamic survive?</h3>
-<figure>{img(AG_ / 'figures' / 'e3_stable_vs_dynamic_by_tier.png', 'Stable vs Dynamic by tier')}<figcaption>Dynamic minus Stable (median log2FC, 95% bootstrap CI) per width and tier. Marks: Mann&ndash;Whitney, BH within each site set and track.</figcaption></figure>
+
+<h3>G2. Is the filter biased against one class?</h3>
+<figure>{img(AG_ / 'figures' / 'e0c_kept_by_accessibility.png', 'Share kept by accessibility')}<figcaption>Share of sites kept in tier C by quintile of predicted accessibility (top) and of measured accessibility (bottom), for Stable and Dynamic sites.</figcaption></figure>
+<figure>{img(AG_ / 'figures' / 'e0d_distributions.png', 'Distributions of rank difference and predicted level')}<figcaption>Top: predicted-minus-measured percentile for each class with the 1 SD and 0.5 SD cut-offs. Bottom: predicted accessibility of kept and discarded sites (orange line = floor).</figcaption></figure>
+<p><strong>By measured accessibility the filter treats the classes alike</strong> (bottom row: same share kept for Stable and Dynamic at every level). <strong>By predicted accessibility it does not:</strong> among the two highest predicted quintiles only {gq(cmn, 'Dynamic'):.0%} of Dynamic cardiomyocyte sites are kept, against {gq(cmn, 'Stable'):.0%} of Stable ones (fibroblast sites, heart track {gq(fbh, 'Dynamic'):.0%} vs {gq(fbh, 'Stable'):.0%}; Patski {gq(fbp, 'Dynamic'):.0%} vs {gq(fbp, 'Stable'):.0%}). In plain terms, the model over-predicts many Dynamic sites (high prediction, low measurement) and those are removed, while the low-floor choice keeps weakly predicted sites of both classes. The kept Dynamic sites are therefore the ones the model gets right, which is the intended behaviour, but the filtered result describes well-predicted Dynamic sites and not all of them.</p>
+<h3>G3. Do kept and dropped sites differ in the effect?</h3>
+{table(G_kd_tab, {'Median effect, kept': '{:.2f}', 'Median effect, dropped': '{:.2f}'})}
+<p>This is a transparency check on the 170&nbsp;bp shuffle effect, not part of the selection. <strong>Kept Stable sites lose more accessibility than dropped Stable sites</strong> ({gk(cmn, 'Stable').median_effect_kept:.2f} vs {gk(cmn, 'Stable').median_effect_discarded:.2f} in cardiomyocyte sites, p &lt; 0.001), while Dynamic sites do not differ (p = {gk(cmn, 'Dynamic').p:.2f}). So some of the larger Stable-vs-Dynamic gap in the filtered sets comes from the filter itself, since agreeing sites are the ones with clearer accessibility signal and larger effects. The gap in the unfiltered data ({gs(cmn, '170', 'A').diff_dyn_minus_stable:+.2f}) is the cleaner estimate; the filtered values show it does not depend on poorly predicted sites.</p>
+
+<h3>G4. Does Stable vs Dynamic survive?</h3>
+<figure>{img(AG_ / 'figures' / 'e3_stable_vs_dynamic_by_tier.png', 'Stable vs Dynamic by tier')}<figcaption>Dynamic minus Stable (median log2FC, 95% bootstrap CI) per shuffle width and tier. Marks: Mann&ndash;Whitney, BH within each site set and track.</figcaption></figure>
 {table(G_sv170, {'Stable median': '{:.2f}', 'Dynamic median': '{:.2f}', 'Dyn - Stable': '{:+.2f}', 'CI lo': '{:+.2f}', 'CI hi': '{:+.2f}'})}
-<p><strong>At the 170&nbsp;bp shuffle the difference holds in every tier and gets larger with stricter agreement</strong>: cardiomyocyte sites {gs(cmn, '170', 'A').diff_dyn_minus_stable:+.2f} (all) &rarr; {gs(cmn, '170', 'C').diff_dyn_minus_stable:+.2f} (C) &rarr; {gs(cmn, '170', 'D').diff_dyn_minus_stable:+.2f} (D); fibroblast sites with the heart track {gs(fbh, '170', 'A').diff_dyn_minus_stable:+.2f} &rarr; {gs(fbh, '170', 'D').diff_dyn_minus_stable:+.2f}, with Patski {gs(fbp, '170', 'A').diff_dyn_minus_stable:+.2f} &rarr; {gs(fbp, '170', 'D').diff_dyn_minus_stable:+.2f} (all FDR &lt; 0.001). The Patski gap dips in tier B ({gs(fbp, '170', 'B').diff_dyn_minus_stable:+.2f}) before recovering, so the floor alone does not explain it and the agreement step matters. <strong>The motif-width shuffle remains not different between classes</strong> (small, mostly ns). The peak-width difference loses significance in tier B but is significant in C and D, so it is unstable under filtering; treat it as before (partial). The caveat is the retention bias above: Dynamic sites that survive are the better-predicted ones, so the result applies to well-predicted sites and not to all Dynamic sites.</p>
-<h3>G3. Mutation arm and controls in the filtered sets</h3>
-<figure>{img(AG_ / 'figures' / 'e4_other_results_by_tier.png', 'Other results by tier')}<figcaption>Left: share of the 170&nbsp;bp mutation loss that is left when the motif is kept intact. Middle and right: width titration and offset controls, Stable CM sites, by tier.</figcaption></figure>
+<p><strong>At the 170&nbsp;bp shuffle the difference holds in every tier</strong> (all FDR &lt; 0.001): cardiomyocyte sites {gs(cmn, '170', 'A').diff_dyn_minus_stable:+.2f} (all) &rarr; {gs(cmn, '170', 'C').diff_dyn_minus_stable:+.2f} (C) &rarr; {gs(cmn, '170', 'D').diff_dyn_minus_stable:+.2f} (D); fibroblast sites with the heart track {gs(fbh, '170', 'A').diff_dyn_minus_stable:+.2f} &rarr; {gs(fbh, '170', 'D').diff_dyn_minus_stable:+.2f}; with Patski {gs(fbp, '170', 'A').diff_dyn_minus_stable:+.2f} &rarr; {gs(fbp, '170', 'D').diff_dyn_minus_stable:+.2f}. The motif-width shuffle remains without a meaningful class difference. The peak-width difference is not stable across tiers and should still be treated as partial. Read the growth with stricter tiers together with G3.</p>
+<h3>G5. Sensitivity to the floor</h3>
+{table(G_sens, {'Dyn - Stable (5% floor)': '{:+.2f}', 'Dyn - Stable (25% floor)': '{:+.2f}'})}
+<p>The 25th-percentile floor, which removes weak peaks, keeps fewer Dynamic sites (about a third in tier C instead of about half) and gives a gap that is similar or larger in cardiomyocyte sites and smaller with Patski (tier C +0.44 vs +0.61), with wider intervals. Direction and significance do not depend on the floor; the size does somewhat. Tables for it are in <code>Analysis/agreement_floor25</code>.</p>
+
+<h3>G6. Mutation arm and controls in the filtered sets</h3>
+<figure>{img(AG_ / 'figures' / 'e4_other_results_by_tier.png', 'Other results by tier')}<figcaption>Left: share of the 170&nbsp;bp mutation loss that remains when the motif is kept intact. Middle and right: width titration and offset controls (Stable cardiomyocyte sites), by tier.</figcaption></figure>
 {table(G_mu_tab, {c: '{:.2f}' for c in ['Surroundings-only / full 170 bp loss', 'CI lo', 'CI hi', 'Core / full motif loss']})}
-<p>These are unchanged by the filter: the surroundings carry {G_mu[(G_mu.combo == cmn)].ratio_flank170_over_random170.min():.0%} to {G_mu[(G_mu.combo == cmn)].ratio_flank170_over_random170.max():.0%} of the 170&nbsp;bp mutation loss in cardiomyocyte sites in every tier, the 7&nbsp;bp core stays at about {G_ct.core7_share_of_170.min():.0%} to {G_ct.core7_share_of_170.max():.0%} of the 170&nbsp;bp shuffle effect, and a same-size shuffle 300&nbsp;bp away costs about {G_ct.offset_pm300.mean():.2f} versus {G_ct.centred_170.mean():.2f} centred. <strong>These findings do not depend on poorly predicted sites.</strong></p>
-<h3>G4. Takeaway</h3>
-<ul><li>Restricting to well-predicted sites <strong>does not weaken any main conclusion</strong>; the 170&nbsp;bp Stable-vs-Dynamic difference gets larger, the mutation decomposition and controls do not change.</li>
-<li>The filter is least informative where the earlier verdict was already weak: the motif-width difference stays null and the peak-width difference is unstable.</li>
-<li>Prediction quality is the limit for fibroblasts: only about {gr(fbp, 'C').retained_all:.0%} of sites reach tier C with Patski, and the unfiltered rho is {gr(fbp, 'A').rho_pred_vs_meas_in_tier:.2f}.</li>
-<li>For figures in a paper, report the unfiltered result and tier C beside it, with the retention table.</li></ul>
+<p>These do not change with the filter: the surroundings carry {G_mu[(G_mu.combo == cmn)].ratio_flank170_over_random170.min():.0%} to {G_mu[(G_mu.combo == cmn)].ratio_flank170_over_random170.max():.0%} of the 170&nbsp;bp mutation loss in cardiomyocyte sites in every tier, the 7&nbsp;bp core stays at about {G_ct.core7_share_of_170.min():.0%} to {G_ct.core7_share_of_170.max():.0%} of the 170&nbsp;bp shuffle effect, and a same-size shuffle 300&nbsp;bp away costs about {G_ct.offset_pm300.mean():.2f} versus {G_ct.centred_170.mean():.2f} centred.</p>
+<h3>G7. Takeaways</h3>
+<ul><li>The main results do not come from poorly predicted sites: the mutation decomposition and controls are unchanged, and Stable-vs-Dynamic at 170&nbsp;bp holds in every tier and with both floors.</li>
+<li>The filter removes mostly over-predicted Dynamic sites, so the filtered Dynamic group is the well-predicted subset. Part of the larger gap is due to the filter (G3); quote the unfiltered number as the main estimate and the filtered ones as a robustness check.</li>
+<li>Fibroblast results remain limited by prediction quality: about {gr(fbp, 'C').retained_all:.0%} of sites reach tier C with Patski, and the unfiltered correlation is {gr(fbp, 'A').rho_pred_vs_meas_in_tier:.2f}.</li></ul>
 """
 
 DESIGN = dg.design_section()

@@ -1,0 +1,31 @@
+combo,step,class,n
+"CM sites, heart ATAC",All sites,Stable,2907
+"CM sites, heart ATAC",All sites,Dynamic,772
+"CM sites, heart ATAC",Has a measured peak,Stable,2676
+"CM sites, heart ATAC",Has a measured peak,Dynamic,689
+"CM sites, heart ATAC",Above 25% floor (tier B),Stable,2080
+"CM sites, heart ATAC",Above 25% floor (tier B),Dynamic,444
+"CM sites, heart ATAC",Within 1 SD (tier C),Stable,1476
+"CM sites, heart ATAC",Within 1 SD (tier C),Dynamic,261
+"CM sites, heart ATAC",Within 0.5 SD (tier D),Stable,841
+"CM sites, heart ATAC",Within 0.5 SD (tier D),Dynamic,131
+"FB sites, heart ATAC",All sites,Stable,3838
+"FB sites, heart ATAC",All sites,Dynamic,1180
+"FB sites, heart ATAC",Has a measured peak,Stable,3536
+"FB sites, heart ATAC",Has a measured peak,Dynamic,1053
+"FB sites, heart ATAC",Above 25% floor (tier B),Stable,2756
+"FB sites, heart ATAC",Above 25% floor (tier B),Dynamic,686
+"FB sites, heart ATAC",Within 1 SD (tier C),Stable,1900
+"FB sites, heart ATAC",Within 1 SD (tier C),Dynamic,403
+"FB sites, heart ATAC",Within 0.5 SD (tier D),Stable,1044
+"FB sites, heart ATAC",Within 0.5 SD (tier D),Dynamic,209
+"FB sites, Patski ATAC",All sites,Stable,3838
+"FB sites, Patski ATAC",All sites,Dynamic,1180
+"FB sites, Patski ATAC",Has a measured peak,Stable,3536
+"FB sites, Patski ATAC",Has a measured peak,Dynamic,1053
+"FB sites, Patski ATAC",Above 25% floor (tier B),Stable,2724
+"FB sites, Patski ATAC",Above 25% floor (tier B),Dynamic,718
+"FB sites, Patski ATAC",Within 1 SD (tier C),Stable,1951
+"FB sites, Patski ATAC",Within 1 SD (tier C),Dynamic,421
+"FB sites, Patski ATAC",Within 0.5 SD (tier D),Stable,1113
+"FB sites, Patski ATAC",Within 0.5 SD (tier D),Dynamic,208
