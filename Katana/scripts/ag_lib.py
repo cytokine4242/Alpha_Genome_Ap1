@@ -305,7 +305,7 @@ class AG:
         x = self.torch.zeros((1, self.size, 4), dtype=self.torch.float32, device=self.device)
         named = self._named(x, all_heads=True)
         rows = []
-        for head, res in (("atac", 1), ("rna_seq", 128), ("dnase", 128), ("cage", 128)):
+        for head, res in (("atac", 1), ("rna_seq", 128), ("dnase", 128), ("cage", 128), ("chip_tf", 128), ("chip_histone", 128)):
             try:
                 for i, t in enumerate(getattr(named, head)[res].tracks):
                     d = t.to_dict()
