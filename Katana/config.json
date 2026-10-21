@@ -2,7 +2,7 @@
   "_notes": [
     "Edit the paths and tracksets here, nothing else needs touching. Run scripts/00_check_env.py (pbs/00_check_env.pbs) first.",
     "weights: pretrained AlphaGenome weights. A .safetensors/.pth/.pt file is accepted. CHECK this path on Katana.",
-    "tracksets: regex (case-insensitive) matched against biosample_name | ontology_curie | track_name | assay_title of the MOUSE tracks. Matching tracks are averaged. Run 00_check_env to see what exists and edit the patterns if a set matches nothing.",
+    "tracksets: {name: {head: regex}}; head = atac | dnase | rna_seq | cage. Regex (case-insensitive) is searched in 'biosample_name | ontology_curie | track_name | assay_title | life_stage | strand | biosample_type' of the MOUSE tracks; matches are averaged. Optional extras (more heads = slower): CM dnase '^heart [|].*adult', CM cage 'cardiac muscle cell', FB dnase 'fibroblast of lung', FB cage '^fibroblast [|]'.",
     "perturb.reps: random replicates per stochastic edit. Total forward passes per site = 1 + 3*reps.shuffle + 3*reps.random + 3*reps.dinuc + 2*reps.flank + 1 (core)."
   ],
   "paths": {
@@ -14,16 +14,26 @@
     "window": 131072,
     "organism_index": 1,
     "batch_size": 8,
-    "heads": ["atac", "rna_seq"],
     "device": "cuda"
   },
   "tracksets": {
-    "CM": {"atac": "heart|cardiac", "rna_seq": "heart|cardiac"},
-    "FB": {"atac": "fibroblast", "rna_seq": "fibroblast"}
+    "CM": {
+      "atac": "^heart [|]",
+      "rna_seq": "heart.*polyA.*adult"
+    },
+    "FB": {
+      "atac": "^Patski [|]",
+      "rna_seq": "embryonic fibroblast"
+    }
   },
   "perturb": {
     "seed": 1,
-    "reps": {"shuffle": 10, "random": 5, "dinuc": 5, "flank": 5},
+    "reps": {
+      "shuffle": 10,
+      "random": 5,
+      "dinuc": 5,
+      "flank": 5
+    },
     "motif_len": 11,
     "w170": 170,
     "max_peak_width": 6000,
@@ -35,7 +45,12 @@
     "trackset": "CM",
     "n_recipients": 4,
     "recipient_pool": 200,
-    "recipient_quantiles": [0.1, 0.4, 0.7, 0.95],
+    "recipient_quantiles": [
+      0.1,
+      0.4,
+      0.7,
+      0.95
+    ],
     "n_donors_stable": 50,
     "n_donors_dynamic": 25,
     "n_backgrounds": 50,

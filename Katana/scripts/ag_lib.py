@@ -277,10 +277,23 @@ def load_model(cfg):
     return model.to(device).eval(), device
 
 
-class AG:
-    """AlphaGenome mouse predictor returning averaged-track ATAC (1 bp) and RNA (128 bp) per trackset."""
+ACC_HEADS = {"atac": "atac", "dnase": "dnase"}     # accessibility, read at 1 bp; columns <prefix>_motif/_170/_peak
+EXPR_HEADS = {"rna_seq": "rna", "cage": "cage"}      # expression, read at 128 bp; columns <prefix>_prox2kb/_mean50kb/_max50kb
+TRACK_FIELDS = ("biosample_name", "ontology_curie", "track_name", "assay_title", "biosample_life_stage", "strand", "biosample_type")
 
-    def __init__(self, cfg):
+
+def track_text(row):
+    return " | ".join(str(row.get(k, "")) for k in TRACK_FIELDS)
+
+
+class AG:
+    """AlphaGenome mouse predictor: per-trackset averaged tracks. ATAC/DNase at 1 bp, RNA-seq/CAGE at 128 bp.
+
+    config tracksets: {name: {head: regex}}, head in atac / dnase / rna_seq / cage. The regex (case-insensitive) is searched in
+    "biosample_name | ontology_curie | track_name | assay_title | life_stage | strand | biosample_type".
+    Only the heads used by the tracksets are computed. strict=False reports unmatched tracksets instead of exiting."""
+
+    def __init__(self, cfg, strict=True):
         import torch
         from alphagenome_pytorch.named_outputs import TrackMetadataCatalog
         self.torch = torch
@@ -290,14 +303,14 @@ class AG:
         self.bs = cfg["model"]["batch_size"]
         self.model, self.device = load_model(cfg)
         self.model.set_track_metadata_catalog(TrackMetadataCatalog.load_builtin("mouse"))
-        self.tracksets = self._resolve_tracks()
+        self.heads = None
+        self.tracksets = self._resolve_tracks(strict)
+        self.heads = sorted({h for spec in self.tracksets.values() for h in spec}) or None
 
     def _named(self, x, all_heads=False):
-        """Named predictions. Only the heads in config model.heads are computed unless all_heads (much less memory/time)."""
         kw = {}
-        heads = None if all_heads else self.cfg["model"].get("heads")
-        if heads:
-            kw["heads"] = tuple(heads)
+        if not all_heads and self.heads:
+            kw["heads"] = tuple(self.heads)
         with self.torch.no_grad():
             return self.model.predict(x, organism_index=self.org, named_outputs=True, **kw)
 
@@ -315,58 +328,67 @@ class AG:
                 print(f"skip head {head}: {e}")
         return rows
 
-    def _resolve_tracks(self):
+    def _resolve_tracks(self, strict=True):
         rows = self.track_table()
         out = {}
         for name, spec in self.cfg["tracksets"].items():
             out[name] = {}
             for head, pat in spec.items():
+                if head not in ACC_HEADS and head not in EXPR_HEADS:
+                    raise SystemExit(f"trackset {name}: unsupported head '{head}' (use atac, dnase, rna_seq, cage)")
                 rx = re.compile(pat, re.I)
-                idx = [r["index"] for r in rows if r["head"] == head and rx.search(
-                    " | ".join(str(r.get(k, "")) for k in ("biosample_name", "ontology_curie", "track_name", "assay_title")))]
-                names = [r.get("track_name") for r in rows if r["head"] == head and r["index"] in idx]
-                print(f"trackset {name} {head}: {len(idx)} tracks {names}", flush=True)
-                if not idx:
-                    raise SystemExit(f"trackset {name}/{head}: pattern '{pat}' matches no mouse track; edit config.json "
-                                     "(see results/mouse_tracks.csv from 00_check_env)")
-                out[name][head] = idx
+                hit = [r for r in rows if r["head"] == head and rx.search(track_text(r))]
+                print(f"trackset {name} {head} /{pat}/: {len(hit)} tracks", flush=True)
+                for r in hit:
+                    print(f"    [{r['index']}] {r.get('track_name')} | {r.get('biosample_name')} | {r.get('biosample_life_stage')} | strand {r.get('strand')}", flush=True)
+                if not hit:
+                    msg = (f"trackset {name}/{head}: pattern '{pat}' matches no mouse track; edit config.json "
+                           "(see results/mouse_tracks.csv from 00_check_env)")
+                    if strict:
+                        raise SystemExit(msg)
+                    print("TRACKSET PROBLEM:", msg, flush=True)
+                    continue
+                out[name][head] = [r["index"] for r in hit]
         return out
 
     def predict(self, seqs):
-        """seqs: list of window codes. Returns list of per-sequence dicts {trackset: {'atac': (L,), 'rna': (L/128,)}}."""
+        """seqs: list of window codes -> list of {trackset: {head: 1-D array (L at 1 bp, L/128 at 128 bp)}}."""
         torch = self.torch
         res = []
         for i in range(0, len(seqs), self.bs):
             x = torch.from_numpy(np.stack([onehot(s) for s in seqs[i:i + self.bs]])).to(self.device)
             named = self._named(x)
-            atac = named.atac[1].tensor
-            rna = named.rna_seq[128].tensor
             per = {}
             for ts, spec in self.tracksets.items():
-                per[ts] = (atac[..., spec["atac"]].mean(-1).float().cpu().numpy(),
-                           rna[..., spec["rna_seq"]].mean(-1).float().cpu().numpy())
+                per[ts] = {}
+                for head, idx in spec.items():
+                    tens = getattr(named, head)[1 if head in ACC_HEADS else 128].tensor
+                    per[ts][head] = tens[..., idx].mean(-1).float().cpu().numpy()
             for b in range(x.shape[0]):
-                res.append({ts: {"atac": per[ts][0][b], "rna": per[ts][1][b]} for ts in per})
+                res.append({ts: {h: arr[b] for h, arr in per[ts].items()} for ts in per})
         return res
 
 
 def readout(pred, regions, tss_rel, cfg):
-    """Readouts for one prediction (one trackset). regions: motif / w170 / peak (a, b) and mid, window offsets."""
+    """Readouts for one prediction of one trackset. regions: motif / w170 / peak (a, b) and mid, window offsets."""
     p = cfg["perturb"]
-    atac, rna = pred["atac"], pred["rna"]
     out = {}
-    for k, key in (("atac_motif", "motif"), ("atac_170", "w170"), ("atac_peak", "peak")):
-        a, b = regions[key]
-        out[k] = float(atac[a:b].mean()) if b > a else np.nan
-    mid, loc = regions["mid"], p["local_bp"]
-    lo, hi = max(mid - loc, 0) // 128, min(mid + loc, len(rna) * 128) // 128 + 1
-    out["rna_mean50kb"] = float(rna[lo:hi].mean())
-    out["rna_max50kb"] = float(rna[lo:hi].max())
-    if tss_rel is not None and 0 <= tss_rel < len(rna) * 128:
-        t, pr = tss_rel, p["tss_prox_bp"]
-        out["rna_prox2kb"] = float(rna[max(t - pr, 0) // 128: min(t + pr, len(rna) * 128) // 128 + 1].mean())
-    else:
-        out["rna_prox2kb"] = np.nan
+    for head, arr in pred.items():
+        if head in ACC_HEADS:
+            for suffix, key in (("motif", "motif"), ("170", "w170"), ("peak", "peak")):
+                a, b = regions[key]
+                out[f"{ACC_HEADS[head]}_{suffix}"] = float(arr[a:b].mean()) if b > a else np.nan
+        else:
+            pre, n = EXPR_HEADS[head], len(arr)
+            mid, loc = regions["mid"], p["local_bp"]
+            lo, hi = max(mid - loc, 0) // 128, min(mid + loc, n * 128) // 128 + 1
+            out[f"{pre}_mean50kb"] = float(arr[lo:hi].mean())
+            out[f"{pre}_max50kb"] = float(arr[lo:hi].max())
+            if tss_rel is not None and 0 <= tss_rel < n * 128:
+                t, pr = tss_rel, p["tss_prox_bp"]
+                out[f"{pre}_prox2kb"] = float(arr[max(t - pr, 0) // 128: min(t + pr, n * 128) // 128 + 1].mean())
+            else:
+                out[f"{pre}_prox2kb"] = np.nan
     return out
 
 

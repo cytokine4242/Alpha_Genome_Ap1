@@ -30,33 +30,21 @@ def main():
     tss = L.TssIndex(cfg["paths"]["gtf"])
     print("GTF chromosomes:", len(tss.by_chrom), "| nearest TSS to chr1:7088913 ->", tss.nearest("chr1", 7088913))
 
-    from alphagenome_pytorch import AlphaGenome  # noqa: F401
-    model, device = L.load_model(cfg)
-    ag = L.AG.__new__(L.AG)
-    ag.torch, ag.cfg = torch, cfg
-    ag.size, ag.org, ag.bs = cfg["model"]["window"], cfg["model"]["organism_index"], cfg["model"]["batch_size"]
-    ag.model, ag.device = model, device
-    from alphagenome_pytorch.named_outputs import TrackMetadataCatalog
-    ag.model.set_track_metadata_catalog(TrackMetadataCatalog.load_builtin("mouse"))
+    ag = L.AG(cfg, strict=False)
+    device = ag.device
     rows = ag.track_table()
     out = L.ROOT / "results" / "mouse_tracks.csv"
     out.parent.mkdir(exist_ok=True)
-    pd.DataFrame(rows).to_csv(out, index=False)
     df = pd.DataFrame(rows)
+    df.to_csv(out, index=False)
     print(df.groupby("head").size().to_string())
-    cols = [c for c in ("head", "index", "track_name", "biosample_name", "ontology_curie", "assay_title", "strand") if c in df]
-    print(df[df["head"] == "atac"][cols].to_string(index=False))
-    print(f"all tracks written to {out}")
-
-    try:
-        ag.tracksets = ag._resolve_tracks()
-    except SystemExit as e:
-        print("TRACKSET PROBLEM:", e)
+    print(f"all {len(df)} tracks written to {out}")
+    print("heads computed in predictions:", ag.heads)
 
     x = torch.zeros((cfg["model"]["batch_size"], ag.size, 4), device=device)
     for _ in range(2):
         t0 = time.time()
-        ag._named(x)
+        ag._named(x)  # same heads as the real runs
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         dt = time.time() - t0
