@@ -29,6 +29,8 @@ def load_config(path=None):
         cfg = json.load(f)
     if os.environ.get("AG_BATCH_SIZE"):  # set by submit_all.sh (BATCH=N)
         cfg["model"]["batch_size"] = int(os.environ["AG_BATCH_SIZE"])
+    if os.environ.get("AG_WINDOW"):  # context-length sensitivity runs
+        cfg["model"]["window"] = int(os.environ["AG_WINDOW"])
     return cfg
 
 
@@ -212,8 +214,17 @@ def has_n(codes, a, b):
     return bool((codes[a:b] == 4).any())
 
 
-# conditions: (name, kind, width, reps). width in motif / 170 / peak. reps = min(reps[kind], caps[width]): large edits have
+# conditions: (name, kind, width, reps). width in motif / 170 / peak for the standard kinds. reps = min(reps[kind], caps[width]): large edits have
 # large, stable effects and need fewer replicates than motif-width edits.
+# Extra kinds, only built when named in `kinds`:
+#   offset   shuffle of a 170 bp region centred OFFSETS bp from the motif midpoint (matched control for the 170 bp shuffle)
+#   titrate  shuffle of a region centred on the motif of width TITRATE_WIDTHS (dose-response; also tests the motif-interval definition)
+#   sat      single-base substitution of every base of the 11 bp motif to each alternative base (saturation mutagenesis)
+OFFSETS = (-600, -300, 300, 600)
+TITRATE_WIDTHS = (7, 11, 21, 41, 85, 170, 340, 680)
+EXTRA_KINDS = {"offset", "titrate", "sat"}
+
+
 def build_conditions(reps, caps=None, kinds=None):
     caps = caps or {}
     conds = []
@@ -223,6 +234,14 @@ def build_conditions(reps, caps=None, kinds=None):
     conds.append(("core@motif", "core", "motif", reps.get("core", 3)))
     conds.append(("flank@motif", "flank", "motif", min(reps["flank"], caps.get("motif", 10**6))))
     conds.append(("flank@170", "flank", "170", min(reps["flank"], caps.get("170", 10**6))))
+    if kinds and (set(kinds) & EXTRA_KINDS):
+        for off in OFFSETS:
+            conds.append((f"offset@{off:+d}", "offset", str(off), reps.get("offset", 5)))
+        for w in TITRATE_WIDTHS:
+            conds.append((f"titrate@{w}", "titrate", str(w), reps.get("titrate", 5)))
+        for pos in range(11):
+            for alt in "ACGT":
+                conds.append((f"sat@{pos}{alt}", "sat", f"{pos}:{alt}", 1))
     return [c for c in conds if not kinds or c[1] in kinds]
 
 
@@ -232,6 +251,28 @@ def apply_condition(codes, regions, kind, width, rng):
         return core_edit(codes, regions["motif"], rng)[0]
     if kind == "flank":
         return flank_edit(codes, regions, width, rng)[0]
+    if kind in ("offset", "titrate"):
+        mid = regions["mid"]
+        if kind == "offset":
+            a = mid + int(width) - 85
+            b = a + 170
+        else:
+            w = int(width)
+            a = mid - w // 2
+            b = a + w
+        if a < 0 or b > len(codes) or has_n(codes, a, b):
+            return None
+        return shuffle_region(codes, a, b, rng)
+    if kind == "sat":
+        pos, alt = width.split(":")
+        m0, m1 = regions["motif"]
+        i = m0 + int(pos)
+        alt_code = "ACGT".index(alt)
+        if i >= m1 or codes[i] == alt_code or codes[i] == 4:
+            return None
+        out = codes.copy()
+        out[i] = alt_code
+        return out
     key = {"motif": "motif", "170": "w170", "peak": "peak"}[width]
     a, b = regions[key]
     if b - a < 2 or has_n(codes, a, b):

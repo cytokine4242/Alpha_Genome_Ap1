@@ -4,6 +4,12 @@
 #   bash submit_all.sh benchmark        # times batch size / 1bp decoder / heads on one GPU (GPU=L40S|A100|H100 to choose); read the log
 #   bash submit_all.sh pilot            # 30 CM sites, 30 FB sites, tiny insertion, 150 MPRA elements, with CAGE (pilot_* outputs)
 #   bash submit_all.sh validate         # native predictions only (1 pass/site) for 1000 CM + 1000 FB sites, mouse AND human tracksets -> results/validate_*
+#   Extra experiments (cardiomyocyte sites unless noted; all resumable):
+#     controls       offset (matched-control) shuffles + width titration of the shuffle     -> results/controls_*   (61 passes/site)
+#     satmut         saturation mutagenesis of the 11 bp motif (33 substitutions)           -> results/sat_*        (34 passes/site)
+#     mpra_neutral   MPRA elements inserted into neutral backgrounds                        -> results/mpra_neutral_* (22 passes/element)
+#     human_sens     shuffles with human output heads on 500 sites (config_validate.json)   -> results/human_*
+#     context        shuffles on 60 sites with 16 kb / 65 kb / 262 kb windows               -> results/ctx<window>_*
 #   bash submit_all.sh phase1           # shuffle arm on all sites (40+40 chunks) + insertion + MPRA   -> results/shuffle_*, mpra_*, insertion_*
 #   (phase1_cm | phase1_fb | phase1_other, phase2_cm | phase2_fb submit the parts separately, e.g. to spread over queues:
 #      bash submit_all.sh phase1_cm;  ACCOUNT= GPU=H200 bash submit_all.sh phase1_fb)
@@ -36,10 +42,11 @@ mkdir -p logs/pbs results
 if [ -n "$ACCOUNT" ]; then GPU=${GPU:-any}; else GPU=${GPU:-H200}; fi
 if [ "$GPU" = "any" ]; then GPU_SEL=""; else GPU_SEL=":gpu_model=$GPU"; fi
 RES="-l select=1:ncpus=6:mem=96gb:ngpus=1${GPU_SEL}"   # command-line resources override the #PBS lines in pbs/*.pbs
+if [ "$1" = context ] && [ -z "$BATCH" ]; then BATCH=2; fi
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
 O="-o $PWD/logs/pbs/${ACCOUNT:+ -A $ACCOUNT}"
-case "$1" in full|phase1*|phase2*) CFG=${CONFIG:-config.json} ;; validate) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+case "$1" in full|phase1*|phase2*|controls|satmut|mpra_neutral|context) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
 [ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
 BATCH_VAR="${BATCH_VAR},AG_CONFIG=$PWD/$CFG"
 
@@ -57,6 +64,12 @@ p1_fb()    { sub -J 0-39 -N ag_shuffle_fb "PREFIX=shuffle_,KINDS=shuffle,SITES=f
 p1_other() { sub -m ae -N ag_insertion "" pbs/12_insertion.pbs; sub -J 0-7 -N ag_mpra "NCHUNKS=8" pbs/13_mpra.pbs; }
 p2_cm()    { sub -J 0-39 -N ag_mut_cm "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
 p2_fb()    { sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs; }
+
+p3_controls() { sub -J 0-39 -N ag_controls_cm "PREFIX=controls_,KINDS=offset:titrate,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
+p3_satmut()   { sub -J 0-39 -N ag_satmut_cm "PREFIX=sat_,KINDS=sat,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
+p3_mpran()    { sub -J 0-7 -N ag_mpra_neutral "NCHUNKS=8" pbs/14_mpra_neutral.pbs; }
+p3_human()    { sub -J 0-4 -N ag_human_sens "PREFIX=human_,KINDS=shuffle,SITES=cm,NCHUNKS=5,LIMIT=100" pbs/11_perturb.pbs; }
+p3_context()  { for w in 16384 65536 262144; do sub -N ag_ctx_$w "PREFIX=ctx${w}_,KINDS=shuffle,SITES=cm,NCHUNKS=1,LIMIT=60,AG_WINDOW=$w" pbs/11_perturb.pbs; done; }
 
 echo "config=$CFG  GPU=$GPU${ACCOUNT:+  account=$ACCOUNT}${BATCH:+  batch=$BATCH}  resources: $RES"
 case "$1" in
@@ -78,6 +91,11 @@ case "$1" in
     W="-m ae -l walltime=02:00:00"
     sub $W -N ag_validate_cm "PREFIX=validate_,KINDS=native,SITES=cm,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs
     sub $W -N ag_validate_fb "PREFIX=validate_,KINDS=native,SITES=fb,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs ;;
+  controls)      p3_controls ;;
+  satmut)        p3_satmut ;;
+  mpra_neutral)  p3_mpran ;;
+  human_sens)    p3_human ;;
+  context)       p3_context ;;
   phase1)        p1_cm; p1_fb; p1_other ;;
   phase1_cm)     p1_cm ;;
   phase1_fb)     p1_fb ;;
@@ -85,5 +103,5 @@ case "$1" in
   phase2)        p2_cm; p2_fb ;;
   phase2_cm)     p2_cm ;;
   phase2_fb)     p2_fb ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|controls|satmut|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
 esac

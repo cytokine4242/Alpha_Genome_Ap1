@@ -33,7 +33,9 @@
       "random": 5,
       "dinuc": 5,
       "flank": 5,
-      "core": 3
+      "core": 3,
+      "offset": 5,
+      "titrate": 5
     },
     "motif_len": 11,
     "w170": 170,

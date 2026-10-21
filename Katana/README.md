@@ -36,6 +36,17 @@ Avoid V100 (no native bf16): with `GPU=any` check the logs and resubmit chunks t
 `qsub -o $PWD/logs/pbs/ pbs/00_check_access.pbs` (or `ACCOUNT=mwac_wonglab bash submit_all.sh check`). Read the newest `logs/*_ag_check_access_*.log`: the header lists the queue, account and GPU.
 Any submit_all.sh command accepts `ACCOUNT=mwac_wonglab` (GPU defaults to `any` when an account is given; single jobs get `-m ae`, arrays do not).
 
+## Extra experiments (all resumable, private account by default)
+| Mode | What | Passes | Output |
+|---|---|---|---|
+| `controls` | matched-control shuffles of a 170 bp region at offsets of -600/-300/+300/+600 bp from the motif, plus centred shuffles at widths 7/11/21/41/85/170/340/680 bp | 61 per site | `results/controls_cm_*` |
+| `satmut` | every base of the 11 bp motif changed to each alternative (33 substitutions) | 34 per site | `results/sat_cm_*` |
+| `mpra_neutral` | each MPRA element (native, motif-scrambled, fully scrambled; 5 shuffles each) inserted into 2 fixed neutral backgrounds | 22 per element | `results/mpra_neutral_*` |
+| `human_sens` | shuffle arm with human output heads on 500 random CM sites (`config_validate.json`) | 31 per site x 2 organisms | `results/human_cm_*` |
+| `context` | shuffle arm on 60 sites with 16 kb, 65 kb and 262 kb windows (`AG_WINDOW`) | 31 per site | `results/ctx<window>_cm_*` |
+
+`bash submit_all.sh <mode>`; preview first with `DRY=1`.
+
 ## Site labels (in every site table and output)
 Three views of the same binding calls, so ageing, exercise and their combination can be tested separately.
 YS = young sedentary, MAS = aged sedentary, MAE = aged + exercise.
