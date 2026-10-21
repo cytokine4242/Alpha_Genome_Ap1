@@ -8,6 +8,7 @@ import html
 from datetime import date
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import sys
 
@@ -254,6 +255,123 @@ PART_C = f"""
 <p>Predicted native accessibility correlates weakly but consistently with MPRA activity (rho {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f} heart, {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f} Patski), and this holds in the replicated and TOBIAS-motif subsets. <strong>The predicted effect of shuffling does not track the MPRA at all</strong> (motif shuffle {mp_.loc[('Patski ATAC', CMP_M, 'all elements'), 'rho']:+.2f}, full shuffle {mp_.loc[('Patski ATAC', CMP_F, 'all elements'), 'rho']:+.2f} with the Patski track; similar with heart). The MPRA delta is native minus shuffled, so agreement would appear as a <em>negative</em> correlation with the (negative) predicted log2FC; the confidence intervals exclude any correlation beyond about 0.06 in either direction. Possible reasons: the MPRA measures episomal enhancer activity of a 170&nbsp;bp fragment, while the model predicts chromatin accessibility of the same sequence in its genomic context; the MPRA effects are small and noisy; and the fibroblast tracks are weak proxies. <strong>Implication:</strong> accessibility predicted by AlphaGenome should not be used as a proxy for the MPRA effect of disrupting an element.</p>
 """
 
+# ======================= Part D: overnight experiments =======================
+OVD = AN / "overnight"
+ovr = lambda n: pd.read_csv(OVD / "tables" / n)
+
+
+def oimg(name, alt, width="100%"):
+    return img(OVD / "figures" / f"{name}.png", alt, width)
+
+
+D1_co, D1_med, D1_sv, D1_fr = ovr("d1_centred_vs_offset.csv"), ovr("d1_titration_medians.csv"), ovr("d1_titration_stable_vs_dynamic.csv"), ovr("d1_fraction_of_170.csv")
+D2m, D2b = ovr("d2_mutation_dependency.csv"), ovr("d2b_decomposition.csv")
+D3rep, D3adj, D3cl, D3nv = ovr("d3_replication_stable_vs_dynamic.csv"), ovr("d3_adjusted_stable_vs_dynamic.csv"), ovr("d3_fb_class_effects.csv"), ovr("d3_fb_native_vs_measured.csv")
+D4 = ovr("d4_mpra_context_comparison.csv")
+co_ = D1_co.set_index("class")
+fr_ = D1_fr.set_index("shuffle_width_bp").fraction_of_170bp_effect
+sv_ = D1_sv.set_index("width")
+CMS, FBS = "Cardiomyocyte sites, heart ATAC", "Fibroblast sites, Patski ATAC"
+
+
+def dep(site, edit, cls):
+    r = D2m[(D2m.sites == site) & (D2m.edit == edit) & (D2m["class"] == cls)]
+    return float(r.mean_dependency.iloc[0])
+
+
+def depq(site, edit):
+    return float(D2m[(D2m.sites == site) & (D2m.edit == edit) & (D2m["class"] == "Stable-vs-Dynamic FDR")].mean_dependency.iloc[0])
+
+
+def dec(panel, edit, site):
+    return float(D2b[(D2b.panel == panel) & (D2b.edit == edit) & (D2b.sites == site)].mean_dependency_stable.iloc[0])
+
+
+rep = D3rep.set_index(["combo", "width"])
+adj_ = D3adj.set_index(["combo", "width"])
+nvf = D3nv.set_index(["track", "readout"]).rho
+mc_ = D4.set_index(["track", "context", "comparison"])
+ratio_cm170 = dec("170", "flank@170", "CM, heart ATAC") / dec("170", "random@170", "CM, heart ATAC")
+ratio_fb170 = dec("170", "flank@170", "FB, Patski ATAC") / dec("170", "random@170", "FB, Patski ATAC")
+ratio_cmcore = dec("motif", "core@motif", "CM, heart ATAC") / dec("motif", "random@motif", "CM, heart ATAC")
+ratio_fbcore = dec("motif", "core@motif", "FB, Patski ATAC") / dec("motif", "random@motif", "FB, Patski ATAC")
+
+# tables
+tt = D1_med[D1_med.readout == "motif"].pivot(index="shuffle_width_bp", columns="class", values="median").reset_index()
+tt["fraction of the 170 bp effect (Stable)"] = tt.shuffle_width_bp.map(fr_)
+tt["Dyn - Stable"] = tt.shuffle_width_bp.map(sv_.diff_dyn_minus_stable)
+tt["sig."] = tt.shuffle_width_bp.map(sv_.sig)
+tt = tt[["shuffle_width_bp", "Stable", "Dynamic", "fraction of the 170 bp effect (Stable)", "Dyn - Stable", "sig."]]
+tt.columns = ["Shuffle width (bp)", "Stable median", "Dynamic median", "Share of the 170 bp effect (Stable)", "Dyn - Stable", "sig."]
+co_tab = D1_co.copy()
+co_tab["paired_wilcoxon_p"] = co_tab.paired_wilcoxon_p.map(lambda v: "< 1e-10" if v < 1e-10 else f"{v:.1e}")
+co_tab.columns = ["Class", "n", "Centred 170 bp (median)", "Offset +-300 bp (median)", "Sites where centred is more negative", "Paired Wilcoxon p"]
+mut_rows = []
+for e in ("random@motif", "dinuc@motif", "core@motif", "flank@motif", "random@170", "dinuc@170", "flank@170", "random@peak", "dinuc@peak"):
+    mut_rows.append({"Edit": e.replace("@", " @ "), "CM Stable": dep(CMS, e, "Stable"), "CM Dynamic": dep(CMS, e, "Dynamic"), "CM sig.": stars(depq(CMS, e)),
+                     "FB Stable": dep(FBS, e, "Stable"), "FB Dynamic": dep(FBS, e, "Dynamic"), "FB sig.": stars(depq(FBS, e)),
+                     "Slides (Stable)": {"random@motif": 0.47, "dinuc@motif": 0.29, "core@motif": 1.18}.get(e, np.nan)})
+mut_tab = pd.DataFrame(mut_rows)
+rep_tab = []
+for combo in ("CM sites, heart ATAC", "CM sites, Patski ATAC", "FB sites, heart ATAC", "FB sites, Patski ATAC"):
+    for w in ("motif", "170", "peak"):
+        r_, a_ = rep.loc[(combo, w)], adj_.loc[(combo, w)]
+        rep_tab.append({"Sites, track": combo, "Shuffle": W[w], "Raw Dyn - Stable": r_.diff_dyn_minus_stable, "Raw CI lo": r_.ci_lo, "Raw CI hi": r_.ci_hi, "raw sig.": r_.sig,
+                        "Adjusted": a_.adj_diff, "Adj. CI lo": a_.adj_lo, "Adj. CI hi": a_.adj_hi, "adj. sig.": a_.sig})
+rep_tab = pd.DataFrame(rep_tab)
+nvf_tab = D3nv.copy()
+nvf_tab.columns = ["Track", "Readout", "Spearman rho", "CI lo", "CI hi", "n"]
+D4_tab = D4.copy()
+D4_tab["p"] = D4_tab.p.map(lambda v: "< 1e-10" if v < 1e-10 else f"{v:.2g}")
+D4_tab.columns = ["Track", "Context", "Comparison", "Spearman rho", "CI lo", "CI hi", "p", "n"]
+n_cl_sig170 = int(((D3cl.width == "170") & (D3cl.fdr < 0.001) & D3cl.fdr.notna()).sum())
+n_cl_170 = int(((D3cl.width == "170") & D3cl.fdr.notna()).sum())
+dg7, dg8, dg9 = dg.part_d_diagrams()
+
+PART_D = f"""
+<h2 id="partD">Part D. Overnight experiments: controls, mutation arm, fibroblast sites, neutral-context MPRA</h2>
+<p>These runs answer questions raised by Parts B and C: is the 170&nbsp;bp effect specific to the AP-1 site, how does it scale with the shuffled width, what carries it in a mutation experiment, does the Stable-vs-Dynamic result hold in fibroblast sites, and was the MPRA mismatch caused by genomic context? Designs first, then results.</p>
+
+<h3>D1. Is the loss specific to the AP-1 site, and how does it scale with width?</h3>
+{dg7}
+<figure>{oimg('d1_controls_titration', 'Controls and width titration')}<figcaption>Left: effect on the motif readout when a 170 bp region is shuffled at different positions (median with 95% CI). Right: dose-response of the effect (log2FC) on the motif (thick) and, thinner, the 170 bp and peak readouts as the centred shuffle widens. Marks: Stable vs Dynamic (Mann&ndash;Whitney, BH-corrected), motif readout.</figcaption></figure>
+{table(co_tab, {'Centred 170 bp (median)': '{:.2f}', 'Offset +-300 bp (median)': '{:.2f}', 'Sites where centred is more negative': '{:.0%}'})}
+{table(tt, {'Stable median': '{:.2f}', 'Dynamic median': '{:.2f}', 'Share of the 170 bp effect (Stable)': '{:.0%}', 'Dyn - Stable': '{:+.2f}'})}
+<p><strong>The effect is specific to the site's neighbourhood.</strong> Shuffling the centred 170&nbsp;bp costs {co_.loc['Stable', 'centred_170_median']:.2f} log2 units at the motif in Stable sites, while the same-size region 300&nbsp;bp away costs only {co_.loc['Stable', 'offset_pm300_median']:.2f}; the centred shuffle is more damaging at {co_.loc['Stable', 'share_centred_more_negative']:.0%} of Stable and {co_.loc['Dynamic', 'share_centred_more_negative']:.0%} of Dynamic sites (paired Wilcoxon, p &lt; 1e-10). <strong>It grows smoothly with width and levels off near 340&nbsp;bp:</strong> the 7&nbsp;bp core alone gives {fr_.loc[7]:.0%} of the 170&nbsp;bp effect, the whole 11&nbsp;bp motif {fr_.loc[11]:.0%}, 85&nbsp;bp {fr_.loc[85]:.0%}, and 340&nbsp;bp {fr_.loc[340]:.0%}. The Stable&ndash;Dynamic gap is small at the core ({sv_.loc[7, 'diff_dyn_minus_stable']:+.2f}) and builds to {sv_.loc[340, 'diff_dyn_minus_stable']:+.2f} by 340&nbsp;bp, so it comes from the surrounding sequence, not the core.</p>
+<p><strong>It also settles one open question.</strong> The slides' motif shuffle gives about &minus;0.12 on the motif readout; here even a 7&nbsp;bp shuffle gives {D1_med[(D1_med.readout == 'motif') & (D1_med['class'] == 'Stable') & (D1_med.shuffle_width_bp == 7)]['median'].iloc[0]:.2f}. So the width of the shuffled region does <em>not</em> explain why our motif effect is larger than on the slides; the site set and readout definitions remain the candidates. <strong>Trust:</strong> robust (large effects, paired design, consistent in both classes).</p>
+
+<h3>D2. Mutation arm: what carries the dependence?</h3>
+{dg8}
+<figure>{oimg('d2_mutation_arm', 'Mutation arm dependency')}<figcaption>Dependency (&minus;log2FC) for each edit, read out over the region it edits; Stable vs Dynamic with 95% CI. Top: cardiomyocyte sites (heart ATAC); bottom: fibroblast sites (Patski ATAC). Diamonds: the slides' Stable values for the three edits they report.</figcaption></figure>
+<figure>{oimg('d2b_what_carries_dependence', 'What carries the dependence', '860px')}<figcaption>Stable sites. Left: within the motif, the 7&nbsp;bp core carries the whole effect of mutating all 11 bases. Right: mutating the 170&nbsp;bp while leaving the motif intact reproduces most of the loss from mutating everything.</figcaption></figure>
+{table(mut_tab, {c: '{:.2f}' for c in ['CM Stable', 'CM Dynamic', 'FB Stable', 'FB Dynamic', 'Slides (Stable)']})}
+<p><strong>The surroundings, not the motif, carry the dependence.</strong> Mutating the 170&nbsp;bp but keeping the motif intact costs {ratio_cm170:.0%} of the loss from mutating everything in cardiomyocyte sites ({dec('170', 'flank@170', 'CM, heart ATAC'):.2f} vs {dec('170', 'random@170', 'CM, heart ATAC'):.2f}) and {ratio_fb170:.0%} in fibroblast sites. Within the motif, the 7&nbsp;bp core accounts for essentially all of it ({ratio_cmcore:.0%} CM, {ratio_fbcore:.0%} FB). At the 170&nbsp;bp and peak widths every edit is significantly more damaging in Stable than Dynamic sites (FDR &lt; 0.001), in both site sets; at motif width the classes barely differ ({', '.join(f'{e.split(chr(64))[0]} {stars(depq(CMS, e))}' for e in ('random@motif', 'dinuc@motif', 'core@motif', 'flank@motif'))} in CM; all ns in FB).</p>
+<p><strong>Compared with the slides.</strong> Random and dinucleotide edits of the motif are somewhat larger here (random {dep(CMS, 'random@motif', 'Stable'):.2f} vs 0.47, dinucleotide {dep(CMS, 'dinuc@motif', 'Stable'):.2f} vs 0.29); the core edit is smaller ({dep(CMS, 'core@motif', 'Stable'):.2f} vs 1.18). Our core edit is a random substitution of the 7 bases with no AP-1 half-site left (3 draws per site), not a targeted edit, so its size depends on that design. <strong>Trust:</strong> the decomposition and the class pattern are robust; the match with the slides is only approximate.</p>
+
+<h3>D3. Fibroblast sites: does the Stable-vs-Dynamic result replicate?</h3>
+<figure>{oimg('d3a_fb_heatmaps', 'Fibroblast shuffle heatmaps')}<figcaption>Fibroblast sites (5,018): median shuffle effect on each readout with the Patski ATAC track. Marks on the Dynamic panel: Mann&ndash;Whitney vs Stable, BH over the 9 cells.</figcaption></figure>
+<figure>{oimg('d3b_replication_forest', 'Replication across site sets and tracks')}<figcaption>Dynamic minus Stable (median effect, 95% CI) for cardiomyocyte and fibroblast sites, each with the heart and the Patski track. Positive = Dynamic loses less.</figcaption></figure>
+{table(rep_tab, {c: '{:+.2f}' for c in ['Raw Dyn - Stable', 'Raw CI lo', 'Raw CI hi', 'Adjusted', 'Adj. CI lo', 'Adj. CI hi']})}
+<p><strong>Yes, in direction.</strong> At the 170&nbsp;bp shuffle Stable sites lose more than Dynamic sites in all four combinations (raw FDR &lt; 0.001): CM sites {rep.loc[('CM sites, heart ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} (heart) and {rep.loc[('CM sites, Patski ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} (Patski), FB sites {rep.loc[('FB sites, heart ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} and {rep.loc[('FB sites, Patski ATAC', '170'), 'diff_dyn_minus_stable']:+.2f}. As in cardiomyocyte sites, the motif-width shuffle does not separate the classes, and the peak-width difference is smaller. <strong>The size is track-dependent, though.</strong> After adjusting for native accessibility and peak width, the 170&nbsp;bp gap stays large with the heart track ({adj_.loc[('CM sites, heart ATAC', '170'), 'adj_diff']:+.2f} CM sites, {adj_.loc[('FB sites, heart ATAC', '170'), 'adj_diff']:+.2f} FB sites) but shrinks to {adj_.loc[('CM sites, Patski ATAC', '170'), 'adj_diff']:+.2f} and {adj_.loc[('FB sites, Patski ATAC', '170'), 'adj_diff']:+.2f} with the Patski track (still FDR &lt; 0.01); the peak-width gap disappears after adjustment in 3 of 4 combinations. So with the fibroblast-like track much of the raw difference reflects accessibility and peak width, with a small residual.</p>
+<figure>{oimg('d3c_fb_class_effects', 'Class effects in fibroblast sites')}<figcaption>Fibroblast sites, Patski track: effect per class with the matched readout (95% CI); blue = Stable reference, marks = Mann&ndash;Whitney vs reference, BH within each family.</figcaption></figure>
+<p>In fibroblast sites {n_cl_sig170} of {n_cl_170} class comparisons at the 170&nbsp;bp shuffle are significant at FDR &lt; 0.001: every dynamic class loses less than Stable, as in cardiomyocytes. I did not test dynamic classes against each other in fibroblast sites. <strong>Prediction quality for these sites is weak:</strong> predicted vs measured fibroblast accessibility is {nvf.loc[('Patski ATAC', 'atac_peak')]:.2f} with Patski and {nvf.loc[('heart ATAC', 'atac_peak')]:.2f} with the heart track (peak readout, n = 4,589), so the fibroblast numbers should be read as indicative. <strong>Trust:</strong> direction robust; magnitude depends on track and is partly explained by accessibility and width.</p>
+{table(nvf_tab, {'Spearman rho': '{:.2f}', 'CI lo': '{:.2f}', 'CI hi': '{:.2f}'})}
+
+<h3>D4. Does placing MPRA elements in a neutral context restore agreement?</h3>
+{dg9}
+<figure>{oimg('d4_mpra_context', 'MPRA genomic vs neutral context')}<figcaption>Spearman correlation between predicted accessibility and the MPRA (95% CI) for the native level (left) and the effect of scrambling the motif (middle) or the whole element (right). Blue circles: element in its genomic window; green squares: element in a neutral window.</figcaption></figure>
+{table(D4_tab, {'Spearman rho': '{:+.3f}', 'CI lo': '{:+.3f}', 'CI hi': '{:+.3f}'})}
+<p>Neutral-context native accessibility correlates with MPRA activity about as before (heart {mc_.loc[('heart ATAC', 'neutral context', 'native level vs MPRA activity'), 'rho']:+.2f} vs {mc_.loc[('heart ATAC', 'genomic context', 'native level vs MPRA activity'), 'rho']:+.2f} in genomic context; Patski {mc_.loc[('Patski ATAC', 'neutral context', 'native level vs MPRA activity'), 'rho']:+.2f} vs {mc_.loc[('Patski ATAC', 'genomic context', 'native level vs MPRA activity'), 'rho']:+.2f}), and the predicted effects of scrambling still do not track the MPRA changes (all |rho| &le; {D4[D4.comparison != 'native level vs MPRA activity'].rho.abs().max():.2f}, intervals including 0). <strong>Genomic context is therefore not the reason</strong> the native accessibility head fails to predict the MPRA changes. This is consistent with the manuscript's choice to train a probe directly on the MPRA instead of using the native head. <strong>Trust:</strong> a clear null with tight intervals; it applies to the native ATAC head, not to the manuscript's MPRA-trained model.</p>
+
+<h3>D5. What the overnight runs add</h3>
+<ul>
+<li>The loss of accessibility after a shuffle is <strong>specific to the AP-1 neighbourhood</strong> (same-size shuffles 300&nbsp;bp away do almost nothing) and <strong>saturates around 340&nbsp;bp</strong>.</li>
+<li>The <strong>7&nbsp;bp core alone gives about a quarter</strong> of the 170&nbsp;bp effect, and the <strong>surroundings carry most of what mutating 170&nbsp;bp does</strong> even when the motif is left intact.</li>
+<li>The <strong>Stable-vs-Dynamic difference replicates in fibroblast sites</strong> (all combinations of site set and track at 170&nbsp;bp), with a smaller adjusted size for the fibroblast-like track.</li>
+<li><strong>Motif width does not explain the larger motif effect</strong> compared with the slides; <strong>genomic context does not explain the MPRA mismatch</strong>.</li>
+</ul>
+"""
+
 DESIGN = dg.design_section()
 
 claims = [
@@ -284,7 +402,6 @@ claims = [
      "Caveat: only 4 recipients, so the 292 pairs are not independent (about 73 independent donors)."),
     ("Inserting an AP-1 motif into a shuffled random background raises accessibility", "bad",
      f"+{mi('atac_motif', '+motif vs shuffled background').median_log2fc:.2f} log2FC at the centre (p = {mi('atac_motif', '+motif vs shuffled background').wilcoxon_p:.2f}); background ATAC is near zero, so the readout is at the floor. No usable signal."),
-    ("Fibroblast-site results", "na", "Fibroblast-site shuffles are not finished at the time of this report (the MPRA comparison is in C7). The fibroblast tracks available in the mouse model (Patski, embryonic fibroblast RNA) validated weakly against measured accessibility."),
 ]
 
 stv = A[A.trackset == "CM"].copy()
@@ -356,11 +473,26 @@ claims += [
      f"Chunk results are indistinguishable across L40S, A100 and H100 (Kruskal-Wallis p {q8.kruskal_p_across_gpus.min():.2f} to {q8.kruskal_p_across_gpus.max():.2f}). Averaging 5 vs 10 replicates changes a site's effect by about {q7.loc[('170', 5)]:.2f} (170 bp), {q7.loc[('motif', 5)]:.2f} (motif) and {q7.loc[('peak', 5)]:.2f} (peak)."),
 ]
 
+claims += [
+    ("The loss after a 170 bp shuffle is specific to the AP-1 neighbourhood, not a generic effect of shuffling 170 bp of the peak", "ok",
+     f"Centred shuffle {co_.loc['Stable', 'centred_170_median']:.2f} vs {co_.loc['Stable', 'offset_pm300_median']:.2f} for the same-size region 300 bp away (Stable); the centred shuffle is worse at {co_.loc['Stable', 'share_centred_more_negative']:.0%} (Stable) and {co_.loc['Dynamic', 'share_centred_more_negative']:.0%} (Dynamic) of sites, paired Wilcoxon p &lt; 1e-10."),
+    ("The effect grows smoothly with the shuffled width and saturates near 340 bp; the 7 bp core alone gives about a quarter", "ok",
+     f"Share of the 170 bp effect: 7 bp {fr_.loc[7]:.0%}, 11 bp {fr_.loc[11]:.0%}, 85 bp {fr_.loc[85]:.0%}, 340 bp {fr_.loc[340]:.0%} (Stable, motif readout)."),
+    ("The surroundings, not the motif, carry the sequence dependence (mutation arm)", "ok",
+     f"170 bp mutated with the motif intact = {ratio_cm170:.0%} (CM) and {ratio_fb170:.0%} (FB) of the loss from mutating everything; within the motif the 7 bp core = {ratio_cmcore:.0%} (CM) and {ratio_fbcore:.0%} (FB) of the 11 bp loss."),
+    ("The width of the shuffled motif explains the larger motif effect than on the slides", "bad",
+     f"Even a 7 bp shuffle gives {D1_med[(D1_med.readout == 'motif') & (D1_med['class'] == 'Stable') & (D1_med.shuffle_width_bp == 7)]['median'].iloc[0]:.2f} on the motif readout, against about -0.12 on the slides; the site set and readout definition remain unresolved."),
+    ("Stable sites depend more on their 170 bp context than Dynamic sites also in fibroblast sites and with the fibroblast-like (Patski) track", "ok",
+     f"Raw difference at 170 bp: CM sites {rep.loc[('CM sites, Patski ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} / FB sites {rep.loc[('FB sites, Patski ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} with Patski, {rep.loc[('FB sites, heart ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} (FB sites, heart); all FDR &lt; 0.001. After adjusting for native accessibility and peak width the Patski gaps shrink to {adj_.loc[('CM sites, Patski ATAC', '170'), 'adj_diff']:+.2f} and {adj_.loc[('FB sites, Patski ATAC', '170'), 'adj_diff']:+.2f} (still FDR &lt; 0.01)."),
+    ("Placing MPRA elements in a neutral genomic context makes the native accessibility head agree with the MPRA changes", "bad",
+     f"No change: shuffle-effect correlations stay at about 0 (|rho| &le; {D4[D4.comparison != 'native level vs MPRA activity'].rho.abs().max():.2f}); native levels correlate {mc_.loc[('heart ATAC', 'neutral context', 'native level vs MPRA activity'), 'rho']:+.2f} (heart) and {mc_.loc[('Patski ATAC', 'neutral context', 'native level vs MPRA activity'), 'rho']:+.2f} (Patski) in the neutral context."),
+]
+
 claims_html = "".join(f"<tr><td class='v'>{c}</td><td>{badge(k)}</td><td class='v'>{ev}</td></tr>" for c, k, ev in claims)
 
 body = f"""
-<h1>AlphaGenome in-silico shuffling of AP-1 (Fos) sites: cardiomyocyte arm</h1>
-<p class="sub">Generated {date.today():%d %b %Y} &middot; {int(m.loc['170', 'n_stable'] + m.loc['170', 'n_dynamic']):,} cardiomyocyte Fos sites, 10 shuffle replicates per width &middot; mouse heart ATAC track &middot; fibroblast arm and MPRA still running</p>
+<h1>AlphaGenome in-silico perturbation of AP-1 (Fos) sites: cardiomyocyte and fibroblast sites</h1>
+<p class="sub">Generated {date.today():%d %b %Y} &middot; {int(m.loc['170', 'n_stable'] + m.loc['170', 'n_dynamic']):,} cardiomyocyte Fos sites, 10 shuffle replicates per width &middot; mouse heart and Patski ATAC tracks &middot; shuffle, mutation, insertion, control and MPRA experiments</p>
 
 <div class="box"><strong>Main takeaways</strong><ul>
 <li><strong>What is solid.</strong> Shuffling the 170&nbsp;bp around an AP-1 site removes far more predicted accessibility (median log2FC {m.loc['170', 'median_stable']:.2f} in Stable sites) than shuffling the 11&nbsp;bp motif alone ({m.loc['motif', 'median_stable']:.2f}). This holds for essentially every site and is well above replicate noise.</li>
@@ -368,6 +500,7 @@ body = f"""
 <li><strong>Age vs exercise vs combination.</strong> All dynamic classes behave alike. Comparing classes with each other (Age Up vs Down, Exercise Up vs Down) finds no differences at 170&nbsp;bp or peak level. What separates classes is being stably bound or not, not the direction of change.</li>
 <li><strong>What is noise or unusable.</strong> RNA effects are about zero; AP-1 motif insertion into random backgrounds is at the floor; per-site peak-shuffle values scatter widely (replicate SD about {D.set_index('shuffle').loc['peak', 'median_replicate_sd']:.1f}) and are only trustworthy in aggregate.</li>
 <li><strong>New in this version.</strong> Data QC (Part A) shows the class labels are directionally real in independent snATAC, the model reproduces the slides' Dynamic-site values, shuffles behave as intended, 10 replicates are justified and GPU type does not matter. Further analyses (Part C) show that dependence on the 170&nbsp;bp context grows with distance from a TSS and with TOBIAS footprint strength, that sites rarely depend on the motif alone, that two motifs in one peak do not buffer each other, and that AlphaGenome's predicted shuffle effects do <em>not</em> track the fibroblast MPRA (rho &asymp; 0).</li>
+<li><strong>Overnight experiments (Part D).</strong> Same-size shuffles 300&nbsp;bp away do almost nothing, so the loss is specific to the AP-1 neighbourhood; it saturates near 340&nbsp;bp, the 7&nbsp;bp core alone gives about a quarter, and in a mutation experiment the surroundings carry most of the effect even with the motif intact. The Stable-vs-Dynamic difference replicates in fibroblast sites (smaller after adjustment with the fibroblast-like track), and a neutral genomic context does not rescue the failure to predict the MPRA.</li>
 <li><strong>Caveat on the slides.</strong> Our Dynamic-site native accessibility matches the slides closely, which suggests the pipeline reproduces the API, but our Stable-site set differs from the slides' (we could not reproduce their site counts). Absolute numbers should not be compared directly with the slides until the site set is resolved.</li></ul></div>
 
 <h2>How to read this report</h2>
@@ -441,14 +574,15 @@ body = f"""
 <p><strong>Trust:</strong> no usable signal. Background accessibility is near zero, so any ratio is dominated by the floor, and the 7&nbsp;bp readout differences are not significant. The slides reported a similarly small effect.</p>
 
 {PART_C}
-<h2>D. What to trust</h2>
+{PART_D}
+<h2>E. What to trust</h2>
 <table class="t"><tr><th>Claim</th><th>Verdict</th><th>Evidence</th></tr>{claims_html}</table>
 
-<h2>E. Open issues and next steps</h2>
+<h2>F. Open issues and next steps</h2>
 <ul>
 <li><strong>Site set vs the slides.</strong> The TOBIAS table gives 3,679 CM Fos sites (2,907 Stable), not the slides' 2,663 (2,320 Stable). Our Dynamic native accessibility matches the slides, but our Stable sites are about half as accessible on average, and keeping our top 80% by predicted accessibility does not close the gap. The slides' Stable sites are a different set. Until the original selection is known, compare patterns, not absolute values.</li>
 <li><strong>Model equivalence.</strong> The slides were made with the AlphaGenome API; this run uses the PyTorch port with the same family of weights. The Dynamic-site match supports equivalence, but a direct check on the same sites through the API would settle it.</li>
-<li><strong>Status of the runs.</strong> The cardiomyocyte shuffle arm, the insertion jobs and the MPRA run are complete; the fibroblast-site shuffle array is still queued (nothing running yet), and the mutation arm (random, dinucleotide, core and flank edits) has not been run.</li>
+<li><strong>Status of the runs.</strong> Done: shuffle, mutation, insertion, control/titration (cardiomyocyte sites only), neutral-context MPRA, and shuffle and mutation arms on fibroblast sites. Not run yet: saturation mutagenesis of the motif, the human-head sensitivity check and the window-length check (all coded, resumable).</li>
 <li><strong>Fibroblasts.</strong> The mouse model has no fibroblast ATAC; Patski and embryonic-fibroblast RNA are weak proxies. The fibroblast shuffle run and the MPRA comparison will be added when they finish.</li>
 <li><strong>Motif-width effect is larger than in the slides</strong> (about -0.6 vs -0.12). Candidate causes are the motif interval used (here the 11&nbsp;bp TOBIAS interval for both the shuffle and the readout) and the different Stable set; worth confirming the slides' definition.</li></ul>
 

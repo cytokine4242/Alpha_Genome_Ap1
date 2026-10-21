@@ -145,7 +145,7 @@ def d3_experiments():
 
     # card 1: shuffle
     x, y = 20, 20
-    s.append(card(x, y, 470, 250, "1  Shuffle arm", "done (CM)", GREEN))
+    s.append(card(x, y, 470, 250, "1  Shuffle arm", "done (CM, FB)", GREEN))
     s.append(T(x + 14, y + 52, "CHANGE", 11, weight="bold", op=0.7))
     s.append(T(x + 14, y + 74, "native", 11.5)); s.append(seqbar(x + 115, y + 63, 335, BLUE))
     for i, (nm, seg) in enumerate((("motif", (165, 4)), ("170 bp", (148, 38)), ("peak", (70, 190)))):
@@ -156,7 +156,7 @@ def d3_experiments():
     s.append(TT(x + 14, y + 216, ["predicted ATAC over the shuffled region (and RNA near the TSS);", "effect = log2(shuffled / native), averaged over the 10 shuffles"], 11.5, "start", lh=15))
     # card 2: mutation
     x, y = 510, 20
-    s.append(card(x, y, 470, 250, "2  Mutation arm", "not run yet", "#9a9993"))
+    s.append(card(x, y, 470, 250, "2  Mutation arm", "done (CM, FB)", GREEN))
     s.append(T(x + 14, y + 52, "CHANGE", 11, weight="bold", op=0.7))
     rows = (("random", "every base replaced by a different one", (0, 360)), ("dinucleotide", "order shuffled, dinucleotides kept", (160, 40)),
             ("core", "TGA[C/G]TCA 7 bp disrupted", (178, 4)), ("flanks", "motif kept, flanking bases mutated", (160, 40)))
@@ -166,7 +166,7 @@ def d3_experiments():
         s.append(T(x + 262, yy + 11, desc, 11, op=0.9))
     s.append(T(x + 14, y + 184, "each edit is applied to the motif, the 170 bp or the peak region", 11, op=0.85))
     s.append(T(x + 14, y + 204, "MEASURED", 11, weight="bold", op=0.7))
-    s.append(TT(x + 14, y + 222, ["same as the shuffle arm; reported as dependency = -log2FC", "(planned: random 5x, dinucleotide 5x, core 3x, flank 5x per site)"], 11.5, "start", lh=15))
+    s.append(TT(x + 14, y + 222, ["same as the shuffle arm; reported as dependency = -log2FC", "(random 5x, dinucleotide 5x, core 3x, flank 5x per site)"], 11.5, "start", lh=15))
     # card 3: insertion
     x, y = 20, 290
     s.append(card(x, y, 470, 290, "3  Insertion experiments", "done (CM)", GREEN))
@@ -194,7 +194,7 @@ def d3_experiments():
     s.append(R(x + 14, y + 212, 442, 62, "currentColor", "none", 0, 1.3, rx=8))
     s.append(TT(x + 235, y + 232, ["compare per element: MPRA change (native - scrambled)", "vs predicted accessibility change; and native vs native", "Spearman rho: about 0 for the changes, 0.2 for native levels"], 11.5, lh=15))
     return fig("".join(s), 1000, 600, "a3", "The four experiments: what each one changes and what it measures",
-               "What each experiment edits and what is read out. Orange marks the edited sequence, blue the unedited one, green the measured MPRA data. Shuffles and insertions have been run on cardiomyocyte sites; the mutation arm is planned.")
+               "What each experiment edits and what is read out. Orange marks the edited sequence, blue the unedited one, green the measured MPRA data. All four have been run; the shuffle and mutation arms cover cardiomyocyte and fibroblast sites.")
 
 
 # ---------------------------------------------------------------- D4: classes
@@ -273,6 +273,91 @@ def d6_evidence():
     s.append(TT(500, 340, ["Lines = comparisons between two things.", "Arrows = one thing computed from / defining another.", "Dashed = the two ends are not independent."], 11.5, "start", lh=16, op=0.85))
     return fig("".join(s), 980, 450, "a6", "Which data sources support which comparisons",
                "Evidence map. Lines are comparisons between a prediction and a measurement (or between two measurements); arrows show what is computed from what. Footprint calls come from the same ATAC data used as the accessibility check, so footprint-score analyses (C4) are partly circular.")
+
+
+# ---------------------------------------------------------------- D7: controls + titration
+def d7_controls():
+    s = []
+    cx, sc = 490, 0.5  # 0.5 px per bp
+    s.append(T(20, 22, "Where the shuffled region sits, relative to the motif (to scale, +-800 bp shown)", 12.5, weight="bold"))
+    s.append(R(cx - 422 / 1.0, 40, 844, 22, "currentColor", "currentColor", 0.04, 1.2, rx=3))
+    s.append(T(cx - 200, 56, "snATAC peak (median 0.85 kb)", 11.5, "middle", op=0.8))
+    s.append(R(cx - 3, 36, 6, 30, ORANGE, ORANGE, 0.9, 1, rx=1)); s.append(T(cx, 80, "motif", 11.5, "middle", fill=ORANGE, weight="bold"))
+    for off, lab in ((-600, "-600"), (-300, "-300"), (300, "+300"), (600, "+600")):
+        x = cx + off * sc - 42.5
+        s.append(R(x, 96, 85, 22, "currentColor", "currentColor", 0.12, 1.4, rx=3)); s.append(T(x + 42.5, 111, lab, 11.5, "middle"))
+    s.append(R(cx - 42.5, 96, 85, 22, ORANGE, ORANGE, 0.35, 1.8, rx=3)); s.append(T(cx, 111, "centred", 11.5, "middle", weight="bold"))
+    s.append(T(20, 111, "170 bp shuffles", 12, weight="bold"))
+    s.append(TT(20, 136, ["Control question: is the loss specific to the AP-1 site, or does shuffling ANY 170 bp of the peak do this?", "Each is read out as ATAC at the motif; centred = the standard 170 bp shuffle, the others are matched-size controls (5 shuffles each)."], 11.5, "start", lh=15, op=0.9))
+    s.append(T(20, 190, "Width titration: centred shuffles of increasing width", 12.5, weight="bold"))
+    widths = (7, 11, 21, 41, 85, 170, 340, 680)
+    for i, w in enumerate(widths):
+        y = 204 + i * 20
+        bw = max(w * sc, 3)
+        s.append(R(cx - bw / 2, y, bw, 14, ORANGE, ORANGE, 0.15 + 0.07 * i, 1.4, rx=2))
+        s.append(T(cx + bw / 2 + 8, y + 12, f"{w} bp" + ("  (core only)" if w == 7 else "  (whole motif)" if w == 11 else "  (the standard shuffle)" if w == 170 else ""), 11.5))
+    s.append(R(cx - 3, 200, 6, 168, ORANGE, "none", 0, 0, rx=0)); s.append(L(cx, 196, cx, 366, ORANGE, 1, dash="3 3"))
+    s.append(TT(20, 236, ["Question: how does the loss grow", "with the shuffled width, and", "how much does the core alone", "account for?", "", "Each width is read out as ATAC", "at the motif, the 170 bp and", "the peak; 5 shuffles each."], 11.5, "start", lh=15, op=0.9))
+    return fig("".join(s), 980, 384, "a7", "Design of the matched-control shuffles and the width titration",
+               "Controls and titration. Top: same-size (170 bp) shuffles centred on the motif or shifted by -600, -300, +300 or +600 bp, which tests whether the effect is specific to the site. Bottom: centred shuffles of eight widths from the 7 bp core to 680 bp, which measures how the effect scales.")
+
+
+# ---------------------------------------------------------------- D8: edit types on sequence
+def d8_edits():
+    s = []
+    native = "ACGTTCCTGAGTCACCGTAGA"  # motif = index 5..15 (CCTGAGTCACC), core = 7..13 (TGAGTCA)
+    rows = [
+        ("native", native, None, "unedited reference"),
+        ("shuffle", "ACGTTCGCACTACTGCGTAGA", range(5, 16), "shuffle arm: letters permuted, composition kept"),
+        ("random", "ACGTTTAGCGTAACTAGTAGA", range(5, 16), "mutation arm: every base replaced by a different one"),
+        ("dinucleotide", "ACGTTCCACTGAGTCCGTAGA", range(5, 16), "mutation arm: shuffled, dinucleotide counts kept"),
+        ("core", "ACGTTCCCATCAGGCCGTAGA", range(7, 14), "mutation arm: 7 bp core replaced (no AP-1 half-site left)"),
+        ("flank (motif)", "ACGTTTATGAGTCAGTGTAGA", [5, 6, 14, 15], "mutation arm: 4 motif flank bases mutated, core kept"),
+        ("flank (170 bp)", "GACACCCTGAGTCACCACTAC", list(range(0, 5)) + list(range(16, 21)), "mutation arm: surroundings mutated, whole motif kept"),
+    ]
+    x0, lw = 190, 26
+    s.append(T(20, 24, "The same 21 bp excerpt (illustrative letters) under each edit; orange = changed bases", 12.5, weight="bold"))
+    # motif and core brackets over the native row
+    s.append(L(x0 + 5 * lw, 52, x0 + 16 * lw - 2, 52, "currentColor", 1.4)); s.append(T(x0 + 10.5 * lw, 46, "11 bp motif", 11.5, "middle"))
+    s.append(L(x0 + 7 * lw, 62, x0 + 14 * lw - 2, 62, ORANGE, 2)); s.append(T(x0 + 10.5 * lw, 76, "7 bp core TGA[C/G]TCA", 11, "middle", fill=ORANGE, weight="bold"))
+    for r, (name, seq, chg, desc) in enumerate(rows):
+        y = 88 + r * 34
+        s.append(T(20, y + 18, name, 12.5, weight="bold" if r == 0 else "normal"))
+        for i, ch in enumerate(seq):
+            ch_ = chg is not None and i in chg
+            s.append(R(x0 + i * lw, y, lw - 2, 26, ORANGE if ch_ else "currentColor", ORANGE if ch_ else "currentColor", 0.40 if ch_ else 0.06, 1.2, rx=3))
+            s.append(T(x0 + i * lw + (lw - 2) / 2, y + 18, ch, 13, "middle", weight="bold"))
+        s.append(T(x0 + 21 * lw + 14, y + 18, desc, 11.5, op=0.9))
+    return fig("".join(s), 1160, 340, "a8", "What each edit does to the sequence",
+               "Edit types on one illustrative excerpt: the motif (11 bp, with its 7 bp core) and 5 bp of surrounding sequence either side. Shuffles keep the letters, random edits replace every base, dinucleotide shuffles keep adjacent pairs, the core and flank edits change only part of the motif, and the 170 bp flank edit changes everything but the motif. At the 170 bp and peak widths the same edits apply to those regions.")
+
+
+# ---------------------------------------------------------------- D9: neutral-context MPRA
+def d9_neutral():
+    s = []
+
+    def lane(y, col, title, box1, box2, box3):
+        o = T(20, y + 2, title, 13, weight="bold", fill=col)
+        o += R(20, y + 14, 250, 70, col, col, 0.08, 1.8) + TT(145, y + 40, box1, 12, lh=15)
+        o += L(270, y + 49, 330, y + 49, col, 1.8, arrow="a9" + ("b" if col == BLUE else "o"))
+        o += R(330, y + 14, 150, 70, "currentColor", "currentColor", 0.05, 1.8) + TT(405, y + 42, box2, 12, lh=16, weight="bold")
+        o += L(480, y + 49, 540, y + 49, col, 1.8, arrow="a9" + ("b" if col == BLUE else "o"))
+        o += R(540, y + 14, 210, 70, col, "none", 0, 1.8) + TT(645, y + 40, box3, 12, lh=15)
+        return o
+
+    s.append(lane(24, BLUE, "Genomic context (done earlier)", ["the 170 bp element sits in its own", "131 kb mouse window"], ["AlphaGenome", "predicted ATAC"], ["accessibility over the", "element, native and", "scrambled copies"]))
+    s.append(lane(150, ORANGE, "Neutral context (overnight)", ["the same 170 bp element is placed at", "the centre of a dinucleotide-shuffled", "random 131 kb window (2 backgrounds)"], ["AlphaGenome", "predicted ATAC"], ["accessibility over the", "insert, native and", "scrambled copies"]))
+    s.append(R(790, 40, 190, 160, GREEN, GREEN, 0.10, 1.8)); s.append(TT(885, 66, ["MPRA (measured)", "fibroblast, episomal"], 12.5, weight="bold", lh=16))
+    s.append(TT(885, 108, ["native activity", "log2 alpha", "native - scrambled", "(motif / whole)"], 12, lh=16))
+    s.append(P([(750, 73), (788, 73)], BLUE, 1.6, arrow="a9b")); s.append(P([(750, 199), (770, 199), (770, 150), (788, 150)], ORANGE, 1.6, arrow="a9o"))
+    s.append(TT(20, 270, ["Question: the native ATAC head did not track the MPRA changes. Was that because the model also sees the genomic", "neighbourhood, which a plasmid reporter does not have? Placing the element in a neutral window removes the neighbourhood."], 12, "start", lh=17, op=0.9))
+    s.append(TT(20, 320, ["Result: native levels still correlate weakly with the MPRA (rho 0.1 to 0.3) and the shuffle effects still do not (rho about 0)", "in either context, so context is not the explanation."], 12, "start", lh=17, weight="bold"))
+    return fig("".join(s), 980, 345, "a9", "Design of the genomic-context versus neutral-context MPRA comparison",
+               "Each MPRA element is predicted twice: in its own genomic window and inserted into a neutral background, then compared with the measured MPRA activity and with the MPRA change on scrambling. If genomic context were responsible for the earlier mismatch, the neutral-context prediction should agree better.")
+
+
+def part_d_diagrams():
+    return d7_controls(), d8_edits(), d9_neutral()
 
 
 def design_section():
