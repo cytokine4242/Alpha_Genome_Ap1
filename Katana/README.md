@@ -29,6 +29,11 @@ output tables) was tested locally with a mock model. Do the check step first.
 Examples: `GPU=any bash submit_all.sh pilot`, `GPU=A100 bash submit_all.sh full`. The GPU each job landed on is printed at the top of its log.
 Avoid V100 (no native bf16): with `GPU=any` check the logs and resubmit chunks that landed on one if they fail.
 
+## Private GPUs (mwac_wonglab account)
+`pbs/00_check_access.pbs` has `-A mwac_wonglab`, `-m ae`, `-j oe` and no GPU model. It tests whether the account works and what you get, then runs the normal environment check:
+`qsub -o $PWD/logs/ pbs/00_check_access.pbs` (or `ACCOUNT=mwac_wonglab bash submit_all.sh check`). Read `logs/ag_check_access.o*`: the header lists the queue, account and GPU.
+Any submit_all.sh command accepts `ACCOUNT=mwac_wonglab` (GPU defaults to `any` when an account is given; single jobs get `-m ae`, arrays do not).
+
 ## Site labels (in every site table and output)
 Three views of the same binding calls, so ageing, exercise and their combination can be tested separately.
 YS = young sedentary, MAS = aged sedentary, MAE = aged + exercise.

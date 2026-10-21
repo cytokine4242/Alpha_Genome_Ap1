@@ -7,10 +7,15 @@
 # Options (environment variables):
 #   GPU=H200 (default) | A100 | L40S | GH200 | ... | any     GPU model; "any" drops the gpu_model request so the
 #                                                           scheduler uses whichever GPU is free first
+#   ACCOUNT=mwac_wonglab   charge/run under a PBS account (-A), e.g. to use that group's private GPUs.
+#                 When ACCOUNT is set and GPU is not, GPU defaults to "any" (the private nodes' GPU model is not
+#                 requested explicitly). Single jobs (check, pilot, insertion) also get -m ae (email on abort/end);
+#                 array jobs do not, to avoid one email per task.
 #   BATCH=N       sequences per GPU batch (config.json model.batch_size). Default: config value on H200/GH200,
 #                 4 on any other model or "any" (smaller cards have less memory)
 #   DRY=1         print the qsub commands instead of submitting
 # Examples:
+#   ACCOUNT=mwac_wonglab bash submit_all.sh check     # does my account have access? see logs/ for the queue + GPU
 #   GPU=any bash submit_all.sh pilot
 #   GPU=A100 BATCH=8 bash submit_all.sh full
 #   DRY=1 GPU=any bash submit_all.sh full
@@ -19,12 +24,12 @@ set -e
 cd "$(dirname "$0")"
 mkdir -p logs results
 
-GPU=${GPU:-H200}
+if [ -n "$ACCOUNT" ]; then GPU=${GPU:-any}; else GPU=${GPU:-H200}; fi
 if [ "$GPU" = "any" ]; then GPU_SEL=""; else GPU_SEL=":gpu_model=$GPU"; fi
 RES="-l select=1:ncpus=6:mem=96gb:ngpus=1${GPU_SEL}"   # command-line resources override the #PBS lines in pbs/*.pbs
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
-O="-o $PWD/logs/"
+O="-o $PWD/logs/${ACCOUNT:+ -A $ACCOUNT}"
 
 # sub <extra qsub args...> -- <comma-separated -v vars (may be empty)> <pbs file>
 sub() {
@@ -35,11 +40,11 @@ sub() {
   if [ -n "$DRY" ]; then echo "${cmd[@]}"; else "${cmd[@]}"; fi
 }
 
-echo "GPU=$GPU${BATCH:+  batch=$BATCH}  resources: $RES"
+echo "GPU=$GPU${ACCOUNT:+  account=$ACCOUNT}${BATCH:+  batch=$BATCH}  resources: $RES"
 case "$1" in
-  check) sub "" pbs/00_check_env.pbs ;;
+  check) sub -m ae "" pbs/00_check_env.pbs ;;
   pilot)
-    W="-l walltime=01:00:00"  # short walltime starts sooner
+    W="-m ae -l walltime=01:00:00"  # short walltime starts sooner; one email per single job
     sub $W -N ag_pilot_cm  "SITES=cm,NCHUNKS=1,LIMIT=10" pbs/11_perturb.pbs
     sub $W -N ag_pilot_fb  "SITES=fb,NCHUNKS=1,LIMIT=10" pbs/11_perturb.pbs
     sub $W -N ag_pilot_ins "LIMIT=3" pbs/12_insertion.pbs
@@ -47,7 +52,7 @@ case "$1" in
   full)
     sub -J 0-39 "SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
     sub -J 0-39 "SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs
-    sub "" pbs/12_insertion.pbs
+    sub -m ae "" pbs/12_insertion.pbs
     sub -J 0-3 "NCHUNKS=4" pbs/13_mpra.pbs ;;
   *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|pilot|full"; exit 1 ;;
 esac

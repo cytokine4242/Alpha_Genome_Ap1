@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N ag_check_access
+#PBS -A mwac_wonglab
+#PBS -m ae
+#PBS -j oe
+#PBS -l select=1:ncpus=6:mem=96gb:ngpus=1
+#PBS -l walltime=00:30:00
+# Access + environment check on the mwac_wonglab account (private GPUs). If the account cannot be used, qsub or the
+# scheduler rejects the job (see the qsub message / `qstat -f <jobid>` comment); if it runs, the log header shows the
+# queue and GPU you got. Submit from Katana/:  qsub -o $PWD/logs/ pbs/00_check_access.pbs
+source "$PBS_O_WORKDIR/pbs/common.sh"
+echo "--- account/queue as seen by PBS"
+qstat -f $PBS_JOBID | egrep -i "queue|Account_Name|project|Resource_List|exec_host|exec_vnode"
+nvidia-smi
+python 00_check_env.py
