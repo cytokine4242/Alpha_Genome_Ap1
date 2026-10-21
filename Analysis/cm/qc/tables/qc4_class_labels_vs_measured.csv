@@ -1,0 +1,11 @@
+label,class,n,median_log2fc,p
+age_class,Stable,2755,0.02741839217489733,
+age_class,Age Up,364,0.2181260173918423,
+age_class,Age Down,150,-0.04410775757928119,
+age_class,Neither YS nor MAS (= MAE only),96,0.08288271363764764,
+age_class,Kruskal-Wallis,3365,,6.799067157826052e-73
+ex_class,Stable,2871,0.00023849196633217527,
+ex_class,Exercise Up,161,0.11209599648188552,
+ex_class,Exercise Down,248,-0.08165335493202713,
+ex_class,Neither MAS nor MAE (= YS only),85,0.00894880407854734,
+ex_class,Kruskal-Wallis,3365,,5.042440119278475e-47

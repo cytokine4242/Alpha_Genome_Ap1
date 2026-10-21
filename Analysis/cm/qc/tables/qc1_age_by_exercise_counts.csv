@@ -1,0 +1,5 @@
+age_class,Exercise Down,Exercise Up,Neither MAS nor MAE (= YS only),Stable
+Age Down,0,79,100,0
+Age Up,186,0,0,210
+Neither YS nor MAS (= MAE only),0,107,0,0
+Stable,90,0,0,2907

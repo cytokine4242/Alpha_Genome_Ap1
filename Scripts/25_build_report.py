@@ -75,7 +75,7 @@ CSS = """
 :root{--bg:#fcfcfb;--panel:#f4f3f0;--ink:#0b0b0b;--ink2:#52514e;--rule:#e4e3df;--blue:#2a78d6;--orange:#eb6834;--green:#0d7a54;--amber:#9a6700;--red:#b3261e;--grey:#6b6a66}
 @media (prefers-color-scheme:dark){:root{--bg:#1a1a19;--panel:#242422;--ink:#f0efec;--ink2:#c3c2b7;--rule:#3a3a37;--blue:#3987e5;--orange:#d95926;--green:#3fbf8f;--amber:#e0b341;--red:#f0776f;--grey:#a8a79f}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-main{max-width:1000px;margin:0 auto;padding:32px 16px 80px}h1{font-size:1.9rem;line-height:1.2;margin:0 0 4px}h2{font-size:1.35rem;margin:44px 0 8px;padding-top:12px;border-top:1px solid var(--rule)}h3{font-size:1.05rem;margin:22px 0 4px}
+main{max-width:1000px;margin:0 auto;padding:32px 16px 80px}h1{font-size:1.9rem;line-height:1.2;margin:0 0 4px}h2{font-size:1.35rem;margin:44px 0 8px;padding-top:12px;border-top:1px solid var(--rule)}h3{font-size:1.05rem;margin:26px 0 4px}h3.sec{font-size:1.15rem;margin:34px 0 6px;padding-top:10px;border-top:1px dotted var(--rule)}
 p,li{max-width:78ch}.sub{color:var(--ink2);margin:0 0 20px}.box{background:var(--panel);border-radius:10px;padding:14px 18px;margin:16px 0}.box ul{margin:6px 0;padding-left:20px}
 figure{margin:18px 0}figcaption{color:var(--ink2);font-size:.9rem;margin-top:6px;max-width:80ch}img{border-radius:8px;border:1px solid var(--rule);background:#fcfcfb;height:auto}
 table.t{border-collapse:collapse;font-size:.86rem;margin:10px 0;display:block;overflow-x:auto;max-width:100%}table.t th,table.t td{padding:4px 10px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}table.t th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--bg)}table.t td:first-child,table.t th:first-child{text-align:left}
@@ -89,6 +89,166 @@ def badge(kind):
     lab = {"ok": "&#10003; Robust", "mid": "~ Plausible / partial", "bad": "&#10007; Not supported", "na": "? Cannot judge yet"}[kind]
     return f'<span class="badge {kind}">{lab}</span>'
 
+
+
+# ======================= QC / additional-analysis tables =======================
+from scipy.stats import chi2_contingency as _chi2, mannwhitneyu as _mwu
+
+QCD = CM / "qc"
+rd = lambda n: pd.read_csv(QCD / "tables" / n)
+
+
+def qimg(name, alt, width="100%"):
+    return img(QCD / "figures" / f"{name}.png", alt, width)
+
+
+Q3, Q4, Q5, Q6, Q7, Q8 = (rd("qc3_native_means_vs_slides.csv"), rd("qc4_class_labels_vs_measured.csv"), rd("qc5_prediction_vs_measured_by_class.csv"),
+                          rd("qc6_shuffled_vs_native.csv"), rd("qc7_replicate_convergence.csv"), rd("qc8_gpu_consistency.csv"))
+AN1, AN2, AN3, AN4, AN5, AN6, AN7 = (rd("an1_effect_distributions.csv"), rd("an2_effect_vs_covariates_spearman.csv"), rd("an3_site_types.csv"), rd("an4_footprint_score.csv"),
+                                     rd("an5_multiple_motifs_in_peak.csv"), rd("an6_tss_proximity.csv"), rd("an7_mpra_comparison.csv"))
+SL = rd("site_level_table_cm.csv")
+n_all, n_st, n_dy = len(SL), int((SL.stable_dynamic == "Stable").sum()), int((SL.stable_dynamic == "Dynamic").sum())
+gp = {c: _mwu(SL[SL.stable_dynamic == "Stable"][c].dropna(), SL[SL.stable_dynamic == "Dynamic"][c].dropna()).pvalue for c in ("peak_width", "abs_tss", "motifs_in_peak")}
+gm = SL.groupby("stable_dynamic")[["peak_width", "abs_tss"]].median()
+q3 = Q3.set_index(["class", "readout"])
+q4 = Q4.set_index(["label", "class"])
+q5 = Q5.set_index("group")
+q6 = Q6[Q6.readout == Q6.shuffle].set_index(["shuffle", "class"])
+q7 = Q7.set_index(["shuffle", "k_replicates"]).median_abs_error_vs_10
+q8 = Q8.set_index("measure")
+an1 = AN1.set_index(["shuffle", "class"])
+an2 = AN2.set_index(["shuffle", "covariate"])
+an3 = AN3.set_index("site_type")
+an4 = AN4.set_index(["outcome", "class"])
+an5 = AN5.set_index("shuffle")
+an6 = AN6.set_index(["measure", "class", "tss_bin"])
+chrom_p = _chi2(pd.crosstab(SL.seqnames, SL.stable_dynamic).values)[1]
+chrx = pd.crosstab(SL.seqnames, SL.stable_dynamic).loc['chrX']
+rho_mc = SL[["eff_motif", "eff_170"]].corr(method="spearman").iloc[0, 1]
+mp_ = AN7.set_index(["track", "comparison", "subset"])
+CMP_N, CMP_M, CMP_F = ("native predicted ATAC vs log2 alpha (native)", "motif-shuffle effect vs MPRA (Endo - motif-shuffled)", "full-shuffle effect vs MPRA (Endo - fully shuffled)")
+age_p = float(q4.loc[("age_class", "Kruskal-Wallis"), "p"])
+ex_p = float(q4.loc[("ex_class", "Kruskal-Wallis"), "p"])
+
+
+def fmtp(p):
+    return "&lt; 1e-10" if p < 1e-10 else f"= {p:.1e}"
+
+
+Q4_tab = Q4[Q4["class"] != "Kruskal-Wallis"][["label", "class", "n", "median_log2fc"]].copy()
+Q4_tab["label"] = Q4_tab.label.map({"age_class": "Age: log2(MAS/YS)", "ex_class": "Exercise: log2(MAE/MAS)"})
+Q4_tab.columns = ["Comparison", "Class", "n sites", "Median measured log2FC"]
+Q5_tab = Q5.copy()
+Q5_tab.columns = ["Group", "Spearman rho", "CI lo", "CI hi", "n"]
+Q6_tab = Q6[Q6.readout == Q6.shuffle][["readout", "class", "mean_native", "mean_shuffled", "frac_sites_decreased", "n"]].copy()
+Q6_tab["readout"] = Q6_tab.readout.map(W)
+Q6_tab["mean_shuffled"] = Q6_tab.mean_shuffled.round(3)
+Q6_tab.columns = ["Matched shuffle/readout", "Class", "Mean native ATAC", "Mean shuffled ATAC", "Sites that lose accessibility", "n"]
+Q7_tab = Q7[Q7.k_replicates.isin([1, 3, 5, 7, 9])].pivot(index="k_replicates", columns="shuffle", values="median_abs_error_vs_10").reset_index()
+Q7_tab.columns = ["Replicates averaged", "170 bp shuffle", "Motif shuffle", "Peak shuffle"]
+Q7_tab = Q7_tab[["Replicates averaged", "Motif shuffle", "170 bp shuffle", "Peak shuffle"]]
+Q8_tab = Q8.copy()
+Q8_tab["measure"] = Q8_tab.measure.map({"eff_motif": "Motif-shuffle effect", "eff_170": "170 bp-shuffle effect", "eff_peak": "Peak-shuffle effect", "native_peak": "Native predicted ATAC"})
+Q8_tab["kruskal_p_across_gpus"] = Q8_tab.kruskal_p_across_gpus.map(lambda v: f"{v:.2f}")
+Q8_tab.columns = ["Measure", "Kruskal-Wallis p across GPU types", "Median (L40S)", "Median (A100)", "Median (H100)"]
+AN2_tab = AN2.pivot(index="covariate", columns="shuffle", values="rho").reindex(["native_peak", "peak_width", "abs_tss", "fp_score"])[["motif", "170", "peak"]].reset_index()
+AN2_tab["covariate"] = AN2_tab.covariate.map({"native_peak": "Native predicted ATAC (peak)", "peak_width": "Peak width", "abs_tss": "Distance to nearest TSS", "fp_score": "TOBIAS footprint score"})
+AN2_tab.columns = ["Covariate (Spearman rho with the effect)", "Motif shuffle", "170 bp shuffle", "Peak shuffle"]
+AN3_tab = AN3.reset_index()[["site_type", "n", "share_stable", "share_dynamic", "median_native_peak", "median_peak_width", "median_abs_tss"]]
+AN3_tab.columns = ["Site type", "n", "Share of Stable", "Share of Dynamic", "Median native ATAC", "Median peak width", "Median TSS distance"]
+AN4_tab = AN4[AN4.outcome.isin(["eff_motif", "eff_170", "native_peak"])][["outcome", "class", "rho", "ci_lo", "ci_hi", "n"]].copy()
+AN4_tab["outcome"] = AN4_tab.outcome.map({"eff_motif": "Motif-shuffle effect", "eff_170": "170 bp-shuffle effect", "native_peak": "Native predicted ATAC"})
+AN4_tab.columns = ["Outcome (vs footprint score)", "Sites", "Spearman rho", "CI lo", "CI hi", "n"]
+AN5_tab = AN5[["shuffle", "n_single", "n_multi", "median_single", "median_multi", "raw_diff", "raw_lo", "raw_hi", "raw_fdr", "adj_diff", "adj_lo", "adj_hi", "adj_fdr"]].copy()
+AN5_tab["shuffle"] = AN5_tab.shuffle.map(W)
+AN5_tab["raw_fdr"] = AN5_tab.raw_fdr.map(lambda v: f"{v:.2f}")
+AN5_tab["adj_fdr"] = AN5_tab.adj_fdr.map(lambda v: f"{v:.2f}")
+AN5_tab.columns = ["Shuffle", "n one motif", "n 2+ motifs", "Median (one)", "Median (2+)", "Raw diff", "CI lo", "CI hi", "FDR", "Adj. diff", "CI lo ", "CI hi ", "FDR "]
+AN6_tab = AN6[(AN6["class"] == "Stable") & AN6.measure.isin(["native_peak", "eff_motif", "eff_170", "eff_peak"])].pivot(index="tss_bin", columns="measure", values="median").reindex(["<=2 kb", "2-10 kb", "10-30 kb", ">30 kb"])[["native_peak", "eff_motif", "eff_170", "eff_peak"]].reset_index()
+AN6_tab.columns = ["Distance to nearest TSS", "Native ATAC (peak)", "Motif shuffle", "170 bp shuffle", "Peak shuffle"]
+AN7_tab = AN7[AN7.subset.isin(["all elements", "replicated in MPRA", "motif from TOBIAS"])][["track", "comparison", "subset", "rho", "ci_lo", "ci_hi", "n"]].copy()
+AN7_tab["comparison"] = AN7_tab.comparison.map({CMP_N: "Native predicted ATAC vs MPRA log2 alpha", CMP_M: "Motif-shuffle effect vs MPRA (native - motif-shuffled)", CMP_F: "Full-shuffle effect vs MPRA (native - fully shuffled)"})
+AN7_tab.columns = ["Track", "Comparison", "Elements", "Spearman rho", "CI lo", "CI hi", "n"]
+
+PART_A = f"""
+<h2 id="partA">Part A. Where the data come from (QC)</h2>
+<p>These figures show how the site set, the model output and the runs themselves look before any hypothesis is tested. Each ends with what it means for how far the later results can be trusted.</p>
+
+<h3>A1. The site set</h3>
+<figure>{qimg('qc1_site_composition', 'Site composition')}<figcaption>Left: sites per TOBIAS binding pattern. Middle: how the age labels (YS vs MAS) and exercise labels (MAS vs MAE) co-occur. Right: sites per chromosome, split into Stable and Dynamic.</figcaption></figure>
+<p>{n_all:,} cardiomyocyte Fos sites: {n_st:,} Stable ({n_st / n_all:.0%}) and {n_dy:,} Dynamic, spread across the six dynamic binding patterns (79 to 210 sites each). Age and exercise labels are <strong>not independent</strong>: they come from the same three binding calls, so there are only seven patterns (for example every Age Up site is either Exercise Stable or Exercise Down). Chromosome counts follow chromosome size, and the Stable/Dynamic mix does not differ between chromosomes (chi-square p = {chrom_p:.2f}; chrX has the highest Dynamic share, {chrx['Dynamic'] / (chrx['Dynamic'] + chrx['Stable']):.0%} of only {int(chrx.sum())} sites). <strong>Implication:</strong> class sizes are small (about 100 to 400), which limits the power of every class comparison. This site set is not the slides' (2,663 sites, 2,320 Stable).</p>
+
+<h3>A2. Site geometry</h3>
+<figure>{qimg('qc2_site_geometry', 'Site geometry')}<figcaption>Peak width, distance to the nearest TSS and number of Fos motifs in the same peak, for Stable and Dynamic sites.</figcaption></figure>
+<p>Dynamic sites sit in narrower peaks (median {gm.loc['Dynamic', 'peak_width']:.0f} vs {gm.loc['Stable', 'peak_width']:.0f} bp, Mann&ndash;Whitney p {fmtp(gp['peak_width'])}), but at a similar distance from TSSs (median {gm.loc['Dynamic', 'abs_tss']:,.0f} vs {gm.loc['Stable', 'abs_tss']:,.0f} bp, p = {gp['abs_tss']:.2f}). About {(SL.motifs_in_peak >= 2).mean():.0%} of sites share their peak with another Fos site (about {SL.drop_duplicates('peak_coord').motifs_in_peak.ge(2).mean():.0%} of peaks hold two or more). <strong>Implication:</strong> peak width differs systematically between classes and also drives the peak-shuffle effect (Part C), which is why the class comparisons were adjusted for it.</p>
+
+<h3>A3. Native predicted accessibility, and how it compares with the slides</h3>
+<figure>{qimg('qc3_native_distributions', 'Native predicted ATAC distributions')}<figcaption>Distribution of native predicted ATAC (mouse heart track) at the motif, 170 bp and peak regions. Legend: our mean and, in brackets, the mean on your QC slide for the same class.</figcaption></figure>
+<p>Predicted accessibility is strongly right-skewed: most sites are low (median {q3.loc[('Stable', 'peak'), 'our_median']:.2f}) and a minority are very high. For <strong>Dynamic sites the means match the slides almost exactly</strong> ({q3.loc[('Dynamic', 'motif'), 'our_mean']:.2f} / {q3.loc[('Dynamic', '170'), 'our_mean']:.2f} / {q3.loc[('Dynamic', 'peak'), 'our_mean']:.2f} vs {q3.loc[('Dynamic', 'motif'), 'slide_mean']:.2f} / {q3.loc[('Dynamic', '170'), 'slide_mean']:.2f} / {q3.loc[('Dynamic', 'peak'), 'slide_mean']:.2f}), which supports this pipeline reproducing the API model. <strong>Stable sites do not</strong> ({q3.loc[('Stable', 'motif'), 'our_mean']:.2f} / {q3.loc[('Stable', '170'), 'our_mean']:.2f} / {q3.loc[('Stable', 'peak'), 'our_mean']:.2f} vs {q3.loc[('Stable', 'motif'), 'slide_mean']:.2f} / {q3.loc[('Stable', '170'), 'slide_mean']:.2f} / {q3.loc[('Stable', 'peak'), 'slide_mean']:.2f}); the slides' Stable set is a different, more accessible set of sites.</p>
+
+<h3>A4. Are the class labels real? Checking them against independent measured data</h3>
+<figure>{qimg('qc4_class_labels_vs_measured', 'Class labels vs measured accessibility change')}<figcaption>Measured cardiomyocyte snATAC (pseudobulk, CPM per kb at the peak containing the site) split by experimental condition. Left: aged vs young sedentary, by age class. Right: aged plus exercise vs aged sedentary, by exercise class.</figcaption></figure>
+{table(Q4_tab, {'Median measured log2FC': '{:+.3f}'})}
+<p>The classes come from TOBIAS footprint calls, not from accessibility, so measured accessibility is an independent check. <strong>The gains are clear and the losses are weak</strong>: Age Up sites gain accessibility with age (median log2 MAS/YS {q4.loc[('age_class', 'Age Up'), 'median_log2fc']:+.2f} vs {q4.loc[('age_class', 'Stable'), 'median_log2fc']:+.2f} for Stable), as do Exercise Up sites ({q4.loc[('ex_class', 'Exercise Up'), 'median_log2fc']:+.2f}); Age Down and Exercise Down sites change in the expected direction but only slightly. Differences across classes are significant (Kruskal&ndash;Wallis p {fmtp(age_p)} (age) and p {fmtp(ex_p)} (exercise)). <strong>Implication:</strong> the labels reflect real but modest accessibility shifts, so "Dynamic" classes are best read as footprint-defined, not as strongly differentially accessible.</p>
+
+<h3>A5. Does the model predict some classes worse?</h3>
+<figure>{qimg('qc5_prediction_vs_measured_by_class', 'Prediction vs measurement by class')}<figcaption>Left: Spearman correlation of predicted peak accessibility with measured accessibility, per class (95% CI). Right: distribution of the rank residual (predicted percentile minus measured percentile).</figcaption></figure>
+{table(Q5_tab, {'Spearman rho': '{:.2f}', 'CI lo': '{:.2f}', 'CI hi': '{:.2f}'})}
+<p>The correlation is {q5.loc['Stable', 'rho']:.2f} in Stable sites and {q5.loc['Dynamic', 'rho']:.2f} in Dynamic sites; individual patterns range from {q5.rho.iloc[3:].min():.2f} to {q5.rho.iloc[3:].max():.2f} with wide intervals (n = 65 to 195). No class is predicted badly enough to invalidate it, but Dynamic sites are somewhat less well predicted. <strong>Implication:</strong> the confidence tiers in B6 are partly a way of down-weighting these poorly predicted sites.</p>
+
+<h3>A6. Does shuffling lower accessibility as expected? (the slides' QC)</h3>
+<figure>{qimg('qc6_shuffled_vs_native', 'Shuffled vs native')}<figcaption>Mean predicted ATAC after each shuffle (bars) against the native mean (dashed), for each readout region.</figcaption></figure>
+{table(Q6_tab, {'Mean native ATAC': '{:.3f}', 'Sites that lose accessibility': '{:.0%}'})}
+<p>Shuffling reduces accessibility on average everywhere, as on the slides. A 170 bp shuffle lowers the 170 bp readout in {q6.loc[('170', 'Stable'), 'frac_sites_decreased']:.0%} of Stable sites, but a motif-only shuffle lowers the motif readout in only {q6.loc[('motif', 'Stable'), 'frac_sites_decreased']:.0%}: for about a quarter of sites it raises predicted accessibility, so the motif-only effect is small and heterogeneous. <strong>Implication:</strong> the shuffle experiment behaves as intended and the effect sizes are not an artefact of broken sequences.</p>
+
+<h3>A7. How many shuffle replicates are enough?</h3>
+<figure>{qimg('qc7_replicate_convergence', 'Replicate convergence')}<figcaption>Left: median difference between an effect averaged over k replicates and the 10-replicate effect, by shuffle width. Right: spread (SD) across the 10 replicates at each site.</figcaption></figure>
+{table(Q7_tab, {c: '{:.3f}' for c in ['Motif shuffle', '170 bp shuffle', 'Peak shuffle']})}
+<p>With a single shuffle a site's effect is off by about {q7.loc[('motif', 1)]:.2f} (motif), {q7.loc[('170', 1)]:.2f} (170 bp) and {q7.loc[('peak', 1)]:.2f} (peak) log2 units; with 5 replicates it is about {q7.loc[('motif', 5)]:.2f}, {q7.loc[('170', 5)]:.2f} and {q7.loc[('peak', 5)]:.2f}. Motif and peak shuffles need the most replicates. <strong>Implication:</strong> 10 replicates is a sensible minimum; fewer would make single-site values unreliable, and even 10 leaves peak-shuffle per-site values noisy (this error is measured against the 10-replicate value itself, so the true error is somewhat larger).</p>
+
+<h3>A8. Does the compute hardware matter?</h3>
+<figure>{qimg('qc8_gpu_consistency', 'GPU consistency')}<figcaption>Median effect per array chunk (sites are interleaved across chunks), coloured by the GPU model that ran the chunk.</figcaption></figure>
+{table(Q8_tab, {'Median (L40S)': '{:.3f}', 'Median (A100)': '{:.3f}', 'Median (H100)': '{:.3f}'})}
+<p>The private queue assigned chunks to L40S, A100 and one H100. Because sites are interleaved, each chunk is a random sample of all sites, so any GPU effect would show as a shift between colours. There is none (all p &gt; 0.1; the H100 is a single chunk). <strong>Implication:</strong> mixing GPU types is safe.</p>
+"""
+
+PART_C = f"""
+<h2 id="partC">Part C. Further analyses</h2>
+
+<h3>C1. How varied are the per-site effects?</h3>
+<figure>{qimg('an1_effect_distributions', 'Effect distributions')}<figcaption>Distribution of the per-site effect for each shuffle width, Stable vs Dynamic.</figcaption></figure>
+<p>The medians hide wide spread. For the motif shuffle, {an1.loc[('motif', 'Stable'), 'frac_gt0']:.0%} of Stable sites <em>gain</em> accessibility and {an1.loc[('motif', 'Stable'), 'frac_lt_minus1']:.0%} lose more than half of it. For the 170 bp shuffle, {an1.loc[('170', 'Stable'), 'frac_lt_minus1']:.0%} of Stable and {an1.loc[('170', 'Dynamic'), 'frac_lt_minus1']:.0%} of Dynamic sites lose more than half. <strong>Implication:</strong> "AP-1 dependence" is a property of a subset of sites, not a uniform feature; class medians should be read together with these distributions.</p>
+
+<h3>C2. What drives the size of the effect?</h3>
+<figure>{qimg('an2_effect_vs_covariates', 'Effect vs covariates')}<figcaption>Median effect (line) and inter-quartile range (band) per octile of native predicted accessibility, peak width and distance to the nearest TSS, for each shuffle width.</figcaption></figure>
+{table(AN2_tab, {'Motif shuffle': '{:+.2f}', '170 bp shuffle': '{:+.2f}', 'Peak shuffle': '{:+.2f}'})}
+<p><strong>The peak-shuffle effect is mostly a function of how accessible and how wide the peak is</strong> (rho {an2.loc[('peak', 'native_peak'), 'rho']:+.2f} and {an2.loc[('peak', 'peak_width'), 'rho']:+.2f}): there is more to lose in an accessible peak, and wider peaks lose less (the reason is not established here; one possibility is that a wide peak has more accessible sequence outside the site's immediate neighbourhood). The 170 bp effect has a U-shape across native accessibility (most loss in mid-high peaks, less at the very top, probably saturation), a clear dependence on distance to the TSS (rho {an2.loc[('170', 'abs_tss'), 'rho']:+.2f}) and on the footprint score ({an2.loc[('170', 'fp_score'), 'rho']:+.2f}). The motif-only effect has only weak dependencies (|rho| &le; {an2[an2.index.get_level_values(0) == 'motif'].rho.abs().max():.2f}). <strong>Implication:</strong> comparisons between groups that differ in accessibility or peak width must be adjusted, as was done in B3 and B4.</p>
+
+<h3>C3. Motif dependence vs context dependence</h3>
+<figure>{qimg('an3_site_types', 'Site types')}<figcaption>Left: each site's motif-shuffle effect against its 170 bp-shuffle effect (density; dotted lines mark a 50% loss). Right: share of sites by type, defined by whether the motif shuffle and the 170 bp shuffle each cost more than half the accessibility.</figcaption></figure>
+{table(AN3_tab, {'Share of Stable': '{:.0%}', 'Share of Dynamic': '{:.0%}', 'Median native ATAC': '{:.2f}', 'Median peak width': '{:.0f}', 'Median TSS distance': '{:,.0f}'})}
+<p>The two effects are positively related across sites (rho {rho_mc:.2f}). Nearly half of Stable sites are "context only" ({an3.loc['Context only', 'share_stable']:.0%}: the 170 bp shuffle hurts, the motif alone does not), {an3.loc['Motif and context', 'share_stable']:.0%} depend on both, and only {an3.loc['Motif only', 'share_stable']:.1%} on the motif alone. Dynamic sites are far more often in the "neither" group ({an3.loc['Neither', 'share_dynamic']:.0%} vs {an3.loc['Neither', 'share_stable']:.0%}); the composition differs between Stable and Dynamic (chi-square p &lt; 1e-20). <strong>Implication:</strong> the AP-1 motif seldom works alone in this model; accessibility is largely set by the sequence around it. The 50% threshold is arbitrary, so use the proportions descriptively.</p>
+
+<h3>C4. Does footprint strength agree with the predicted dependence?</h3>
+<figure>{qimg('an4_footprint_score_vs_dependence', 'Footprint score vs dependence')}<figcaption>TOBIAS footprint score (highest score across the conditions where the site is bound) against the predicted effects and native accessibility, binned.</figcaption></figure>
+{table(AN4_tab, {'Spearman rho': '{:+.2f}', 'CI lo': '{:+.2f}', 'CI hi': '{:+.2f}'})}
+<p>In Stable sites, a stronger footprint goes with a larger predicted dependence on the 170 bp context (rho {an4.loc[('eff_170', 'Stable'), 'rho']:+.2f}) and with higher predicted accessibility ({an4.loc[('native_peak', 'Stable'), 'rho']:+.2f}); in Dynamic sites there is no relationship. This is <strong>independent experimental support</strong> for the model's picture of AP-1 sites. <strong>Caveat:</strong> footprint scores are computed from the same ATAC data that define accessibility, so strong footprints partly mean "very accessible", and the correlation is not fully independent evidence.</p>
+
+<h3>C5. Do two Fos sites in a peak buffer each other?</h3>
+<figure>{qimg('an5_multiple_motifs', 'Multiple motifs per peak')}<figcaption>Median effect (95% CI) for sites that are the only Fos motif in their peak vs sites sharing a peak with at least one other Fos motif.</figcaption></figure>
+{table(AN5_tab)}
+<p>If a second motif compensated, the effect of shuffling one motif would be smaller in multi-motif peaks. It is not (differences about 0 at every width, all FDR &ge; {AN5.raw_fdr.min():.2f}). The adjusted peak-shuffle difference is {an5.loc['peak', 'adj_diff']:+.2f} (FDR {an5.loc['peak', 'adj_fdr']:.2f}), not significant. <strong>Implication:</strong> no evidence for buffering, but only {int(an5.loc['motif', 'n_multi'])} sites are in multi-motif peaks, and each shuffle here edits one site&rsquo;s window, not all motifs together.</p>
+
+<h3>C6. Promoter-proximal vs distal sites</h3>
+<figure>{qimg('an6_tss_proximity', 'TSS proximity')}<figcaption>Median native accessibility and shuffle effects by distance to the nearest TSS, Stable and Dynamic.</figcaption></figure>
+{table(AN6_tab, {c: '{:+.2f}' for c in ['Native ATAC (peak)', 'Motif shuffle', '170 bp shuffle', 'Peak shuffle']})}
+<p>Sites within 2&nbsp;kb of a TSS lie in much more accessible peaks (native ATAC {an6.loc[('native_peak', 'Stable', '<=2 kb'), 'median']:.2f} vs {an6.loc[('native_peak', 'Stable', '>30 kb'), 'median']:.2f} beyond 30&nbsp;kb) yet lose <em>less</em> from a 170 bp shuffle ({an6.loc[('eff_170', 'Stable', '<=2 kb'), 'median']:+.2f} vs {an6.loc[('eff_170', 'Stable', '>30 kb'), 'median']:+.2f}): promoter-proximal accessibility depends less on the AP-1 neighbourhood, distal enhancer-like sites more. The difference is large (p &lt; 1e-29 at 170 bp). <strong>Implication:</strong> TSS distance is a real biological modifier of dependence and should be included when interpreting class differences.</p>
+
+<h3>C7. Agreement with the fibroblast MPRA</h3>
+<figure>{qimg('an7_mpra', 'MPRA comparison')}<figcaption>1,653 unique MPRA elements. Left: predicted native accessibility against MPRA activity. Middle and right: predicted accessibility loss after a motif shuffle and after a full shuffle against the corresponding MPRA change (native minus shuffled). Top: Patski ATAC track; bottom: heart ATAC track.</figcaption></figure>
+{table(AN7_tab, {'Spearman rho': '{:+.2f}', 'CI lo': '{:+.2f}', 'CI hi': '{:+.2f}'})}
+<p>Predicted native accessibility correlates weakly but consistently with MPRA activity (rho {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f} heart, {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f} Patski), and this holds in the replicated and TOBIAS-motif subsets. <strong>The predicted effect of shuffling does not track the MPRA at all</strong> (motif shuffle {mp_.loc[('Patski ATAC', CMP_M, 'all elements'), 'rho']:+.2f}, full shuffle {mp_.loc[('Patski ATAC', CMP_F, 'all elements'), 'rho']:+.2f} with the Patski track; similar with heart). The MPRA delta is native minus shuffled, so agreement would appear as a <em>negative</em> correlation with the (negative) predicted log2FC; the confidence intervals exclude any correlation beyond about 0.06 in either direction. Possible reasons: the MPRA measures episomal enhancer activity of a 170&nbsp;bp fragment, while the model predicts chromatin accessibility of the same sequence in its genomic context; the MPRA effects are small and noisy; and the fibroblast tracks are weak proxies. <strong>Implication:</strong> accessibility predicted by AlphaGenome should not be used as a proxy for the MPRA effect of disrupting an element.</p>
+"""
 
 claims = [
     ("Shuffling the 170 bp around a site removes far more predicted accessibility than shuffling the 11 bp motif alone", "ok",
@@ -118,7 +278,7 @@ claims = [
      "Caveat: only 4 recipients, so the 292 pairs are not independent (about 73 independent donors)."),
     ("Inserting an AP-1 motif into a shuffled random background raises accessibility", "bad",
      f"+{mi('atac_motif', '+motif vs shuffled background').median_log2fc:.2f} log2FC at the centre (p = {mi('atac_motif', '+motif vs shuffled background').wilcoxon_p:.2f}); background ATAC is near zero, so the readout is at the floor. No usable signal."),
-    ("Fibroblast results; MPRA agreement", "na", "Fibroblast-site shuffles and the MPRA run are not finished at the time of this report. The fibroblast tracks available in the mouse model (Patski, embryonic fibroblast RNA) validated weakly against measured accessibility."),
+    ("Fibroblast-site results", "na", "Fibroblast-site shuffles are not finished at the time of this report (the MPRA comparison is in C7). The fibroblast tracks available in the mouse model (Patski, embryonic fibroblast RNA) validated weakly against measured accessibility."),
 ]
 
 stv = A[A.trackset == "CM"].copy()
@@ -165,6 +325,31 @@ mi_tab["readout"] = mi_tab.readout.map({"atac_motif": "Centre 7 bp", "atac_peak"
 mi_tab["wilcoxon_p"] = mi_tab.wilcoxon_p.map(lambda p: f"{p:.3f}")
 mi_tab.columns = ["Readout", "Comparison", "Median log2FC", "Fraction > 0", "Wilcoxon p", "n backgrounds"]
 
+
+claims += [
+    ("The TOBIAS binding classes correspond to real accessibility changes in the measured snATAC data", "mid",
+     f"Age Up sites gain accessibility (median log2 MAS/YS {q4.loc[('age_class', 'Age Up'), 'median_log2fc']:+.2f} vs {q4.loc[('age_class', 'Stable'), 'median_log2fc']:+.2f} for Stable), Exercise Up sites too ({q4.loc[('ex_class', 'Exercise Up'), 'median_log2fc']:+.2f}); "
+     f"the 'down' classes move the other way but only weakly (Age Down {q4.loc[('age_class', 'Age Down'), 'median_log2fc']:+.2f}, Exercise Down {q4.loc[('ex_class', 'Exercise Down'), 'median_log2fc']:+.2f}). Kruskal-Wallis p {fmtp(age_p)} (age) and p {fmtp(ex_p)} (exercise)."),
+    ("Predicted peak-shuffle loss mostly tracks how accessible and how wide a peak is", "ok",
+     f"Spearman rho {an2.loc[('peak', 'native_peak'), 'rho']:+.2f} with native predicted accessibility and {an2.loc[('peak', 'peak_width'), 'rho']:+.2f} with peak width; the motif-width effect depends on these much less ({an2.loc[('motif', 'native_peak'), 'rho']:+.2f}, {an2.loc[('motif', 'peak_width'), 'rho']:+.2f})."),
+    ("Sites with stronger TOBIAS footprints are predicted to depend more on their 170 bp context", "mid",
+     f"rho {an4.loc[('eff_170', 'Stable'), 'rho']:+.2f} in Stable sites (95% CI {an4.loc[('eff_170', 'Stable'), 'ci_lo']:+.2f} to {an4.loc[('eff_170', 'Stable'), 'ci_hi']:+.2f}), none in Dynamic sites ({an4.loc[('eff_170', 'Dynamic'), 'rho']:+.2f}). "
+     "Independent data, but footprint scores come from the same ATAC data that define accessibility, so part of this is accessibility itself."),
+    ("Several Fos motifs in one peak buffer each other (a second site makes a single shuffle matter less)", "bad",
+     f"No difference: motif {an5.loc['motif', 'raw_diff']:+.2f}, 170 bp {an5.loc['170', 'raw_diff']:+.2f}, peak {an5.loc['peak', 'raw_diff']:+.2f} (FDR {an5.loc['motif', 'raw_fdr']:.2f} to {an5.loc['peak', 'raw_fdr']:.2f}; n = {int(an5.loc['motif', 'n_multi'])} sites in multi-motif peaks)."),
+    ("Promoter-proximal sites depend less on their 170 bp context than distal sites", "ok",
+     f"Median 170 bp effect in Stable sites: {an6.loc[('eff_170', 'Stable', '<=2 kb'), 'median']:+.2f} within 2 kb of a TSS vs {an6.loc[('eff_170', 'Stable', '>30 kb'), 'median']:+.2f} beyond 30 kb (Mann-Whitney p {fmtp(_mwu(SL[SL.tss_bin == '<=2 kb'].eff_170.dropna(), SL[SL.tss_bin == '>30 kb'].eff_170.dropna()).pvalue) if 'tss_bin' in SL else 'n/a'}); promoter-proximal peaks are also about 3x more accessible."),
+    ("Most AP-1 sites that need their motif also need their surroundings; motif-only dependence is rare", "mid",
+     f"Only {an3.loc['Motif only', 'share_stable']:.1%} of Stable sites lose more than half their accessibility from a motif shuffle without also losing it from a 170 bp shuffle ({an3.loc['Context only', 'share_stable']:.0%} are context-only, {an3.loc['Motif and context', 'share_stable']:.0%} both). The thresholds (a 50% loss) are arbitrary, so treat the proportions as descriptive."),
+    ("Predicted accessibility tracks MPRA enhancer activity", "mid",
+     f"Weak but consistent positive correlation of native predicted ATAC with MPRA log2 alpha (heart {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f}, Patski {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f}; n = 1,653), reproduced in the replicated and TOBIAS-motif subsets."),
+    ("The predicted accessibility loss from shuffling an element predicts its loss of MPRA activity", "bad",
+     f"No correlation: motif shuffle rho {mp_.loc[('Patski ATAC', CMP_M, 'all elements'), 'rho']:+.2f} (95% CI {mp_.loc[('Patski ATAC', CMP_M, 'all elements'), 'ci_lo']:+.2f} to {mp_.loc[('Patski ATAC', CMP_M, 'all elements'), 'ci_hi']:+.2f}, n = {int(mp_.loc[('Patski ATAC', CMP_M, 'all elements'), 'n'])}), full shuffle {mp_.loc[('Patski ATAC', CMP_F, 'all elements'), 'rho']:+.2f}. "
+     "The intervals rule out anything larger than about |0.06|, so this is a real null, not a lack of power."),
+    ("Results do not depend on which GPU ran a chunk; 10 replicates are enough", "ok",
+     f"Chunk results are indistinguishable across L40S, A100 and H100 (Kruskal-Wallis p {q8.kruskal_p_across_gpus.min():.2f} to {q8.kruskal_p_across_gpus.max():.2f}). Averaging 5 vs 10 replicates changes a site's effect by about {q7.loc[('170', 5)]:.2f} (170 bp), {q7.loc[('motif', 5)]:.2f} (motif) and {q7.loc[('peak', 5)]:.2f} (peak)."),
+]
+
 claims_html = "".join(f"<tr><td class='v'>{c}</td><td>{badge(k)}</td><td class='v'>{ev}</td></tr>" for c, k, ev in claims)
 
 body = f"""
@@ -176,6 +361,7 @@ body = f"""
 <li><strong>Stable vs Dynamic is real.</strong> Stable sites depend more on their 170&nbsp;bp context than Dynamic sites ({m.loc['170', 'diff_dyn_minus_stable']:+.2f}, 95% CI {m.loc['170', 'ci_lo']:+.2f} to {m.loc['170', 'ci_hi']:+.2f}). It survives adjustment for native accessibility and peak width, stratification by accessibility, a permutation test, and a second independent track (smaller there).</li>
 <li><strong>Age vs exercise vs combination.</strong> All dynamic classes behave alike. Comparing classes with each other (Age Up vs Down, Exercise Up vs Down) finds no differences at 170&nbsp;bp or peak level. What separates classes is being stably bound or not, not the direction of change.</li>
 <li><strong>What is noise or unusable.</strong> RNA effects are about zero; AP-1 motif insertion into random backgrounds is at the floor; per-site peak-shuffle values scatter widely (replicate SD about {D.set_index('shuffle').loc['peak', 'median_replicate_sd']:.1f}) and are only trustworthy in aggregate.</li>
+<li><strong>New in this version.</strong> Data QC (Part A) shows the class labels are directionally real in independent snATAC, the model reproduces the slides' Dynamic-site values, shuffles behave as intended, 10 replicates are justified and GPU type does not matter. Further analyses (Part C) show that dependence on the 170&nbsp;bp context grows with distance from a TSS and with TOBIAS footprint strength, that sites rarely depend on the motif alone, that two motifs in one peak do not buffer each other, and that AlphaGenome's predicted shuffle effects do <em>not</em> track the fibroblast MPRA (rho &asymp; 0).</li>
 <li><strong>Caveat on the slides.</strong> Our Dynamic-site native accessibility matches the slides closely, which suggests the pipeline reproduces the API, but our Stable-site set differs from the slides' (we could not reproduce their site counts). Absolute numbers should not be compared directly with the slides until the site set is resolved.</li></ul></div>
 
 <h2>How to read this report</h2>
@@ -183,19 +369,21 @@ body = f"""
 <p><strong>Significance marks.</strong> <code>***</code> FDR &lt; 0.001, <code>**</code> &lt; 0.01, <code>*</code> &lt; 0.05, <code>ns</code> not significant. Tests are two-sided Mann&ndash;Whitney against a reference class, Benjamini&ndash;Hochberg corrected within each family of tests. With thousands of sites a tiny difference is "significant", so each comparison also shows an effect size (difference of medians with a bootstrap 95% CI, and Cliff's delta: about 0.1 small, 0.3 medium, 0.5 large). <strong>Read the effect size before the stars.</strong></p>
 <p><strong>Trust labels.</strong> <span class="badge ok">&#10003; Robust</span> survives the checks below. <span class="badge mid">~ Plausible / partial</span> real but small, or depends on a confound. <span class="badge bad">&#10007; Not supported</span> no evidence, or indistinguishable from noise. <span class="badge na">? Cannot judge yet</span> data not available.</p>
 
-<h2>1. Does the model track real accessibility?</h2>
+{PART_A}
+<h2 id="partB">Part B. Main results</h2>
+<h3 class="sec">B1. Does the model track real accessibility?</h3>
 <figure>{img(CM / 'figures' / 'fig1_native_vs_measured.png', 'Predicted vs measured accessibility', '560px')}
 <figcaption>Each dot is a site: predicted native ATAC over the peak (mouse heart track) against measured cardiomyocyte snATAC at the same peak. Spearman rho = {nv.rho:.2f}.</figcaption></figure>
 {table(NV_tab, {'Spearman rho': '{:.2f}'})}
 <p><strong>What it shows.</strong> The heart track predicts measured cardiomyocyte accessibility with a moderate rank correlation (the slides reported 0.49). The Patski (fibroblast-like) track is essentially uncorrelated with cardiomyocyte accessibility, as it should be. <strong>Trust:</strong> good enough to use the heart track as a proxy for cardiomyocyte sites; it is bulk heart tissue, not purified cardiomyocytes.</p>
 
-<h2>2. What does shuffling do?</h2>
+<h3 class="sec">B2. What does shuffling do?</h3>
 <figure>{img(CM / 'figures' / 'fig2s_shuffle_heatmaps_stars.png', 'Shuffle effect heatmaps')}
 <figcaption>Median log2FC for each shuffle width (rows) and ATAC readout region (columns). Left: Stable sites; right: Dynamic sites, with significance marks against Stable.</figcaption></figure>
-<p><strong>What it shows.</strong> Shuffling only the motif lowers accessibility at the motif by about 0.6 log2 units (roughly a third lost) and over the whole peak by about 0.3 (about a fifth lost). Shuffling 170&nbsp;bp or the whole peak is far more damaging (about -1.8 log2 units locally, i.e. around 70% lost). Dynamic sites lose less than Stable sites in most cells. <strong>Trust:</strong> the ordering motif &lt; 170&nbsp;bp &asymp; peak is robust. Peak shuffles are noisy per site (see section 7).</p>
+<p><strong>What it shows.</strong> Shuffling only the motif lowers accessibility at the motif by about 0.6 log2 units (roughly a third lost) and over the whole peak by about 0.3 (about a fifth lost). Shuffling 170&nbsp;bp or the whole peak is far more damaging (about -1.8 log2 units locally, i.e. around 70% lost). Dynamic sites lose less than Stable sites in most cells. <strong>Trust:</strong> the ordering motif &lt; 170&nbsp;bp &asymp; peak is robust. Peak shuffles are noisy per site (see B7).</p>
 {table(stv_tab)}
 
-<h2>3. Stable vs Dynamic: is the difference real?</h2>
+<h3 class="sec">B3. Stable vs Dynamic: is the difference real?</h3>
 <p>Dynamic sites have lower native accessibility and different peak widths, either of which could make their log2FC look smaller without any biological difference. Three checks:</p>
 <figure>{img(CM / 'figures' / 'fig8_stable_vs_dynamic_by_native_accessibility.png', 'Stable vs Dynamic within accessibility quintiles', '640px')}
 <figcaption>Sites split into five groups by native predicted accessibility. Within every group, Stable sites lose more than Dynamic sites at the 170&nbsp;bp shuffle.</figcaption></figure>
@@ -205,7 +393,7 @@ body = f"""
 <li><strong>Independent track:</strong> repeating the test with the Patski ATAC track on the same sites gives 170&nbsp;bp {fb.loc['170', 'diff_dyn_minus_stable']:+.2f} ({fb.loc['170', 'sig']}), peak {fb.loc['peak', 'diff_dyn_minus_stable']:+.2f} ({fb.loc['peak', 'sig']}), motif {fb.loc['motif', 'diff_dyn_minus_stable']:+.2f} ({fb.loc['motif', 'sig']}). The 170&nbsp;bp direction replicates; the others do not.</li></ul>
 <p><strong>Trust:</strong> robust for the 170&nbsp;bp shuffle; partial for the peak shuffle; not supported for the motif shuffle.</p>
 
-<h2>4. Age, exercise and their combination</h2>
+<h3 class="sec">B4. Age, exercise and their combination</h3>
 <p>Each site carries three labels from the same binding calls: <em>age class</em> (YS vs MAS), <em>exercise class</em> (MAS vs MAE) and the full binding pattern. Every class is compared with its Stable reference, once raw and once adjusted for native ATAC and peak width (OLS with robust standard errors).</p>
 <figure>{img(CM / 'figures' / 'fig3s_class_effects_stars.png', 'Class effects with significance marks')}
 <figcaption>Median matched effect per class with 95% bootstrap CI. Blue = the Stable reference; marks to the right are FDR-corrected Mann&ndash;Whitney tests against it.</figcaption></figure>
@@ -220,22 +408,22 @@ body = f"""
 <h3>Covariates in the adjusted model (age family)</h3>{table(cov)}
 <p class="small">Positive peak-width coefficient: wider peaks lose less accessibility per log2FC. Dynamic sites differ systematically from Stable sites in width and native accessibility, which is why the raw peak-shuffle gap shrinks after adjustment.</p></details>
 
-<h2>5. RNA</h2>
+<h3 class="sec">B5. RNA</h3>
 <figure>{img(CM / 'figures' / 'fig4_rna_effect_by_tss_distance.png', 'RNA effect by TSS distance')}
 <figcaption>Median log2FC of predicted RNA after a peak shuffle, by distance of the site to the nearest TSS, for Stable and Dynamic sites. Left: within 2&nbsp;kb of that TSS; right: mean over &plusmn;50&nbsp;kb.</figcaption></figure>
 <p><strong>What it shows.</strong> Predicted RNA barely moves when a distal AP-1 site or peak is shuffled (medians within about &plusmn;0.1), with the largest drops close to a TSS. ATAC and RNA effects correlate across sites (rho 0.19 to 0.24), so there is a weak coupling, but the RNA effects themselves are far smaller than the slides reported. <strong>Trust:</strong> not informative with these tracks; do not over-interpret.</p>
 
-<h2>6. Does a high-confidence subset change the picture?</h2>
+<h3 class="sec">B6. Does a high-confidence subset change the picture?</h3>
 <figure>{img(CM / 'figures' / 'fig5_confidence_tiers.png', 'Confidence tiers')}
 <figcaption>Median effect in three nested sets chosen only from native prediction vs measurement (never from the effects): A all sites; B sites with a measured peak and predicted accessibility above the 25th percentile; C = B plus prediction-measurement rank agreement within 1 SD.</figcaption></figure>
 {table(t5_tab)}
 <p><strong>What it shows.</strong> Effects get somewhat larger in the filtered sets (the model is more confident at accessible, well-predicted sites) and the Stable vs Dynamic gap at 170&nbsp;bp stays. <strong>Trust:</strong> conclusions are not an artefact of poorly predicted sites; report all three tiers.</p>
 
-<h2>7. How much is noise?</h2>
+<h3 class="sec">B7. How much is noise?</h3>
 {table(D_tab, {'Sites with |effect| > 2 SE': '{:.0%}', 'Sites with effect < -2 SE': '{:.0%}'})}
 <p>Replicate SD is the spread across the 10 shuffles of one site. The 170&nbsp;bp effect is stable per site (SD about {D.set_index('shuffle').loc['170', 'median_replicate_sd']:.1f}); the motif and peak effects scatter more (SD about {D.set_index('shuffle').loc['motif', 'median_replicate_sd']:.1f} and {D.set_index('shuffle').loc['peak', 'median_replicate_sd']:.1f}). The median over thousands of sites is precise, but <strong>an individual site's peak-shuffle value should not be interpreted on its own</strong>. This is why 10 replicates were kept.</p>
 
-<h2>8. Insertion experiments</h2>
+<h3 class="sec">B8. Insertion experiments</h3>
 <figure>{img(AN / 'insertion' / 'figures' / 'fig_peak_swap.png', 'Peak swap')}
 <figcaption>Peak swap: a donor peak's sequence replaces a recipient peak. Swapped accessibility follows the donor's own accessibility (left) much more than the recipient location's (right).</figcaption></figure>
 {table(ps_tab, {'Spearman rho': '{:.2f}'})}
@@ -245,18 +433,20 @@ body = f"""
 {table(mi_tab, {'Median log2FC': '{:.2f}', 'Fraction > 0': '{:.2f}'})}
 <p><strong>Trust:</strong> no usable signal. Background accessibility is near zero, so any ratio is dominated by the floor, and the 7&nbsp;bp readout differences are not significant. The slides reported a similarly small effect.</p>
 
-<h2>9. What to trust</h2>
+{PART_C}
+<h2>D. What to trust</h2>
 <table class="t"><tr><th>Claim</th><th>Verdict</th><th>Evidence</th></tr>{claims_html}</table>
 
-<h2>10. Open issues and next steps</h2>
+<h2>E. Open issues and next steps</h2>
 <ul>
 <li><strong>Site set vs the slides.</strong> The TOBIAS table gives 3,679 CM Fos sites (2,907 Stable), not the slides' 2,663 (2,320 Stable). Our Dynamic native accessibility matches the slides, but our Stable sites are about half as accessible on average, and keeping our top 80% by predicted accessibility does not close the gap. The slides' Stable sites are a different set. Until the original selection is known, compare patterns, not absolute values.</li>
 <li><strong>Model equivalence.</strong> The slides were made with the AlphaGenome API; this run uses the PyTorch port with the same family of weights. The Dynamic-site match supports equivalence, but a direct check on the same sites through the API would settle it.</li>
+<li><strong>Status of the runs.</strong> The cardiomyocyte shuffle arm, the insertion jobs and the MPRA run are complete; the fibroblast-site shuffle array is still queued (nothing running yet), and the mutation arm (random, dinucleotide, core and flank edits) has not been run.</li>
 <li><strong>Fibroblasts.</strong> The mouse model has no fibroblast ATAC; Patski and embryonic-fibroblast RNA are weak proxies. The fibroblast shuffle run and the MPRA comparison will be added when they finish.</li>
 <li><strong>Motif-width effect is larger than in the slides</strong> (about -0.6 vs -0.12). Candidate causes are the motif interval used (here the 11&nbsp;bp TOBIAS interval for both the shuffle and the readout) and the different Stable set; worth confirming the slides' definition.</li></ul>
 
 <details><summary>Methods and files</summary>
-<p class="small">Predictions: alphagenome-pytorch with <code>model_all_folds</code> weights, mouse organism, 131,072&nbsp;bp window centred on the motif midpoint, mouse heart ATAC track (1&nbsp;bp, mean over region), 10 uniform random shuffles per width. Stable = bound in YS, MAS and MAE; age class compares YS and MAS; exercise class compares MAS and MAE. Adjusted model: effect ~ class + log10(native ATAC over peak) + log10(peak width), HC3 robust SEs, normal-theory CIs. All CIs for medians are percentile bootstrap (1,000&ndash;2,000 resamples). Sites are treated as independent, but about 8% of sites share a peak with another site, so p-values are mildly optimistic; effect sizes and confidence intervals are the better guide. Tables: <code>Analysis/cm/tables</code>, <code>Analysis/cm/stats</code>; figures: <code>Analysis/cm/figures</code>; scripts: <code>Scripts/22_shuffle_analysis.py</code>, <code>24_class_stats.py</code>, <code>23_insertion_analysis.py</code>, <code>25_build_report.py</code>.</p></details>
+<p class="small">Predictions: alphagenome-pytorch with <code>model_all_folds</code> weights, mouse organism, 131,072&nbsp;bp window centred on the motif midpoint, mouse heart ATAC track (1&nbsp;bp, mean over region), 10 uniform random shuffles per width. Stable = bound in YS, MAS and MAE; age class compares YS and MAS; exercise class compares MAS and MAE. Adjusted model: effect ~ class + log10(native ATAC over peak) + log10(peak width), HC3 robust SEs, normal-theory CIs. All CIs for medians are percentile bootstrap (1,000&ndash;2,000 resamples). Sites are treated as independent, but about 15% of sites share a peak with another site, so p-values are mildly optimistic; effect sizes and confidence intervals are the better guide. Tables: <code>Analysis/cm/tables</code>, <code>Analysis/cm/stats</code>; figures: <code>Analysis/cm/figures</code>; scripts: <code>Scripts/22_shuffle_analysis.py</code>, <code>24_class_stats.py</code>, <code>23_insertion_analysis.py</code>, <code>25_build_report.py</code>.</p></details>
 """
 
 doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

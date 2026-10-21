@@ -10,3 +10,4 @@ Katana/results/*
 Katana/logs/*
 !Katana/logs/.keep
 .env_prefix
+.playwright-mcp/
