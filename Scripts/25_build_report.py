@@ -899,17 +899,33 @@ REG = [
 REG_HTML = "<table class='t reg'><tr><th>Experiment</th><th>What was done</th><th>Result</th><th>Confidence</th><th>Why</th></tr>" + "".join(
     f"<tr><td class='v'>{a}</td><td class='v'>{b}</td><td class='v'>{c}</td><td>{badge(k)}</td><td class='v'>{d}</td></tr>" for a, b, c, k, d in REG) + "</table>"
 
-BIO = f"""<p>Everything below describes what AlphaGenome predicts for these sequences, supported by measured snATAC where stated. It is not a direct measurement of what AP-1 does in cells.</p>
-<h3>The surrounding sequence carries the predicted accessibility of an AP-1 site</h3>
-<p>Shuffling or mutating the 11&nbsp;bp motif costs a modest part of a site's predicted accessibility, while the 170&nbsp;bp around it carries most of it, with the effect building up to about 340&nbsp;bp. Nearly half of Stable sites are "context only" and few depend on the motif alone. A biologically consistent reading is that AP-1 acts together with neighbouring factors rather than alone: in cardiomyocytes the manuscript highlights MEF2C, GATA4 and TBX-type motifs near AP-1 sites. The present data cannot say which neighbours matter; that is what the other-motif shuffle control would test. A caution is that the readout averages over 170&nbsp;bp, of which 11 are the motif, so some of this is expected from the readout alone.</p>
-<h3>Stably bound sites sit in more accessible, more strongly footprinted regions</h3>
-<p>Stable sites lose more accessibility than Dynamic ones when their surroundings are removed, but this is largely because they start from more accessible chromatin with stronger footprints (and, for promoter-proximal sites, from the promoter). Once those are accounted for, little remains ({hg(cmn, M_FULL).gap:+.2f} in cardiomyocyte sites). The model therefore does not see a distinct sequence logic in age- or exercise-responsive sites. This agrees with the manuscript's view that dynamic elements are marked by weaker baseline chromatin context rather than by a different core motif. It does not show that sequence is irrelevant to dynamics: the model is trained on baseline accessibility, not on how accessibility responds to age or exercise, so it may simply not be able to represent response-specific logic.</p>
-<h3>Age-gained sites are real; the direction of change cannot be resolved</h3>
-<p>In independent snATAC, Age Up and Exercise Up sites gain accessibility, while the "down" classes move only weakly in the expected direction. With 79 to 210 sites per class, differences between age and exercise classes in predicted dependence cannot be separated from zero.</p>
-<h3>The MPRA reflects something the accessibility head does not capture</h3>
-<p>Predicted accessibility explains little of MPRA activity, and the predicted effect of scrambling an element does not track its MPRA change, even in a neutral genomic context. This fits the manuscript's interpretation that episomal activity and chromatin accessibility are different quantities and that chromatin context, not sequence autonomy, explains the endogenous differences, and it supports training a probe directly on the MPRA. The MPRA's own core-scramble effect is small, so a null here is weak evidence about the model.</p>
-<h3>What this cannot tell us</h3>
-<p>Nothing here tests AP-1 specificity against other motifs, causality in cells, or response-specific regulation. Fibroblast conclusions rest on weak proxy tracks.</p>"""
+BIO = f"""<p><strong>Bottom line.</strong> AlphaGenome says an AP-1 site's accessibility is carried by a neighbourhood of a few hundred base pairs, not by the 11&nbsp;bp motif, and that sites whose binding changes with age or exercise are not special in this respect: they are mostly sites in weaker chromatin. These are model predictions (checked against measured snATAC where stated), not direct measurements of AP-1 in cells.</p>
+<h3>What these tests add</h3>
+<ul>
+<li><strong>A size and a range for the context effect.</strong> The same-size shuffle 300&nbsp;bp away does nothing ({co_.loc['Stable', 'offset_pm300_median']:.2f} vs {co_.loc['Stable', 'centred_170_median']:.2f} centred), the loss saturates near 340&nbsp;bp, and the 7&nbsp;bp core gives only about {fr_.loc[7]:.0%} of the 170&nbsp;bp effect.</li>
+<li><strong>The motif is rarely the unit.</strong> {an3.loc['Context only', 'share_stable']:.0%} of Stable sites are context-only, {an3.loc['Motif only', 'share_stable']:.1%} depend on the motif alone, and at {an1.loc[('motif', 'Stable'), 'frac_gt0']:.0%} shuffling the motif raises the prediction.</li>
+<li><strong>The surroundings carry the effect in a mutation test too.</strong> Replacing the 159&nbsp;bp around the motif while keeping the motif keeps {ratio_cm170:.0%} (cardiomyocyte) and {ratio_fb170:.0%} (fibroblast) of the loss from replacing all 170&nbsp;bp.</li>
+<li><strong>Responsive AP-1 sites show no separate sequence logic.</strong> Stable sites lose more ({hg(cmn, M_RAW).gap:+.2f} raw), but only {hg(cmn, M_FULL).gap:+.2f} remains after accounting for accessibility, peak width and TSS distance (zero with the Patski track).</li>
+<li><strong>Dynamic sites are over-predicted</strong> (median rank error {xts.loc['CM sites, heart ATAC', 'dynamic_median_signed']:+.2f} vs {xts.loc['CM sites, heart ATAC', 'stable_median_signed']:+.2f} for Stable): their sequence looks more open than they measure, so their openness may depend on condition or cell state beyond sequence.</li>
+<li><strong>Sequence sets a peak's rank, location sets its level</strong> (peak swap), equally for Stable and Dynamic donors.</li>
+<li><strong>Accessibility is not enhancer activity at the element level.</strong> Predicted scrambling effects correlate about 0 with the MPRA changes, in the genomic window and in a neutral one.</li>
+</ul>
+<h3>What only confirms what was expected</h3>
+<ul>
+<li>AP-1 acting together with neighbouring factors rather than alone.</li>
+<li>Dynamic elements having weaker baseline chromatin (the manuscript's lower baseline accessibility): confirmed in predicted and measured accessibility.</li>
+<li>Age Up and Exercise Up sites gaining measured accessibility; the "down" classes changing only slightly.</li>
+</ul>
+<h3>What complicates the manuscript</h3>
+<ul>
+<li>The MPRA flank result (dynamic elements lose more activity when flanks are shuffled) is not mirrored in predicted accessibility: Dynamic sites lose less, and nothing separates the classes once context is accounted for. That result is about activity, not baseline accessibility.</li>
+</ul>
+<h3>What these tests cannot say</h3>
+<ul>
+<li>Whether AP-1 matters more than other motifs (no other-motif control yet) or which neighbours matter.</li>
+<li>Causality in cells, or why dynamic sites respond: the model predicts baseline accessibility only.</li>
+<li>Fibroblast conclusions beyond indicative: the fibroblast tracks are weak proxies.</li>
+</ul>"""
 
 SUMMARY = f"""
 <div class="box"><strong>Summary of results</strong>
