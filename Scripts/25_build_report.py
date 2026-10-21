@@ -89,14 +89,14 @@ main{max-width:1000px;margin:0 auto;padding:32px 16px 80px}h1{font-size:1.9rem;l
 p,li{max-width:78ch}.sub{color:var(--ink2);margin:0 0 20px}.box{background:var(--panel);border-radius:10px;padding:14px 18px;margin:16px 0}.box ul{margin:6px 0;padding-left:20px}
 figure{margin:18px 0}figcaption{color:var(--ink2);font-size:.9rem;margin-top:6px;max-width:80ch}img{border-radius:8px;border:1px solid var(--rule);background:#fcfcfb;height:auto}
 table.t{border-collapse:collapse;font-size:.86rem;margin:10px 0;display:block;overflow-x:auto;max-width:100%}table.t th,table.t td{padding:4px 10px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}table.t th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--bg)}table.t td:first-child,table.t th:first-child{text-align:left}
-div.bio{border-left:4px solid var(--green);background:var(--panel);padding:10px 16px;margin:14px 0;border-radius:6px;max-width:80ch}div.bio strong:first-child{color:var(--green)}.keyfig{margin:26px 0;padding-top:6px;border-top:1px dotted var(--rule)}.conf{margin:6px 0 10px;font-size:.92rem}.conf .badge{margin-right:6px}.toc{columns:2;column-gap:32px;font-size:.92rem;margin:8px 0}.toc ul{margin:0 0 8px;padding-left:18px}.toc a{color:var(--blue);text-decoration:none}h2 .num,h3 .num{color:var(--ink2);margin-right:6px}.badge{display:inline-block;font-size:.78rem;font-weight:600;border-radius:99px;padding:1px 9px;border:1.5px solid currentColor;white-space:nowrap}.ok{color:var(--green)}.mid{color:var(--amber)}.bad{color:var(--red)}.na{color:var(--grey)}
+div.bio{border-left:4px solid var(--green);background:var(--panel);padding:10px 16px;margin:14px 0;border-radius:6px;max-width:80ch}div.bio strong:first-child{color:var(--green)}.keyfig{margin:26px 0;padding-top:6px;border-top:1px dotted var(--rule)}.conf{margin:6px 0 10px;font-size:.92rem}.conf .badge{margin-right:6px}.toc{columns:2;column-gap:32px;font-size:.92rem;margin:8px 0}.toc ul{margin:0 0 8px;padding-left:18px}.toc a{color:var(--blue);text-decoration:none}h2 .num,h3 .num{color:var(--ink2);margin-right:6px}.badge{display:inline-block;font-size:.78rem;font-weight:600;border-radius:99px;padding:1px 9px;border:1.5px solid currentColor;white-space:nowrap}.ok{color:var(--green)}.mid{color:var(--amber)}.bad{color:var(--red)}.na{color:var(--grey)}.inc{color:var(--grey)}ul.pts{margin:6px 0 10px;padding-left:20px}ul.pts li{margin:3px 0}
 td.v{white-space:normal!important;text-align:left!important;min-width:260px}.small{font-size:.86rem;color:var(--ink2)}code{background:var(--panel);padding:1px 5px;border-radius:4px;font-size:.88em}
 details{margin:10px 0}summary{cursor:pointer;color:var(--ink2)}
 """
 
 
 def badge(kind):
-    lab = {"ok": "&#10003; High confidence", "mid": "~ Moderate confidence", "bad": "&#10007; Low / unreliable", "na": "? Untested"}[kind]
+    lab = {"ok": "&#10003; High confidence", "mid": "~ Moderate confidence", "bad": "&#10007; Low / unreliable", "na": "? Untested", "inc": "? Inconclusive"}[kind]
     return f'<span class="badge {kind}">{lab}</span>'
 
 
@@ -722,7 +722,7 @@ PART_B = f"""
 
 """
 
-# ======================= Assembly: chapters ordered by the scientific story =======================
+# ======================= Assembly: chapters ordered by the scientific story, short dot points =======================
 import re
 
 
@@ -743,14 +743,43 @@ for part, pat in ((PART_A, r'<h3>(A\d)\. .*?</h3>'), (PART_B, r'<h3 class="sec">
     SEC.update(d_)
     if part is PART_G:
         SEC["G0"] = re.sub(r'<h2.*?</h2>', '', intro_, flags=re.S)
-# the B8 section holds both insertion experiments: split them
 _b8 = SEC.pop("B8")
 _i = _b8.index('alt="Motif insertion"')
 _j = _b8.rfind("<figure>", 0, _i)
 SEC["B8a"], SEC["B8b"] = _b8[:_j], _b8[_j:]
-# drop the old per-part summaries and the final G7 list
 SEC.pop("G7", None)
 SEC.pop("D5", None)
+
+
+def strip_prose(s, keep_tables=None):
+    """Keep figures, details blocks and (some) tables of a section; drop its paragraphs and lists (the dot points replace them)."""
+    out, pos, ntab = [], 0, 0
+    pat = re.compile(r'<(p|ul|ol|figure|details|table|div|h4)\b[^>]*>')
+    while True:
+        m = pat.search(s, pos)
+        if not m:
+            break
+        tag = m.group(1)
+        tok = re.compile(rf'<(/?){tag}\b[^>]*>')
+        depth, end = 0, None
+        for mm in tok.finditer(s, m.start()):
+            depth += -1 if mm.group(1) else 1
+            if depth == 0:
+                end = mm.end()
+                break
+        if end is None:
+            break
+        el = s[m.start():end]
+        keep = tag in ("figure", "details") or (tag == "table" and (keep_tables is None or ntab < keep_tables))
+        ntab += tag == "table"
+        if keep:
+            out.append(el)
+        pos = end
+    return "\n".join(out)
+
+
+def U(*items):
+    return "<ul class='pts'>" + "".join(f"<li>{x}</li>" for x in items) + "</ul>"
 
 
 def conf(kind, text):
@@ -758,266 +787,362 @@ def conf(kind, text):
 
 
 CONF = {
- "A1": ("ok", "The site table was re-derived independently and reproduces."),
- "A2": ("ok", "Descriptive; the numbers come straight from the site table."),
- "A4": ("mid", "Gains are clear, losses are weak; footprint calls and accessibility come from the same ATAC data, so this is not fully independent."),
- "A3": ("ok", "Descriptive; Dynamic and Stable differences agree with the measured accessibility."),
- "B1": ("mid", "Rho about 0.4 is informative but not a precise predictor; the heart track is bulk tissue and the Patski track is a weak fibroblast proxy."),
- "A5": ("mid", "Tested between classes: errors are similar in size, but Dynamic sites are predicted somewhat less well and are biased upwards."),
- "A6": ("ok", "The shuffle behaves as designed."),
- "A7": ("ok", "Measured against the 10-replicate value itself, so true error is somewhat larger."),
- "B7": ("ok", "Medians are precise; single-site peak-shuffle values are noisy."),
- "A8": ("ok", "Sites are interleaved across chunks, so a GPU effect would show as a shift between chunks; none is seen."),
- "B2": ("ok", "A description of what the model predicts, supported by every later control. It is a model prediction, not a measurement."),
+ "A1": ("ok", "Re-derived independently; counts reproduce."),
+ "A2": ("ok", "Descriptive."),
+ "A4": ("mid", "A consistency check: footprint calls and accessibility share the same ATAC data."),
+ "A3": ("ok", "Descriptive."),
+ "B1": ("mid", "Informative, not precise; bulk tissue and a cell line stand in for purified cell types."),
+ "A5": ("mid", "Tested between classes: error size is similar, but Dynamic sites are predicted a little worse and biased upwards."),
+ "TECH": ("ok", "Direct checks; the H100 GPU ran only one 91-site chunk and cannot be assessed."),
+ "B2": ("ok", "A description of the model's predictions; every later control agrees with it."),
  "C1": ("ok", "Descriptive."),
- "D1": ("mid", "High confidence that the loss is local and saturates near 340 bp. Moderate that this reflects AP-1 specifically: the offset shuffles are only a distance control."),
- "D2": ("mid", "The 170 bp readout averages over 170 bp of which 11 are the motif, so a ratio near 100% is partly expected; the result differs between tracks (91% vs 76%), and the dinucleotide shuffle of the motif is partly a no-op."),
- "B8a": ("mid", "Clear direction (sequence beats location) and no detectable Stable/Dynamic difference, but only 4 recipient windows and 25 Dynamic donors, so the pairs are not independent and power is limited."),
- "C3": ("mid", "The 50% thresholds are arbitrary; read the proportions descriptively."),
- "C2": ("ok", "Large, consistent correlations."),
- "C6": ("mid", "Not adjusted for accessibility, so part of the promoter effect may be accessibility itself."),
- "C4": ("mid", "Footprint scores are computed from the same ATAC data that define accessibility."),
- "C5": ("bad", "Few sites in multi-motif peaks, and each shuffle edits one window, not all motifs together; this is no evidence either way."),
- "B3": ("ok", "The raw difference is real as a description. Whether it is more than accessibility is addressed in the next section."),
- "H1": ("mid", "High confidence that accessibility and context explain most of the gap. The footprint-score model is a sensitivity check, since footprint score partly defines the classes."),
- "B4": ("bad", "Underpowered for between-class differences (intervals about +-0.2 to 0.3, 79 to 210 sites) and the labels overlap."),
- "D3": ("mid", "Replicates the raw difference only. The fibroblast tracks are weak proxies and Patski scores the same sequences with the same model, so it is not an independent confirmation."),
- "B6": ("mid", "Selection uses only native prediction and measurement, never the effects."),
- "G0": ("ok", "This is the definition of the restriction; the rest of the chapter shows what it keeps and what it changes."),
+ "D1": ("mid", "High confidence the loss is local and saturates; moderate that it is AP-1-specific (a distance control only)."),
+ "D2": ("mid", "A ratio near 100% is partly expected (11 of 170 bp are motif) and it follows the track."),
+ "B8a": ("mid", "Clear direction; only 4 recipient windows and 25 Dynamic donors, so power is limited."),
+ "C3": ("mid", "The 50% thresholds are arbitrary; descriptive."),
+ "C2": ("mid", "High for the peak-shuffle correlations; the 170 bp and motif ones are weak."),
+ "C6": ("mid", "Not adjusted for accessibility."),
+ "C4": ("mid", "Footprint scores come from the same ATAC data as accessibility."),
+ "C5": ("inc", "Few multi-motif sites and one-window edits: no evidence either way."),
+ "B3": ("ok", "High for the raw difference as a description; see the next section for what explains it."),
+ "H1": ("mid", "High that context accounts for most of the gap; footprint score partly defines the classes, so that row is a sensitivity check."),
+ "B4": ("inc", "Underpowered for between-class differences (intervals about +-0.2 to 0.3); labels overlap."),
+ "D3": ("mid", "Raw difference replicates; weak tracks, and Patski uses the same model and sequences."),
+ "G0": ("ok", "Definition."),
  "G1": ("ok", "Descriptive."),
- "G2": ("mid", "The filter removes mostly over-predicted Dynamic sites, so the filtered Dynamic group is the well-predicted subset."),
- "G3": ("mid", "Selection and effect are related for Stable sites, so filtered gaps are partly selection."),
- "G4": ("mid", "Same direction in every tier, but see the previous section for why the larger filtered gaps are partly selection."),
- "G5": ("ok", "Direction and significance do not depend on the floor; the size does somewhat."),
+ "G2": ("mid", "The filter drops mostly over-predicted Dynamic sites."),
+ "G3": ("mid", "Selection and effect are related for Stable sites."),
+ "G4": ("mid", "Same direction in every tier; larger filtered gaps are partly selection."),
+ "G5": ("ok", "Direction and significance do not depend on the floor; size does somewhat."),
+ "B6": ("mid", "The stricter-floor version of the tiers."),
  "G6": ("ok", "Unchanged by the filter."),
- "C7": ("mid", "The native-level correlation is weak but consistent. The shuffle-effect correlations are about 0, but the MPRA's own scramble effects are tiny, so this null does not discriminate model quality."),
- "D4": ("mid", "A clean null, but it rests on only 2 neutral background windows and the same small MPRA effects."),
- "B5": ("bad", "Median RNA effects are about zero and per-site values are noisy; not informative with these tracks."),
- "B8b": ("bad", "Background accessibility is near zero, so any ratio is dominated by the floor, and the control can keep AP-1 half-sites."),
+ "C7": ("mid", "Weak native-level correlation; the scramble null does not rank models, as MPRA effects are tiny."),
+ "D4": ("mid", "A clean null, but only 2 neutral backgrounds and tiny MPRA effects."),
+ "B5": ("bad", "Not informative with these tracks."),
+ "B8b": ("bad", "At the floor; not interpretable."),
 }
 
-# chapters: key, title, intro (question, approach, finding), sub-sections [(key, title)]
 N = {}
 CH = [
  ("design", "The experiments at a glance", None, []),
  ("found", "Can we trust the data and the model?",
-  "<p><strong>Question.</strong> Before interpreting any perturbation, are the sites, labels and predictions sound enough to use? <strong>Approach.</strong> Inspect the site set and labels, compare predicted with measured accessibility, check that shuffles do what they should, and measure replicate noise. <strong>Finding.</strong> The sites and labels are sound, the model predicts measured accessibility moderately (rho {nv.rho:.2f} in cardiomyocyte sites), shuffles behave as designed, and 10 replicates are adequate. <strong>Limits.</strong> Prediction is moderate, not precise, Dynamic sites are somewhat less well predicted and are over-predicted, and the fibroblast tracks are weak proxies.</p>",
-  [("A1", "Which sites were analysed"), ("B1", "Does the model predict measured accessibility? Cardiomyocyte and fibroblast sites, heart and Patski tracks"), ("A2", "Stable and Dynamic sites sit in different peaks"),
-   ("A4", "Are the Stable and Dynamic labels real? A check against measured snATAC"), ("A3", "Native predicted accessibility"), ("A5", "Is prediction quality different between site classes?"),
-   ("A6", "Does a shuffle lower accessibility as expected?"), ("A7", "How many shuffle replicates are enough?"), ("B7", "How noisy is a single site?"), ("A8", "Does the GPU model matter?")]),
- ("depend", "What do AP-1 sites depend on in the model? The surrounding sequence, not the motif",
-  "<p><strong>Question.</strong> When the model predicts accessibility at an AP-1 site, how much comes from the 11&nbsp;bp motif and how much from its surroundings? <strong>Approach.</strong> Shuffle and mutate the motif, the 170&nbsp;bp around it or the whole peak, with controls at other positions and a width titration, and swap whole peaks. <strong>Finding.</strong> The 170&nbsp;bp loses far more accessibility ({m.loc['170', 'median_stable']:.2f} log2) than the motif alone ({m.loc['motif', 'median_stable']:.2f}); the loss is local, builds with the width of the edit and saturates near 340&nbsp;bp; mutating the 170&nbsp;bp with the motif left intact reproduces {ratio_cm170:.0%} of the full loss in cardiomyocyte sites ({ratio_fb170:.0%} in fibroblast sites); and sequence rather than location sets accessibility in a peak swap. <strong>Limits.</strong> These are model predictions; the offset control is a distance control only; the motif is 11 of the 170&nbsp;bp read out.</p>",
-  [("B2", "What shuffling does at three widths"), ("C1", "How varied are the per-site effects?"), ("D1", "Controls and width titration: is the loss local, and how does it scale?"), ("D2", "Mutation arm: what carries the dependence?"),
-   ("B8a", "Peak swap: sequence or location, and Stable versus Dynamic donors"), ("C3", "Motif dependence versus context dependence"), ("C2", "What sets the size of the effect?"), ("C6", "Promoter-proximal versus distal sites"),
+  U("Mostly yes, with limits.", f"The model ranks measured accessibility moderately (rho {nv.rho:.2f}, cardiomyocyte sites); labels are partly supported by measured snATAC; shuffles behave as designed.",
+    "Limits: Dynamic sites are predicted a little worse and are over-predicted; the fibroblast tracks are weak proxies."),
+  [("A1", "Which sites were analysed"), ("B1", "Does the model predict measured accessibility? Heart and Patski tracks compared"), ("A2", "Stable and Dynamic sites sit in different peaks"),
+   ("A4", "Are the Stable and Dynamic labels real?"), ("A3", "Native predicted accessibility"), ("A5", "Is prediction quality different between site classes?"),
+   ("TECH", "Technical checks: shuffle behaviour, replicates, noise, GPU")]),
+ ("depend", "What do AP-1 sites depend on? The surrounding sequence, not the motif",
+  U("Question: how much predicted accessibility comes from the 11 bp motif and how much from its surroundings?",
+    f"The 170 bp shuffle costs {m.loc['170', 'median_stable']:.2f} log2 vs {m.loc['motif', 'median_stable']:.2f} for the motif; the loss is local and saturates near 340 bp; replacing everything but the motif keeps {ratio_cm170:.0%} (CM) / {ratio_fb170:.0%} (FB) of the loss; in a peak swap, sequence sets the rank.",
+    "Limits: model predictions; the offset control is a distance control; 11 of the 170 bp are the motif."),
+  [("B2", "What shuffling does at three widths"), ("C1", "How varied are the per-site effects?"), ("D1", "Controls and width titration"), ("D2", "Mutation arm: what carries the dependence?"),
+   ("B8a", "Peak swap: sequence or location, Stable or Dynamic donors"), ("C3", "Motif dependence versus context dependence"), ("C2", "What sets the size of the effect?"), ("C6", "Promoter-proximal versus distal sites"),
    ("C4", "Does footprint strength agree with the predicted dependence?"), ("C5", "Do two Fos sites in a peak buffer each other?")]),
  ("dyn", "Do dynamic sites behave differently from stable ones?",
-  "<p><strong>Question.</strong> Do sites whose binding changes with age or exercise depend on their sequence differently from sites bound in every condition? <strong>Approach.</strong> Compare Stable and Dynamic sites at each shuffle width, raw and after adjusting for native accessibility, peak width, TSS distance and footprint strength; compare age and exercise classes; repeat in fibroblast sites. <strong>Finding.</strong> Stable sites lose more at the 170&nbsp;bp shuffle ({m.loc['170', 'diff_dyn_minus_stable']:+.2f} raw), but most of the gap is explained by native accessibility and context: {hg(cmn, M_MATCH).gap:+.2f} with the matched-readout adjustment, {hg(cmn, M_FULL).gap:+.2f} with peak width and TSS distance, and {hg(fbp, M_MATCH).gap:+.2f} with the Patski track. Age and exercise classes cannot be told apart at these sample sizes. <strong>Limits.</strong> The earlier, simpler adjustment looked as though the gap was robust; the matched-readout adjustment shows it was not.</p>",
+  U("Question: do age- or exercise-responsive sites depend on sequence differently from constitutive ones?",
+    f"Stable loses more at 170 bp ({m.loc['170', 'diff_dyn_minus_stable']:+.2f} raw); this falls to {hg(cmn, M_MATCH).gap:+.2f} (matched accessibility) and {hg(cmn, M_FULL).gap:+.2f} (plus peak width, TSS distance); age and exercise classes cannot be told apart.",
+    "Limit: a small residual remains and the data neither show nor exclude a separate sequence effect."),
   [("B3", "Stable versus Dynamic: the raw difference"), ("H1", "Correcting for accessibility at the matched readout"), ("B4", "Age, exercise and their combination"), ("D3", "Does it replicate in fibroblast sites?")]),
- ("robust", "Robustness: restricting to sites where prediction matches measurement",
-  "<p><strong>Question.</strong> Are the results driven by noisy or poorly predicted regions? <strong>Approach.</strong> Keep only sites whose predicted accessibility agrees with the measured snATAC, chosen from the native prediction and measurement alone, and repeat the main analyses. <strong>Finding.</strong> The Stable-vs-Dynamic difference, the mutation decomposition and the controls hold in every tier. <strong>Limits.</strong> The filter removes mostly over-predicted Dynamic sites, and kept Stable sites have larger effects than dropped ones, so larger gaps in the filtered sets are partly selection.</p>",
-  [("B6", "Confidence tiers from the main analysis"), ("G0", "How the restriction was done"), ("G1", "What was kept and what was dropped"), ("G2", "Is the filter biased against one class?"),
-   ("G3", "Do kept and dropped sites differ in the effect?"), ("G4", "Does Stable versus Dynamic survive?"), ("G5", "Sensitivity to the floor"), ("G6", "Mutation arm and controls in the filtered sets")]),
+ ("robust", "Robustness: only sites where prediction matches measurement",
+  U("Test: keep sites whose predicted accessibility agrees with measured, chosen from the native prediction and measurement only, and repeat the main analyses.",
+    "The Stable-vs-Dynamic direction, the mutation split and the controls hold in every tier.",
+    "Limit: the filter drops mostly over-predicted Dynamic sites; larger filtered gaps are partly selection."),
+  [("G0", "How the restriction was done"), ("G1", "What was kept and what was dropped"), ("G2", "Is the filter biased against one class?"), ("G3", "Do kept and dropped sites differ in the effect?"),
+   ("G4", "Does Stable versus Dynamic survive?"), ("G5", "Sensitivity to the floor"), ("B6", "Tiers with the stricter 25th-percentile floor"), ("G6", "Mutation arm and controls in the filtered sets")]),
  ("mpra", "Does the model explain the fibroblast MPRA?",
-  "<p><strong>Question.</strong> Does the predicted accessibility change after scrambling an element track the change in activity in the lenti-STARR MPRA? <strong>Approach.</strong> Predict native, motif-scrambled and fully scrambled versions of 1,653 elements in their genomic window and in neutral windows, and correlate with the MPRA. <strong>Finding.</strong> Native predicted accessibility correlates weakly with MPRA activity (rho {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f} heart, {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f} Patski), while predicted scrambling effects do not track the MPRA at all, in either context. <strong>Limits.</strong> The MPRA's own scramble effects are tiny (mean core loss about 0.02 log2), so there is little variance to predict.</p>",
+  U("Test: does predicted accessibility loss after scrambling an element track the change in MPRA activity (1,653 elements; genomic and neutral windows)?",
+    f"Native level correlates weakly (rho {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f} heart, {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f} Patski); scramble effects do not track at all.",
+    "Limit: the MPRA's own scramble effects are tiny (core loss about 0.02 log2), so the null says little about model quality."),
   [("C7", "Predicted accessibility against the MPRA"), ("D4", "Does placing elements in a neutral context restore agreement?"), ("MAN", "What the manuscript claims, and how our results bear on it")]),
- ("fail", "Experiments that did not work, or are limited",
-  "<p>These are reported so the reader can see what was tried and why it should not be used.</p>",
-  [("B5", "Predicted RNA"), ("B8b", "Motif insertion into random backgrounds"), ("NOTE", "Other limits and unresolved points")]),
- ("reg", "Experiment register: every experiment, with confidence and reasons", None, []),
- ("bio", "What it means biologically", None, []),
- ("open", "Review log, open issues and next steps", None, [("H2", "Corrections made after the independent review"), ("H3", "Code issues found and not yet fixed"), ("NEXT", "Next steps")]),
+ ("fail", "Experiments that did not work, or are limited", U("Reported so you can see what was tried and why not to rely on it."),
+  [("B5", "Predicted RNA"), ("B8b", "Motif insertion into random backgrounds"), ("NOTE", "Other limits")]),
+ ("reg", "Experiment register: every experiment, confidence and reason", None, []),
+ ("bio", "What these tests taught us", None, []),
+ ("open", "Review log, open issues and next steps", None, [("H2", "Corrections made after review"), ("H3", "Code issues found and not yet fixed"), ("NEXT", "Next steps")]),
  ("key", "Five key figures for a presentation", None, []),
 ]
 for ci, (ck, ct, cintro, subs) in enumerate(CH, 1):
     N[ck] = str(ci)
     for si, (sk, st) in enumerate(subs, 1):
         N[sk] = f"{ci}.{si}"
+ANCHOR = {k: k for k in N}
+for k_ in ("A6", "A7", "B7", "A8"):
+    N[k_] = N["TECH"]
+    ANCHOR[k_] = "TECH"
 
-REFS = [(r"Parts B3 and B4", f"sections {N['B3']} and {N['B4']}"), (r"B3 and B4", f"sections {N['B3']} and {N['B4']}"), (r"(?<![\w-])Part H\b", f"section {N['H1']}"), (r"(?<![\w-])Part G\b", f"section {N['G0']}"),
-        (r"(?<![\w-])Part C\b", f"section {N['C2']}"), (r"(?<![\w#-])B6\b", f"section {N['B6']}"), (r"(?<![\w#-])B7\b", f"section {N['B7']}"), (r"(?<![\w#-])G3\b", f"section {N['G3']}"), (r"(?<![\w#-])D1\b", f"section {N['D1']}"),
-        (r"(?<![\w#-])D2\b", f"section {N['D2']}"), (r"(?<![\w#-])D4\b", f"section {N['D4']}"), (r"(?<![\w#-])A4\b", f"section {N['A4']}"), (r"(?<![\w#-])C4\b", f"section {N['C4']}")]
-ANCH = {"B3": "B3", "H1": "H1", "G0": "G0", "C2": "C2", "B6": "B6", "B7": "B7", "G3": "G3", "D1": "D1", "D2": "D2", "D4": "D4", "A4": "A4", "C4": "C4"}
+
+def link(key):
+    return f'<a href="#sec-{ANCHOR[key]}">section {N[key]}</a>'
+
+
+def clink(ck):
+    return f'<a href="#ch-{ck}">section {N[ck]}</a>'
+
+
+OLD_REFS = [(r"(?<![\w-])Part H\b", "H1"), (r"(?<![\w-])Part G\b", "G0"), (r"(?<![\w-])Part C\b", "C2"), (r"(?<![\w#-])B6\b", "B6"), (r"(?<![\w#-])B7\b", "B7"), (r"(?<![\w#-])G3\b", "G3"),
+            (r"(?<![\w#-])D1\b", "D1"), (r"(?<![\w#-])D2\b", "D2"), (r"(?<![\w#-])D4\b", "D4"), (r"(?<![\w#-])A4\b", "A4"), (r"(?<![\w#-])C4\b", "C4")]
 
 
 def fixrefs(s):
-    for pat, rep_ in REFS:
-        def sub(mm, rep_=rep_):
-            num = re.search(r"section[s]? ([\d.]+)", rep_).group(1)
-            key = next(k for k, v in N.items() if v == num and k in SEC)
-            return rep_.replace(f"section {num}", f'<a href="#sec-{key}">section {num}</a>', 1) if not rep_.startswith("sections") else \
-                f'sections <a href="#sec-B3">{N["B3"]}</a> and <a href="#sec-B4">{N["B4"]}</a>'
-        s = re.sub(pat, sub, s)
+    s = re.sub(r"\[\[(\w+)\]\]", lambda mm: link(mm.group(1)), s)
+    s = re.sub(r"B3 and B4", f"sections {link('B3')[link('B3').index('>') + 1:-4].replace('section ', '')} and {N['B4']}", s)
+    for pat, key in OLD_REFS:
+        s = re.sub(pat, lambda mm, key=key: link(key), s)
     return s
 
 
-# ---- hand-written sections
+# ---------------- dot points per section (placed before the plots; the old paragraphs are dropped)
+_c = lambda k: q4.loc[k, "median_log2fc"]
+_stab = lambda a, b: f"{a}"
+PTS = {
+ "A1": U(f"{n_all:,} cardiomyocyte Fos sites: {n_st:,} Stable ({n_st / n_all:.0%}) and {n_dy:,} Dynamic, over six dynamic patterns of about 80 to 210 sites each.",
+         "Age and exercise labels come from the same three binding calls, so they overlap (seven patterns in all).", f"The Stable/Dynamic mix does not differ between chromosomes (p = {chrom_p:.2f}).",
+         "Small classes limit the power of every class comparison."),
+ "B1": U(f"The heart track ranks measured accessibility moderately: rho {xov.loc['CM sites, heart ATAC', 'rho']:.2f} for cardiomyocyte sites and {xov.loc['FB sites, heart ATAC', 'rho']:.2f} for fibroblast sites.",
+         f"The Patski track on the same fibroblast sites gets only {xov.loc['FB sites, Patski ATAC', 'rho']:.2f} (and is about uncorrelated with cardiomyocyte accessibility).",
+         f"Sites compared are those with a measured peak: {int(xov.loc['CM sites, heart ATAC', 'n']):,} cardiomyocyte and {int(xov.loc['FB sites, heart ATAC', 'n']):,} fibroblast.",
+         "The heart track is bulk tissue and Patski is a cell line: both stand in for purified cell types."),
+ "A2": U(f"Dynamic sites sit in narrower peaks (median {gm.loc['Dynamic', 'peak_width']:.0f} vs {gm.loc['Stable', 'peak_width']:.0f} bp, p {fmtp(gp['peak_width'])}).",
+         f"Distance to the nearest TSS is similar ({gm.loc['Dynamic', 'abs_tss']:,.0f} vs {gm.loc['Stable', 'abs_tss']:,.0f} bp, p = {gp['abs_tss']:.2f}).",
+         f"About {(SL.motifs_in_peak >= 2).mean():.0%} of sites share their peak with another Fos site.", "Peak width also drives peak-shuffle effects, so class comparisons adjust for it."),
+ "A4": U("Footprint calls and measured snATAC come from the same ATAC data, so this is a consistency check, not independent validation (sites with a measured peak).",
+         f"Age Up sites gain accessibility with age (median log2 MAS/YS {_c(('age_class', 'Age Up')):+.2f} vs {_c(('age_class', 'Stable')):+.2f} for Stable); Exercise Up sites gain too ({_c(('ex_class', 'Exercise Up')):+.2f}).",
+         f"The down classes move the expected way but weakly (Age Down {_c(('age_class', 'Age Down')):+.2f}, Exercise Down {_c(('ex_class', 'Exercise Down')):+.2f}).",
+         f"Class differences are significant (Kruskal-Wallis p {fmtp(age_p)} age, {fmtp(ex_p)} exercise). Read 'Dynamic' as footprint-defined, not strongly differentially accessible."),
+ "A3": U(f"Predicted accessibility is right-skewed: most sites are low (median {q3.loc[('Stable', 'peak'), 'median']:.2f} Stable, {q3.loc[('Dynamic', 'peak'), 'median']:.2f} Dynamic over the peak), a few are very high.",
+         f"Dynamic sites are less accessible at every readout (peak mean {q3.loc[('Dynamic', 'peak'), 'mean']:.2f} vs {q3.loc[('Stable', 'peak'), 'mean']:.2f}) and in the measurement (median 17.8 vs 29.3 CPM per kb)."),
+ "A5": U(f"Spearman rho is {q5.loc['Stable', 'rho']:.2f} for Stable and {q5.loc['Dynamic', 'rho']:.2f} for Dynamic sites; difference {XPR[(XPR.combo == 'CM sites, heart ATAC') & (XPR['class'] == 'All Dynamic')].rho_diff_vs_stable.iloc[0]:+.2f} (95% CI {XPR[(XPR.combo == 'CM sites, heart ATAC') & (XPR['class'] == 'All Dynamic')].rho_diff_lo.iloc[0]:+.2f} to {XPR[(XPR.combo == 'CM sites, heart ATAC') & (XPR['class'] == 'All Dynamic')].rho_diff_hi.iloc[0]:+.2f}).",
+         f"Across the seven binding classes rho differs (Cochran Q = {xts.loc['CM sites, heart ATAC', 'rho_heterogeneity_Q']:.1f}, p = {xts.loc['CM sites, heart ATAC', 'rho_heterogeneity_p']:.3f}); lowest for MAS only (0.19) and MAS+MAE (0.16).",
+         f"The size of the error is the same across classes (Kruskal-Wallis p = {xts.loc['CM sites, heart ATAC', 'kw_abs_resid_p']:.2f}), but its direction is not: Dynamic sites are over-predicted (median rank error {xts.loc['CM sites, heart ATAC', 'dynamic_median_signed']:+.2f} vs {xts.loc['CM sites, heart ATAC', 'stable_median_signed']:+.2f} for Stable; same in fibroblast sites).",
+         "No class is unusable, but Dynamic sites are predicted a bit worse and biased upwards; see the tiers in chapter 5."),
+ "C1": U(f"Shuffling only the motif raises the prediction at {an1.loc[('motif', 'Stable'), 'frac_gt0']:.0%} of Stable sites and lowers it by more than half at {an1.loc[('motif', 'Stable'), 'frac_lt_minus1']:.0%}.",
+         f"The 170 bp shuffle lowers it by more than half at {an1.loc[('170', 'Stable'), 'frac_lt_minus1']:.0%} of Stable and {an1.loc[('170', 'Dynamic'), 'frac_lt_minus1']:.0%} of Dynamic sites.",
+         "So dependence on the motif is a property of a subset of sites, not a uniform feature."),
+ "D1": U(f"Centred 170 bp shuffle: {co_.loc['Stable', 'centred_170_median']:.2f} log2 at the motif. Same-size shuffle 300 bp away: {co_.loc['Stable', 'offset_pm300_median']:.2f} (centred is worse at {co_.loc['Stable', 'share_centred_more_negative']:.0%} of Stable and {co_.loc['Dynamic', 'share_centred_more_negative']:.0%} of Dynamic sites).",
+         f"The loss grows with width and flattens near 340 bp: share of the 170 bp effect is {fr_.loc[7]:.0%} at 7 bp, {fr_.loc[11]:.0%} at 11 bp, {fr_.loc[85]:.0%} at 85 bp, {fr_.loc[340]:.0%} at 340 bp.",
+         f"The Stable-Dynamic gap grows from {sv_.loc[7, 'diff_dyn_minus_stable']:+.2f} (7 bp) to {sv_.loc[340, 'diff_dyn_minus_stable']:+.2f} (340 bp), so it comes from the surroundings, not the core.",
+         f"Read over the whole peak, the centred 170 bp costs {D1c.loc[('peak', 'Stable'), 'median']:.2f} (Stable) and {D1c.loc[('peak', 'Dynamic'), 'median']:.2f} (Dynamic) vs {D1c.loc[('peak', 'Stable'), 'off']:.2f} for shuffles 300 bp away.",
+         "Caveat: this is a distance control, not an AP-1-specific one."),
+ "D2": U(f"Replacing the 159 bp around the motif (170 minus the 11 bp motif, motif kept) keeps {ratio_cm170:.0%} (cardiomyocyte) and {ratio_fb170:.0%} (fibroblast, Patski) of the loss from replacing all 170 bp ({dec('170', 'flank@170', 'CM, heart ATAC'):.2f} vs {dec('170', 'random@170', 'CM, heart ATAC'):.2f} in cardiomyocyte sites).",
+         f"Within the motif, replacing only the 7 bp core gives {ratio_cmcore:.0%} of replacing all 11 bases; the 4 flank bases alone give {dec('motif', 'flank@motif', 'CM, heart ATAC') / dec('motif', 'random@motif', 'CM, heart ATAC'):.0%}.",
+         "Stable loses more than Dynamic at the 170 bp and whole-peak widths (FDR < 0.001, both site sets); at motif width the classes barely differ.",
+         "Caveats: 11 of the 170 bp are the motif, so a ratio near 100% is partly expected; the result follows the track (about 13% from the motif with the heart track on fibroblast sites); the motif dinucleotide shuffle is partly a no-op (3.8% of replicates identical).",
+         "Here dependency = minus log2FC (positive = accessibility lost); each edit is read over the region it changes, so replacing the whole peak (1.48) can look smaller than replacing 170 bp (1.96)."),
+ "B8a": U(f"Swapped accessibility follows the donor peak's own accessibility (rho {swap.loc['donor native (sequence)', 'rho']:.2f}) more than the recipient's ({swap.loc['recipient native (location)', 'rho']:.2f}, from only 4 recipient values); within each recipient rho is 0.72 to 0.91.",
+          f"Stable and Dynamic donors behave the same once donor accessibility is accounted for: Dynamic coefficient {XPS.iloc[-1].stable_median:+.2f} log2 (95% CI {XPS.iloc[-1].dynamic_median:+.2f} to {XPS.iloc[-1].n_dynamic_donors:+.2f}, p = {XPS.iloc[-1].p_mannwhitney:.2f}); rho {XPS.iloc[4].stable_median:.2f} vs {XPS.iloc[5].stable_median:.2f}.",
+          f"Dynamic donors start lower (median {XPS.iloc[0].dynamic_median:.2f} vs {XPS.iloc[0].stable_median:.2f}, p = {XPS.iloc[0].p_mannwhitney:.2f}).",
+          "The same peak keeps less than its own accessibility in the least accessible recipient and more in the more accessible ones, for both classes.",
+          "Caveat: 4 recipients and 25 Dynamic donors (a difference below about 0.2 log2 could be missed); pair-level p-values treat the 292 pairs as independent, so use the donor-level numbers."),
+ "C3": U(f"Motif and 170 bp effects are related across sites (rho {rho_mc:.2f}).",
+         f"Stable sites: {an3.loc['Context only', 'share_stable']:.0%} context only, {an3.loc['Motif and context', 'share_stable']:.0%} motif and context, {an3.loc['Motif only', 'share_stable']:.1%} motif only. Dynamic sites are more often 'neither' ({an3.loc['Neither', 'share_dynamic']:.0%} vs {an3.loc['Neither', 'share_stable']:.0%}; chi-square p < 1e-20).",
+         "Categories use a 50% loss threshold, which is arbitrary: read as descriptive."),
+ "C2": U(f"Peak-shuffle loss tracks native accessibility (rho {an2.loc[('peak', 'native_peak'), 'rho']:+.2f}) and peak width ({an2.loc[('peak', 'peak_width'), 'rho']:+.2f}).",
+         f"The 170 bp loss depends less on these, with TSS distance ({an2.loc[('170', 'abs_tss'), 'rho']:+.2f}) and footprint score ({an2.loc[('170', 'fp_score'), 'rho']:+.2f}); it is U-shaped across native accessibility (saturation at the top).",
+         f"The motif-only effect depends little on anything (|rho| up to {an2[an2.index.get_level_values(0) == 'motif'].rho.abs().max():.2f}).", "So class comparisons must be adjusted for accessibility and width."),
+ "C6": U(f"Within 2 kb of a TSS, peaks are more accessible (native {an6.loc[('native_peak', 'Stable', '<=2 kb'), 'median']:.2f} vs {an6.loc[('native_peak', 'Stable', '>30 kb'), 'median']:.2f} beyond 30 kb) but lose less from a 170 bp shuffle ({an6.loc[('eff_170', 'Stable', '<=2 kb'), 'median']:+.2f} vs {an6.loc[('eff_170', 'Stable', '>30 kb'), 'median']:+.2f}; p < 1e-29).",
+         "Not adjusted for accessibility, so part of this may be accessibility itself."),
+ "C4": U(f"In Stable sites a stronger footprint goes with a larger 170 bp effect (rho {an4.loc[('eff_170', 'Stable'), 'rho']:+.2f}) and higher predicted accessibility ({an4.loc[('native_peak', 'Stable'), 'rho']:+.2f}); in Dynamic sites there is no relationship.",
+         "Consistent with, but not independent of, the accessibility data (footprint scores come from the same ATAC)."),
+ "C5": U(f"Sites alone in their peak and sites sharing it with another Fos motif do not differ (raw FDR from {AN5.raw_fdr.min():.2f}; adjusted FDR 0.76, 0.76, 0.07).",
+         f"Only {int(an5.loc['motif', 'n_multi'])} sites are in multi-motif peaks and each shuffle edits one window, so this is inconclusive."),
+ "B3": U(f"Raw: Stable loses more at the 170 bp shuffle (Dynamic minus Stable {m.loc['170', 'diff_dyn_minus_stable']:+.2f}, 95% CI {m.loc['170', 'ci_lo']:+.2f} to {m.loc['170', 'ci_hi']:+.2f}; positive = Dynamic loses less).",
+         f"It holds in all five quintiles of native peak accessibility, in a permutation test (p = {pm.loc['170', 'perm_p']:.4f}) and with the Patski track on the same sites ({fb.loc['170', 'diff_dyn_minus_stable']:+.2f}; same model and sequences, so not independent).",
+         f"Motif width: {m.loc['motif', 'diff_dyn_minus_stable']:+.2f} (permutation p = {pm.loc['motif', 'perm_p']:.2f}, not significant). Peak width: {m.loc['peak', 'diff_dyn_minus_stable']:+.2f}, mostly accessibility and peak width.",
+         "These quintiles use peak accessibility; the next section redoes this on the matched readout."),
+ "H1": U(f"Cardiomyocyte sites: raw {hg(cmn, M_RAW).gap:+.2f} → {hg(cmn, M_PK).gap:+.2f} (peak accessibility) → {hg(cmn, M_MATCH).gap:+.2f} (matched-readout accessibility) → {hg(cmn, M_FULL).gap:+.2f} (plus peak accessibility, width, TSS distance; splines) → {hg(cmn, M_FP).gap:+.2f}, not significant (plus footprint score).",
+         f"Fibroblast sites, heart track: {hg(fbh, M_RAW).gap:+.2f} raw → {hg(fbh, M_FULL).gap:+.2f}. Fibroblast sites, Patski track: {hg(fbp, M_RAW).gap:+.2f} raw → {hg(fbp, M_MATCH).gap:+.2f} (matched readout only) → {hg(fbp, M_FULL).gap:+.2f} (full model).",
+         "Motif- and peak-width gaps shrink to near zero, with a few small reversed-sign residuals (for example Patski motif −0.05).",
+         f"For sites like the Dynamic ones the weighted gap is {H_cs.loc[cmn, 'common_support_gap']:+.2f} (CM), {H_cs.loc[fbh, 'common_support_gap']:+.2f} (FB, heart) and {H_cs.loc[fbp, 'common_support_gap']:+.2f} (Patski); in the lower deciles, where {H_cs.loc[cmn, 'dynamic_in_lowest_5_deciles']:.0%} of Dynamic cardiomyocyte sites lie, the gap is about 0.1 to 0.2.",
+         "Reading: the gap is largely chromatin context; a small residual remains; the data neither show nor exclude a separate sequence effect (the covariates are themselves downstream of sequence). Patski scores the same sequences with the same model, so it is not independent confirmation."),
+ "B4": U(f"At 170 bp every class loses less than its reference: raw {a170.raw_diff.min():.2f} to {a170.raw_diff.max():.2f}, adjusted {a170.adj_diff.min():.2f} to {a170.adj_diff.max():.2f} (all {int((a170.adj_fdr < 0.05).sum())} age and exercise classes stay FDR < 0.05). At peak width {int((adj[adj.width == 'peak'].adj_fdr < 0.05).sum())} of 6 stay significant, at motif width {int((adj[adj.width == 'motif'].adj_fdr < 0.05).sum())} of 6.",
+         f"Classes against each other: no significant difference at 170 bp or peak width (smallest FDR {E[E.width != 'motif'].fdr.min():.2f}).",
+         "The intervals (about ±0.2 to 0.3; 79 to 210 sites per class) are too wide to exclude differences half the size of the Stable-vs-Dynamic gap: absence of evidence.",
+         "The reference classes (bound in both conditions) contain a few Dynamic sites (2,997 and 3,117 vs 2,907 Stable)."),
+ "D3": U(f"Stable loses more at 170 bp in all four site/track combinations (raw FDR < 0.001): cardiomyocyte sites {rep.loc[('CM sites, heart ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} (heart) and {rep.loc[('CM sites, Patski ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} (Patski); fibroblast sites {rep.loc[('FB sites, heart ATAC', '170'), 'diff_dyn_minus_stable']:+.2f} and {rep.loc[('FB sites, Patski ATAC', '170'), 'diff_dyn_minus_stable']:+.2f}.",
+         f"After adjusting for matched accessibility and peak width: {adj_.loc[('CM sites, heart ATAC', '170'), 'adj_diff']:+.2f} and {adj_.loc[('FB sites, heart ATAC', '170'), 'adj_diff']:+.2f} (heart), {adj_.loc[('CM sites, Patski ATAC', '170'), 'adj_diff']:+.2f} and {adj_.loc[('FB sites, Patski ATAC', '170'), 'adj_diff']:+.2f} (Patski; FDR < 0.01), smaller still in the fullest model (section [[H1]]).",
+         f"Class by class in fibroblast sites: all {n_cl_170} comparisons at 170 bp go the same way and {n_cl_sig170} reach FDR < 0.001.",
+         "Motif width: a small raw gap with the heart track (+0.10); the peak-width gap disappears after adjustment in 3 of 4 combinations.",
+         f"Prediction for fibroblast sites is weaker ({nvf.loc[('heart ATAC', 'atac_peak')]:.2f} heart, {nvf.loc[('Patski ATAC', 'atac_peak')]:.2f} Patski), so treat this as indicative."),
+ "G0": U("Goal: keep sites whose predicted accessibility agrees with the measured snATAC, using the native prediction and measurement only (never the effects).",
+         "Tier B: has a measured peak and predicted accessibility above the 5th percentile (a noise floor, kept low so weak but well-predicted peaks stay).",
+         "Tier C: B plus predicted-minus-measured percentile within 1 SD; tier D: within 0.5 SD.", "Thresholds are set per site set and track; fibroblast sites are compared with measured fibroblast accessibility."),
+ "G1": U(f"Tier C keeps {gr(cmn, 'C').retained_all:.0%} of cardiomyocyte sites ({gr(cmn, 'C').n:,}) and tier D {gr(cmn, 'D').retained_all:.0%} ({gr(cmn, 'D').n:,}).",
+         "Most drops are for rank disagreement; the floor removes few sites.", "The correlation inside a tier (0.7 to 0.95) is circular: it shows the selection worked, nothing more."),
+ "G2": U(f"By measured accessibility the filter treats the classes alike.", f"By predicted accessibility it does not: in the top two predicted quintiles {gq(cmn, 'Dynamic'):.0%} of Dynamic cardiomyocyte sites are kept vs {gq(cmn, 'Stable'):.0%} of Stable (fibroblast heart {gq(fbh, 'Dynamic'):.0%} vs {gq(fbh, 'Stable'):.0%}; Patski {gq(fbp, 'Dynamic'):.0%} vs {gq(fbp, 'Stable'):.0%}).",
+         "So the kept Dynamic sites are the ones the model gets right; filtered results describe that subset."),
+ "G3": U(f"Kept Stable sites lose more than dropped ones ({gk(cmn, 'Stable').median_effect_kept:.2f} vs {gk(cmn, 'Stable').median_effect_discarded:.2f}, p < 0.001); Dynamic sites do not differ (p = {gk(cmn, 'Dynamic').p:.2f}).",
+         f"With Patski, kept Dynamic sites lose less than dropped ones ({gk(fbp, 'Dynamic').median_effect_kept:.2f} vs {gk(fbp, 'Dynamic').median_effect_discarded:.2f}, p < 0.001): the opposite direction.",
+         f"So larger filtered gaps are partly selection; the unfiltered {gs(cmn, '170', 'A').diff_dyn_minus_stable:+.2f} is the cleaner estimate."),
+ "G4": U(f"Dynamic minus Stable at 170 bp (all FDR < 0.001): cardiomyocyte {gs(cmn, '170', 'A').diff_dyn_minus_stable:+.2f} (all) → {gs(cmn, '170', 'C').diff_dyn_minus_stable:+.2f} (C) → {gs(cmn, '170', 'D').diff_dyn_minus_stable:+.2f} (D); fibroblast heart {gs(fbh, '170', 'A').diff_dyn_minus_stable:+.2f} → {gs(fbh, '170', 'D').diff_dyn_minus_stable:+.2f}; Patski {gs(fbp, '170', 'A').diff_dyn_minus_stable:+.2f} → {gs(fbp, '170', 'D').diff_dyn_minus_stable:+.2f}.",
+         "Motif width: small (up to +0.1 raw, about +0.2 in the strictest tiers). Peak width: unstable across tiers.", "Read the growth with stricter tiers together with the previous section."),
+ "G5": U("The 25th-percentile floor keeps about a third of Dynamic sites in tier C (vs about half with the 5% floor).", "Cardiomyocyte gap similar or larger; Patski +0.44 vs +0.61 (tier C).", "Direction and significance do not depend on the floor; size does somewhat."),
+ "B6": U("This is the stricter 25th-percentile-floor version of the tiers (ranks over all sites), so counts differ slightly from the 25%-floor tables above.", "Effects are larger in the filtered sets and the 170 bp gap stays (about +0.5 in tier B, +0.7 in tier C)."),
+ "G6": U(f"Replacing everything but the motif keeps {G_mu[(G_mu.combo == cmn)].ratio_flank170_over_random170.min():.0%} to {G_mu[(G_mu.combo == cmn)].ratio_flank170_over_random170.max():.0%} of the 170 bp loss (cardiomyocyte) in every tier.",
+         f"The 7 bp core stays at about {G_ct.core7_share_of_170.min():.0%} to {G_ct.core7_share_of_170.max():.0%} of the 170 bp shuffle effect; shuffles 300 bp away stay near {G_ct.offset_pm300.mean():.2f} vs {G_ct.centred_170.min():.2f} to {G_ct.centred_170.max():.2f} centred.",
+         "The table's 'core / full motif loss' (about 1.0) is a different ratio: the core against all 11 bases."),
+ "C7": U(f"Native predicted accessibility vs MPRA activity: rho {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f} (heart), {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f} (Patski); also in the replicated and TOBIAS-motif subsets.",
+         f"Predicted scrambling effect vs MPRA change: about 0 (motif shuffle {mp_.loc[('Patski ATAC', CMP_M, 'all elements'), 'rho']:+.2f}, full shuffle {mp_.loc[('Patski ATAC', CMP_F, 'all elements'), 'rho']:+.2f}, Patski).",
+         "Sign: the predicted effect is log2(shuffled/native), negative = loss; the MPRA change is native minus scrambled, positive = loss; agreement would show as a negative correlation.",
+         "Possible reasons: episomal activity vs genomic accessibility; tiny MPRA effects (core loss about 0.02 log2); weak fibroblast tracks. So this null does not rank models."),
+ "D4": U(f"Neutral window: native rho {mc_.loc[('heart ATAC', 'neutral context', 'native level vs MPRA activity'), 'rho']:+.2f} (heart), {mc_.loc[('Patski ATAC', 'neutral context', 'native level vs MPRA activity'), 'rho']:+.2f} (Patski), similar to the genomic window; scramble effects still about 0 (all |rho| ≤ {D4[D4.comparison != 'native level vs MPRA activity'].rho.abs().max():.2f}).",
+         "So the surrounding genome is not why the native head misses the MPRA changes.", "Caveat: only 2 neutral windows; applies to the native head, not the manuscript's trained probe."),
+ "B5": U("Median RNA effects are about zero: the largest are −0.08 (±2 kb readout, 2 to 10 kb from the TSS) and −0.12 (±50 kb mean, within 2 kb), Stable sites, peak shuffle.", "ATAC and RNA effects correlate weakly across sites (rho 0.19 to 0.24).", "Not informative with these tracks."),
+ "B8b": U(f"Cardiomyocyte sites: +{mi('atac_motif', '+motif vs shuffled background').median_log2fc:.2f} log2 over the centre 7 bp (not significant); about +0.05 over 128 bp (p < 0.001, 68% positive). Fibroblast sites: about +0.14 over 128 bp (92% positive).",
+          "Background accessibility is near zero, so ratios sit at the floor; the effects are small and not interpretable. The shuffled-motif control can also keep AP-1 half-sites."),
+}
+KEEP_T = {"D3": 1, "G1": 1, "A5": 2, "B1": 1}
+
+# ---------------- hand-written sections
 MAN_ROWS = [
- ("Dynamic AP-1 elements have lower baseline accessibility", "ok", "Predicted native ATAC is lower for Dynamic MPRA elements (Cohen's d about -0.5) and for Dynamic cardiomyocyte sites."),
- ("Dynamic elements have lower GC content and sit farther from promoters", "mid", "GC lower (median 0.494 vs 0.512, p = 9e-8); distance only weakly different in the MPRA elements and not significant in our cardiomyocyte sites."),
+ ("Dynamic AP-1 elements have lower baseline accessibility", "ok", "Predicted native ATAC is lower for Dynamic MPRA elements (Cohen's d about -0.5) and Dynamic cardiomyocyte sites."),
+ ("Dynamic elements have lower GC content and sit farther from promoters", "mid", "GC lower (median 0.494 vs 0.512, p = 9e-8); distance only weakly different in MPRA elements, not significant in our cardiomyocyte sites."),
  ("Age-gained elements have reporter activity on par with stable elements", "ok", "Median log2 alpha +0.25 (Age Up) vs +0.26 (Stable), p = 0.78."),
- ("...despite weaker endogenous chromatin features: chromatin context, not sequence autonomy, explains them", "ok", "The model predicts lower accessibility for the same sequences while MPRA activity is equal; native accessibility explains little of MPRA activity."),
+ ("...despite weaker endogenous chromatin features, so chromatin context explains them", "mid", "Consistent with, not tested: the model predicts lower accessibility for these sequences while MPRA activity is equal, so it shows accessibility and activity differ."),
  ("Shuffling the AP-1 core has a minor effect on MPRA activity; flank shuffling hurts dynamic elements more", "ok", "Core loss about 0.02 log2; flank loss reproduces (Age Up 0.128 vs Stable 0.016, d = 0.14), a small effect."),
- ("The same flank dependence is a property of what the model can read", "bad", "The native accessibility head gives the opposite direction (Dynamic lose less), and per-element predicted vs measured flank loss correlates about 0. Accessibility and episomal activity are different quantities."),
+ ("The same flank dependence is what the model can read", "bad", "The native head gives the opposite direction (Dynamic lose less) and per-element predicted vs measured flank loss correlates about 0. Accessibility and activity differ."),
  ("AlphaGenome-MPRA probe reaches r = 0.73; ISM, seqlets, epistasis, rescue explain dispersed activity", "na", "Cannot be tested with the native heads. GC content alone correlates 0.505 with MPRA activity, so a GC baseline on the same splits would help interpret 0.73."),
  ("Motif enrichments (MEF2C, TCF7L2, GATA4, NFAT, ETV4, C/EBP)", "na", "Needs a motif scan on sequences, which can run on Katana."),
 ]
-MAN = f"""<p>The manuscript uses AlphaGenome as a frozen encoder with a linear probe trained on the MPRA, not the native accessibility head used here, so our results speak to predicted chromatin accessibility and not to the manuscript's probe. Full notes: <code>Analysis/manuscript_notes_MPRA_AlphaGenome.md</code>.</p>
-<table class="t reg"><tr><th>Manuscript claim</th><th>Verdict from our data</th><th>Evidence</th></tr>{''.join(f"<tr><td class='v'>{a}</td><td>{badge(k).replace('High confidence', 'Supported').replace('Moderate confidence', 'Partly supported').replace('Low / unreliable', 'Opposed').replace('Untested', 'Cannot test')}</td><td class='v'>{b}</td></tr>" for a, k, b in MAN_ROWS)}</table>
-<p class="small">Supported = our data reproduce or support the claim; Opposed = our data point the other way; Cannot test = outside what the native heads can address.</p>"""
-NOTE = f"""<ul>
-
-<li><strong>The dinucleotide shuffle of the motif is partly a no-op</strong>: an 11-mer has few distinct dinucleotide-preserving arrangements and 3.8% of its replicates gave a native-identical prediction, so its effect (median &minus;0.33) is diluted compared with replacing the motif (&minus;0.67).</li>
-<li><strong>Fibroblast tracks are weak proxies.</strong> The Patski line and embryonic-fibroblast RNA are not cardiac fibroblasts; predicted vs measured fibroblast accessibility is {nvf.loc[('Patski ATAC', 'atac_peak')]:.2f} (Patski) and {nvf.loc[('heart ATAC', 'atac_peak')]:.2f} (heart). Fibroblast numbers are indicative.</li>
-<li><strong>Not run:</strong> saturation mutagenesis of the motif, the human-head sensitivity check and the window-length check (coded, resumable).</li></ul>"""
-NEXT = """<ul>
-<li><strong>Other-motif shuffle control (highest value).</strong> Pair each AP-1 site with a footprinted non-AP-1 motif (GATA, TBX, MEF2, NFAT) in the same peak plus matched random windows, to test whether AP-1 matters more than other motifs. Start by counting peaks that contain both.</li>
-<li>Saturation mutagenesis of the 11&nbsp;bp motif; human-head and window-length sensitivity checks (coded, not run).</li>
-<li>Rerun the small code fixes on Katana (MPRA coordinate off-by-one, dinucleotide redraw, insertion control half-sites, record the core-edit fallback) and regenerate the MPRA crossmap.</li>
-<li>Confirm whether Fosb, Fosl1 and Fosl2 calls should be included in the site set.</li>
-<li>A cardiac-cell-type accessibility probe (the human trial-19 probe, or a mouse probe) would replace the weak fibroblast proxies.</li>
-<li>A motif scan on sequences to test the manuscript's enrichment claims.</li></ul>"""
+MAN = f"""<ul class='pts'><li>The manuscript uses AlphaGenome as a frozen encoder with a probe trained on the MPRA, not the native accessibility head used here, so our results speak to predicted accessibility, not to its probe.</li><li>Full notes: <code>Analysis/manuscript_notes_MPRA_AlphaGenome.md</code>.</li></ul>
+<table class="t reg"><tr><th>Manuscript claim</th><th>Verdict from our data</th><th>Evidence</th></tr>{''.join(f"<tr><td class='v'>{a}</td><td>{badge(k).replace('High confidence', 'Supported').replace('Moderate confidence', 'Partly supported').replace('Low / unreliable', 'Opposed').replace('Untested', 'Cannot test')}</td><td class='v'>{b}</td></tr>" for a, b, c in [(x, y, z) for x, y, z in MAN_ROWS] for b in [c] for c in [b] ) if False else ''.join(f"<tr><td class='v'>{a}</td><td>{badge(k).replace('High confidence', 'Supported').replace('Moderate confidence', 'Partly supported').replace('Low / unreliable', 'Opposed').replace('Untested', 'Cannot test')}</td><td class='v'>{b}</td></tr>" for a, k, b in MAN_ROWS)}</table>"""
+NOTE = U("The dinucleotide shuffle of the motif is partly a no-op: an 11-mer has few arrangements and 3.8% of replicates gave a native-identical prediction.",
+         f"Fibroblast tracks are weak proxies: predicted vs measured fibroblast accessibility is {nvf.loc[('Patski ATAC', 'atac_peak')]:.2f} (Patski) and {nvf.loc[('heart ATAC', 'atac_peak')]:.2f} (heart).",
+         "Not run yet: saturation mutagenesis, the human-head check and the window-length check (coded, resumable).")
+NEXT = U("Other-motif shuffle control (highest value): pair each AP-1 site with a footprinted non-AP-1 motif (GATA, TBX, MEF2, NFAT) in the same peak plus matched random windows; start by counting peaks with both.",
+         "Saturation mutagenesis of the 11 bp motif; human-head and window-length checks.",
+         "Rerun the small code fixes on Katana (MPRA off-by-one, dinucleotide redraw, insertion half-sites, record the core-edit fallback) and regenerate the MPRA crossmap.",
+         "Confirm whether Fosb, Fosl1 and Fosl2 calls belong in the site set.", "A cardiac-cell-type accessibility probe would replace the weak fibroblast proxies.", "A motif scan on sequences to test the manuscript's enrichment claims.")
 
 REG = [
- ("Native vs measured accessibility", "Predicted peak ATAC vs measured snATAC, per site", f"rho {nv.rho:.2f} (heart, cardiomyocyte sites); fibroblast sites {nvf.loc[('heart ATAC', 'atac_peak')]:.2f} (heart), {nvf.loc[('Patski ATAC', 'atac_peak')]:.2f} (Patski)", "mid", "Informative, not precise; fibroblast tracks are weak proxies."),
- ("Class labels vs measured change", "Measured log2 MAS/YS and MAE/MAS by class", "Gains clear, losses weak", "mid", "Footprint calls and accessibility share the same ATAC data."),
- ("Shuffle at 3 widths", "10 shuffles per site at motif, 170 bp and peak", f"{m.loc['170', 'median_stable']:.2f} (170 bp) vs {m.loc['motif', 'median_stable']:.2f} (motif), Stable", "ok", "Large, consistent, above replicate noise; a model prediction."),
- ("Offset controls and titration", "170 bp shuffles at +-300/600 bp; centred widths 7 to 680 bp", f"Centred {co_.loc['Stable', 'centred_170_median']:.2f} vs {co_.loc['Stable', 'offset_pm300_median']:.2f} at +-300 bp; saturates near 340 bp; 7 bp core {fr_.loc[7]:.0%}", "mid", "Local and saturating is solid; AP-1 specificity is not shown (distance control only)."),
- ("Mutation arm", "Random, dinucleotide, core and flank edits at each width", f"Surroundings alone = {ratio_cm170:.0%} (CM), {ratio_fb170:.0%} (FB) of the full 170 bp loss", "mid", "Ratio near 100% partly expected; track-dependent; the dinucleotide shuffle of the motif is partly a no-op."),
- ("Peak swap", "Donor peak placed into a recipient window; Stable vs Dynamic donors compared", f"Swapped vs donor rho {swap.loc['donor native (sequence)', 'rho']:.2f}; no Stable/Dynamic difference after adjusting for donor accessibility", "mid", "Only 4 recipients and 25 Dynamic donors; pairs not independent; limited power."),
- ("Stable vs Dynamic", "Class comparison at each width, raw and adjusted", f"Raw {m.loc['170', 'diff_dyn_minus_stable']:+.2f}; {hg(cmn, M_MATCH).gap:+.2f} matched-readout adjusted; {hg(cmn, M_FULL).gap:+.2f} with width and TSS", "mid", "Raw difference real; mostly explained by accessibility and context."),
- ("Age vs exercise classes", "Each class vs Stable and against each other", "No significant difference between dynamic classes", "bad", "Underpowered; labels overlap; absence of evidence."),
- ("Fibroblast sites", "Same experiments on 5,018 fibroblast sites, Patski and heart tracks", f"Raw gap replicates; Patski gap {hg(fbp, M_MATCH).gap:+.2f} (ns) after matched adjustment", "mid", "Weak tracks; Patski is not independent confirmation."),
- ("Agreement-filtered sites", "Tiers A to D from native prediction vs measurement", "All main conclusions hold in every tier", "mid", "Filter removes over-predicted Dynamic sites; filtered gaps partly selection."),
- ("Prediction quality by class", "Rho and rank error between binding classes, with tests", f"Rho {XCL[(XCL.combo == 'CM sites, heart ATAC') & (XCL['class'] == 'Stable (all three)')].rho.iloc[0]:.2f} (Stable) vs {XCL[(XCL.combo == 'CM sites, heart ATAC') & (XCL['class'] == 'All Dynamic')].rho.iloc[0]:.2f} (Dynamic); Dynamic over-predicted", "mid", "Errors are similar in size; Dynamic sites are predicted a little less well and biased upwards."),
- ("Footprint score, TSS distance, multi-motif peaks", "Correlations and group comparisons", "Stronger footprints and distal sites depend more on 170 bp context; no buffering", "mid", "Footprint shares data with accessibility; TSS not adjusted; few multi-motif sites."),
- ("MPRA: native level", "Predicted native ATAC vs MPRA log2 alpha", f"rho {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f} heart, {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f} Patski", "mid", "Weak but consistent."),
- ("MPRA: scramble effects, genomic and neutral context", "Predicted effect of motif and full scramble vs MPRA change", "About 0 in both contexts", "mid", "MPRA effects are tiny, so the null does not discriminate model quality; 2 neutral backgrounds."),
- ("RNA", "Predicted RNA after shuffles, +-2 kb and +-50 kb readouts", "Median effects about 0", "bad", "Not informative with these tracks."),
- ("Motif insertion into random backgrounds", "TGAGTCA inserted into 50 shuffled backgrounds", f"+{mi('atac_motif', '+motif vs shuffled background').median_log2fc:.2f} log2 at the centre, not significant", "bad", "Floor effect; control can keep half-sites."),
- ("Replicates and GPU", "Replicate convergence; chunk effects across GPU types", "10 replicates adequate; no GPU effect", "ok", "Direct checks."),
+ ("Native vs measured accessibility", f"rho {nv.rho:.2f} (CM, heart); fibroblast {nvf.loc[('heart ATAC', 'atac_peak')]:.2f} (heart), {nvf.loc[('Patski ATAC', 'atac_peak')]:.2f} (Patski)", "mid", "Informative, not precise; weak fibroblast tracks."),
+ ("Prediction quality by class", f"rho {XCL[(XCL.combo == 'CM sites, heart ATAC') & (XCL['class'] == 'Stable (all three)')].rho.iloc[0]:.2f} Stable vs {XCL[(XCL.combo == 'CM sites, heart ATAC') & (XCL['class'] == 'All Dynamic')].rho.iloc[0]:.2f} Dynamic; Dynamic over-predicted", "mid", "Error size similar; Dynamic predicted a bit worse and biased up."),
+ ("Class labels vs measured change", "Gains clear, losses weak", "mid", "Footprints and accessibility share the same ATAC data."),
+ ("Shuffle at 3 widths", f"{m.loc['170', 'median_stable']:.2f} (170 bp) vs {m.loc['motif', 'median_stable']:.2f} (motif), Stable", "ok", "Large, above replicate noise; a model prediction."),
+ ("Offset controls and titration", f"Centred {co_.loc['Stable', 'centred_170_median']:.2f} vs {co_.loc['Stable', 'offset_pm300_median']:.2f} at ±300 bp; saturates near 340 bp; 7 bp core {fr_.loc[7]:.0%}", "mid", "Local and saturating is solid; AP-1 specificity not shown."),
+ ("Mutation arm", f"Surroundings alone = {ratio_cm170:.0%} (CM), {ratio_fb170:.0%} (FB) of the 170 bp loss", "mid", "Ratio near 100% partly expected; track-dependent."),
+ ("Peak swap", f"Swapped vs donor rho {swap.loc['donor native (sequence)', 'rho']:.2f}; no Stable/Dynamic difference after adjusting for donor accessibility", "mid", "4 recipients, 25 Dynamic donors."),
+ ("Stable vs Dynamic", f"Raw {m.loc['170', 'diff_dyn_minus_stable']:+.2f} → {hg(cmn, M_MATCH).gap:+.2f} (matched) → {hg(cmn, M_FULL).gap:+.2f} (with width, TSS)", "mid", "Largely context; small residual; neither shown nor excluded a separate effect."),
+ ("Age vs exercise classes", "No significant difference between dynamic classes", "inc", "Underpowered; labels overlap."),
+ ("Fibroblast sites", f"Raw gap replicates; Patski {hg(fbp, M_MATCH).gap:+.2f} (matched only), {hg(fbp, M_FULL).gap:+.2f} (full)", "mid", "Weak tracks; Patski not independent."),
+ ("Agreement-filtered sites", "All main conclusions hold in every tier", "mid", "Filter drops over-predicted Dynamic sites; filtered gaps partly selection."),
+ ("Footprint, TSS distance", "Strong footprints and distal sites depend more on 170 bp context", "mid", "Footprint shares data with accessibility; TSS unadjusted."),
+ ("Multi-motif peaks", "No difference (inconclusive)", "inc", "Few sites; one-window edits."),
+ ("MPRA: native level", f"rho {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f} heart, {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f} Patski", "mid", "Weak but consistent."),
+ ("MPRA: scramble effects (genomic and neutral)", "About 0 in both contexts", "mid", "MPRA effects tiny; 2 neutral backgrounds."),
+ ("RNA", "Median effects about 0", "bad", "Not informative with these tracks."),
+ ("Motif insertion", f"+{mi('atac_motif', '+motif vs shuffled background').median_log2fc:.2f} log2 over 7 bp (ns); about +0.05 over 128 bp", "bad", "At the floor; not interpretable."),
+ ("Replicates and GPU", "10 replicates adequate for group medians; no L40S vs A100 difference", "ok", "H100 ran one 91-site chunk."),
 ]
-REG_HTML = "<table class='t reg'><tr><th>Experiment</th><th>What was done</th><th>Result</th><th>Confidence</th><th>Why</th></tr>" + "".join(
-    f"<tr><td class='v'>{a}</td><td class='v'>{b}</td><td class='v'>{c}</td><td>{badge(k)}</td><td class='v'>{d}</td></tr>" for a, b, c, k, d in REG) + "</table>"
+REG_HTML = "<table class='t reg'><tr><th>Experiment</th><th>Result</th><th>Confidence</th><th>Why</th></tr>" + "".join(
+    f"<tr><td class='v'>{a}</td><td class='v'>{b}</td><td>{badge(k)}</td><td class='v'>{d}</td></tr>" for a, b, k, d in REG) + "</table>"
 
-BIO = f"""<p><strong>Bottom line.</strong> AlphaGenome says an AP-1 site's accessibility is carried by a neighbourhood of a few hundred base pairs, not by the 11&nbsp;bp motif, and that sites whose binding changes with age or exercise are not special in this respect: they are mostly sites in weaker chromatin. These are model predictions (checked against measured snATAC where stated), not direct measurements of AP-1 in cells.</p>
+BIO = f"""<p><strong>Bottom line.</strong> AlphaGenome says an AP-1 site's accessibility sits mostly in the surrounding few hundred base pairs, with the 11&nbsp;bp motif a minority share. Sites whose binding changes with age or exercise differ mainly in chromatin context; a small residual (about {hg(cmn, M_FULL).gap:+.2f}) remains. Model predictions, checked against measured snATAC where stated; not direct measurements of AP-1 in cells.</p>
 <h3>What these tests add</h3>
-<ul>
-<li><strong>A size and a range for the context effect.</strong> The same-size shuffle 300&nbsp;bp away does nothing ({co_.loc['Stable', 'offset_pm300_median']:.2f} vs {co_.loc['Stable', 'centred_170_median']:.2f} centred), the loss saturates near 340&nbsp;bp, and the 7&nbsp;bp core gives only about {fr_.loc[7]:.0%} of the 170&nbsp;bp effect.</li>
-<li><strong>The motif is rarely the unit.</strong> {an3.loc['Context only', 'share_stable']:.0%} of Stable sites are context-only, {an3.loc['Motif only', 'share_stable']:.1%} depend on the motif alone, and at {an1.loc[('motif', 'Stable'), 'frac_gt0']:.0%} shuffling the motif raises the prediction.</li>
-<li><strong>The surroundings carry the effect in a mutation test too.</strong> Replacing the 159&nbsp;bp around the motif while keeping the motif keeps {ratio_cm170:.0%} (cardiomyocyte) and {ratio_fb170:.0%} (fibroblast) of the loss from replacing all 170&nbsp;bp.</li>
-<li><strong>Responsive AP-1 sites show no separate sequence logic.</strong> Stable sites lose more ({hg(cmn, M_RAW).gap:+.2f} raw), but only {hg(cmn, M_FULL).gap:+.2f} remains after accounting for accessibility, peak width and TSS distance (zero with the Patski track).</li>
-<li><strong>Dynamic sites are over-predicted</strong> (median rank error {xts.loc['CM sites, heart ATAC', 'dynamic_median_signed']:+.2f} vs {xts.loc['CM sites, heart ATAC', 'stable_median_signed']:+.2f} for Stable): their sequence looks more open than they measure, so their openness may depend on condition or cell state beyond sequence.</li>
-<li><strong>Sequence sets a peak's rank, location sets its level</strong> (peak swap), equally for Stable and Dynamic donors.</li>
-<li><strong>Accessibility is not enhancer activity at the element level.</strong> Predicted scrambling effects correlate about 0 with the MPRA changes, in the genomic window and in a neutral one.</li>
-</ul>
+{U(f"A size and a range for the context effect: 300&nbsp;bp away does nothing ({co_.loc['Stable', 'offset_pm300_median']:.2f} vs {co_.loc['Stable', 'centred_170_median']:.2f}), the loss saturates near 340&nbsp;bp, the 7&nbsp;bp core is about {fr_.loc[7]:.0%} of the 170&nbsp;bp effect.",
+   f"The motif is rarely the unit: {an3.loc['Context only', 'share_stable']:.0%} of Stable sites are context-only, {an3.loc['Motif only', 'share_stable']:.1%} motif-only, and at {an1.loc[('motif', 'Stable'), 'frac_gt0']:.0%} shuffling the motif raises the prediction.",
+   f"Replacing the surroundings keeps {ratio_cm170:.0%} (CM) / {ratio_fb170:.0%} (FB) of the loss from replacing all 170&nbsp;bp.",
+   f"Responsive AP-1 sites show little beyond context: the Stable-vs-Dynamic gap goes from {hg(cmn, M_RAW).gap:+.2f} to {hg(cmn, M_FULL).gap:+.2f}; a separate sequence effect is neither shown nor excluded.",
+   f"Dynamic sites are over-predicted ({xts.loc['CM sites, heart ATAC', 'dynamic_median_signed']:+.2f} vs {xts.loc['CM sites, heart ATAC', 'stable_median_signed']:+.2f}), so their openness may depend on condition or cell state beyond sequence.",
+   "Sequence sets a peak's rank and location sets its level (peak swap), equally for Stable and Dynamic donors.",
+   "Accessibility is not enhancer activity at the element level: predicted scrambling effects correlate about 0 with MPRA changes, in genomic and neutral windows.")}
 <h3>What only confirms what was expected</h3>
-<ul>
-<li>AP-1 acting together with neighbouring factors rather than alone.</li>
-<li>Dynamic elements having weaker baseline chromatin (the manuscript's lower baseline accessibility): confirmed in predicted and measured accessibility.</li>
-<li>Age Up and Exercise Up sites gaining measured accessibility; the "down" classes changing only slightly.</li>
-</ul>
+{U("Dynamic elements have weaker baseline chromatin (the manuscript's lower baseline accessibility): confirmed in predicted and measured accessibility.", "Age Up and Exercise Up sites gain measured accessibility; the down classes change only slightly.")}
 <h3>What complicates the manuscript</h3>
-<ul>
-<li>The MPRA flank result (dynamic elements lose more activity when flanks are shuffled) is not mirrored in predicted accessibility: Dynamic sites lose less, and nothing separates the classes once context is accounted for. That result is about activity, not baseline accessibility.</li>
-</ul>
+{U("The MPRA flank result (dynamic elements lose more activity when flanks are shuffled) is not mirrored in predicted accessibility: Dynamic sites lose less, and little separates the classes once context is accounted for. That result is about activity, not baseline accessibility.")}
 <h3>What these tests cannot say</h3>
-<ul>
-<li>Whether AP-1 matters more than other motifs (no other-motif control yet) or which neighbours matter.</li>
-<li>Causality in cells, or why dynamic sites respond: the model predicts baseline accessibility only.</li>
-<li>Fibroblast conclusions beyond indicative: the fibroblast tracks are weak proxies.</li>
-</ul>"""
+{U("Whether AP-1 matters more than other motifs, or which neighbouring factors matter (cooperation with GATA, TBX or MEF2 is plausible but untested here).", "Causality in cells, or why dynamic sites respond: the model predicts baseline accessibility only.", "Fibroblast conclusions beyond indicative: the fibroblast tracks are weak proxies.")}"""
 
-SUMMARY = f"""
-<div class="box"><strong>Summary of results</strong>
-<p class="small">Each line shows how far to trust it. Details and plots follow in the numbered sections.</p>
-<ul>
-<li>{badge('ok')} <strong>Context, not the motif.</strong> Shuffling the 170&nbsp;bp around an AP-1 site removes far more predicted accessibility ({m.loc['170', 'median_stable']:.2f} log2) than shuffling the 11&nbsp;bp motif ({m.loc['motif', 'median_stable']:.2f}). The loss is local, builds with width and saturates near 340&nbsp;bp, and mutating the 170&nbsp;bp with the motif intact keeps {ratio_cm170:.0%} (CM) / {ratio_fb170:.0%} (FB) of it. <em>Meaning:</em> AP-1 sites look cooperative; the surrounding sequence carries most of the predicted accessibility (section {N['depend']}).</li>
-<li>{badge('mid')} <strong>Stable vs Dynamic is mostly accessibility.</strong> Stable sites lose more ({m.loc['170', 'diff_dyn_minus_stable']:+.2f} raw), but the gap falls to {hg(cmn, M_MATCH).gap:+.2f}, then {hg(cmn, M_FULL).gap:+.2f} after adjusting for matched-readout accessibility, peak width and TSS distance, and is {hg(fbp, M_MATCH).gap:+.2f} with the Patski track. <em>Meaning:</em> no separate sequence logic is visible for age- or exercise-responsive sites (section {N['dyn']}).</li>
-<li>{badge('mid')} <strong>Sequence sets accessibility in a peak swap</strong> (swapped follows donor, rho {swap.loc['donor native (sequence)', 'rho']:.2f}); only 4 recipient windows (section {N['B8a']}).</li>
-<li>{badge('mid')} <strong>The model tracks measured accessibility moderately</strong> (rho {nv.rho:.2f} for cardiomyocyte sites, {xov.loc['FB sites, heart ATAC', 'rho']:.2f} for fibroblast sites with the heart track and only {xov.loc['FB sites, Patski ATAC', 'rho']:.2f} with the Patski track). Dynamic sites are predicted a little less well and are over-predicted; the class labels are real in measured snATAC (gains clear, losses weak) (section {N['found']}).</li>
-<li>{badge('mid')} <strong>The native accessibility head does not explain the fibroblast MPRA.</strong> Predicted scrambling effects correlate about 0 with the MPRA changes in genomic and neutral context, but the MPRA's own scramble effects are tiny (section {N['mpra']}).</li>
-<li>{badge('ok')} <strong>The main results hold in well-predicted sites</strong>, although the filter removes mostly over-predicted Dynamic sites and filtered gaps are partly selection (section {N['robust']}).</li>
-<li>{badge('bad')} <strong>Did not work or not reliable:</strong> RNA (effects about zero), motif insertion into random backgrounds (floor effect), differences between age and exercise classes (underpowered), and the fibroblast tracks (weak proxies) (section {N['fail']}).</li></ul>
-<p class="small"><strong>Corrected after an independent review.</strong> Three independent reviewers re-derived the headline numbers (all reproduced) and confirmed the labels and site tables. They found that the earlier Stable-vs-Dynamic adjustment used the wrong covariate; it is corrected in section {N['H1']}, other wording was softened, and the code issues still open are listed in section {N['open']}.</p></div>
-<div class="box"><strong>How to read the figures and confidence labels</strong>
-<p><strong>Effect.</strong> For each site and shuffle width, the mean over 10 shuffles of <code>log2((shuffled + pc) / (native + pc))</code> of the predicted ATAC (mean per-base signal over a region; pc = 5% of the median native value). Negative = accessibility lost. A motif shuffle is read over the motif, a 170&nbsp;bp shuffle over the 170&nbsp;bp, a peak shuffle over the peak, unless stated. <strong>Marks:</strong> <code>***</code> FDR &lt; 0.001, <code>**</code> &lt; 0.01, <code>*</code> &lt; 0.05, <code>ns</code> not significant (two-sided Mann&ndash;Whitney, Benjamini&ndash;Hochberg within each family). With thousands of sites small differences are significant, so each comparison also shows an effect size; read it before the stars.</p>
-<p><strong>Confidence.</strong> {badge('ok')} survives the checks and controls; {badge('mid')} real but limited, small or confounded, with the reason given; {badge('bad')} should not be relied on, with the reason given; {badge('na')} not testable with these data.</p></div>"""
-
-
-# ---- what each result means biologically (shown in a green box after every results section)
-_m170, _mmot = m.loc['170', 'median_stable'], m.loc['motif', 'median_stable']
 BIO_SEC = {
- "A1": f"AP-1 is bound in all three conditions at {n_st / n_all:.0%} of these cardiomyocyte Fos sites, so AP-1 occupancy here is largely constitutive. Only about a fifth of sites change with age or exercise, divided over six patterns of 65 to 210 sites, so any statement about how AP-1 binding changes with age or exercise rests on small groups.",
- "B1": f"The model has learned enough regulatory sequence logic to rank real genomic regions by accessibility moderately well, so what it says about which sequence matters is meaningful but approximate. The cardiac track ranks fibroblast sites almost as well as cardiomyocyte sites ({xov.loc['FB sites, heart ATAC', 'rho']:.2f} vs {xov.loc['CM sites, heart ATAC', 'rho']:.2f}), which suggests it mostly captures general features of accessible regulatory sequence rather than cardiomyocyte-specific ones. The Patski cell-line track captures much less ({xov.loc['FB sites, Patski ATAC', 'rho']:.2f}), so conclusions that rest on it are weaker.",
- "A2": f"Sites whose AP-1 binding changes sit in narrower peaks (median {gm.loc['Dynamic', 'peak_width']:.0f} vs {gm.loc['Stable', 'peak_width']:.0f} bp) at a similar distance from promoters. The regulatory elements where AP-1 occupancy is dynamic therefore look smaller than those where it is constant, not closer to or farther from genes.",
- "A4": "Where AP-1 binding is gained with age or exercise, chromatin accessibility goes up as well (Age Up and Exercise Up sites gain measured accessibility). Where AP-1 binding is lost, accessibility falls only slightly. AP-1 arriving at a site is therefore clearly linked to opening; AP-1 leaving does not close chromatin to the same degree, which could mean that opened chromatin persists after AP-1 leaves, or that loss calls are less certain.",
- "A3": "Most sites are weakly accessible and a few are very strongly accessible, and sites whose AP-1 binding changes are less accessible than constitutive ones, in the prediction and in the measurement. Responsive AP-1 sites therefore sit in weaker chromatin than constitutively bound sites.",
- "A5": f"The model over-predicts accessibility at Dynamic sites (median rank error {xts.loc['CM sites, heart ATAC', 'dynamic_median_signed']:+.2f} against {xts.loc['CM sites, heart ATAC', 'stable_median_signed']:+.2f} for Stable, and the same in fibroblast sites) while the size of the error does not differ. One reading is that Dynamic sites carry sequence the model finds permissive but that is open only under particular conditions or in particular cell states, so sequence alone does not decide whether these sites are open. This fits their weaker measured accessibility but is an interpretation, not a test.",
- "A6": f"A shuffle that destroys sequence lowers predicted accessibility, as expected if accessibility is written in the sequence. At about a quarter of sites, shuffling only the 11 bp motif raises predicted accessibility, so at those sites the model does not rely on the AP-1 motif itself.",
- "A7": "Technical check; no biological claim. It supports the reliability of the effect sizes.",
- "B7": "Technical check; no biological claim. It means group medians can be trusted but a single site's peak-shuffle value cannot.",
- "A8": "Technical check; no biological claim.",
- "B2": f"Removing the 170&nbsp;bp around an AP-1 motif removes most of the predicted accessibility (about {1 - 2 ** _m170:.0%} lost), while removing only the motif removes about {1 - 2 ** _mmot:.0%}. In the model, accessibility at an AP-1 site is therefore a property of a local stretch of sequence of which the AP-1 motif is one part, not something the motif creates alone. Dynamic sites lose less, mainly because they start with less to lose (section {{DYN}}).",
- "C1": f"Not every AP-1 site relies on its motif: at {an1.loc[('motif', 'Stable'), 'frac_gt0']:.0%} of Stable sites shuffling the motif raises the prediction, and at {an1.loc[('motif', 'Stable'), 'frac_lt_minus1']:.0%} it lowers it by more than half. At many sites AP-1 may therefore be bound to accessibility created by other factors rather than creating it.",
- "D1": f"Sequence changes 300&nbsp;bp away do almost nothing, while the 170&nbsp;bp around the motif carries most of the effect, and the effect stops growing at about 340&nbsp;bp, roughly the length of two nucleosomes. So accessibility at an AP-1 site appears to be encoded in a compact neighbourhood of a few hundred base pairs. The AP-1 core (7&nbsp;bp) accounts for about a quarter of the 170&nbsp;bp effect: an important but minority share. Across the whole peak, the same 170&nbsp;bp accounts for a large part of the peak's accessibility.",
- "D2": f"Replacing everything in the 170&nbsp;bp except the motif keeps {ratio_cm170:.0%} of the loss from replacing it all in cardiomyocyte sites, so the model reads the site's accessibility mainly from neighbouring sequence. With the fibroblast-like track the motif contributes more ({1 - ratio_fb170:.0%} vs {1 - ratio_cm170:.0%}), which could mean the AP-1 motif matters more in a fibroblast-like context, but that track is a weak proxy. Within the motif the 7&nbsp;bp core carries essentially all the effect, as expected for the part that AP-1 recognises.",
- "B8a": "A peak moved into a different genomic window keeps its relative accessibility (the ranking by donor is preserved) but its absolute level moves with the new location: the sequence of a regulatory element carries most of its accessibility potential, and the surrounding chromatin environment scales it up or down. Stable and Dynamic donors behave alike, so elements with dynamic AP-1 binding do not differ in how much accessibility their own sequence carries (with limited power: 25 Dynamic donors).",
- "C3": f"Almost half of Stable sites are 'context only' and few depend on the motif alone ({an3.loc['Motif only', 'share_stable']:.1%}). AP-1 appears to work together with the sequence around it, which is consistent with AP-1 acting alongside lineage factors such as GATA, TBX or MEF2 in cardiomyocytes, although this analysis cannot name those partners.",
- "C2": "Sites in more accessible and narrower peaks depend more on the local sequence because there is more accessibility to lose; the effect weakens at the very top, probably from saturation. Strongly open elements therefore tend to rest on local sequence information, and removing it costs them more.",
- "C6": "Promoter-proximal AP-1 sites lose less from a 170&nbsp;bp shuffle than distal ones although their peaks are much more accessible. Accessibility at promoters appears to be maintained by features other than the AP-1 neighbourhood, whereas distal, enhancer-like AP-1 sites depend more on their local sequence. This comparison is not adjusted for accessibility.",
- "C4": "Strongly footprinted AP-1 sites are predicted to depend more on their surroundings, so well-bound sites are those embedded in accessible, motif-rich sequence. Footprint strength and accessibility come from the same data, so this partly restates that open chromatin supports binding.",
- "C5": "There is no sign that a second nearby Fos motif makes a site more dispensable. But with few sites in multi-motif peaks and edits that change one window at a time, this cannot rule out redundancy between neighbouring AP-1 sites.",
- "B3": "AP-1 sites whose binding changes with age or exercise lose less accessibility when their surroundings are removed. The next section tests whether that reflects different biology or simply different chromatin context.",
- "B4": "Elements that gain AP-1 with age or with exercise look the same to the model as those that lose it, so the model cannot tell age-driven from exercise-driven AP-1 changes by sequence. With these sample sizes, differences up to about half the size of the Stable-vs-Dynamic gap could be hidden.",
- "D3": "The same picture holds at fibroblast AP-1 sites: a raw difference that is explained by accessibility. The cardiomyocyte findings are therefore not specific to one cell type, although the weak fibroblast tracks make this indicative only.",
- "B6": "Restricting to well-predicted sites does not change the conclusions, so they are not driven by regions where the model is unreliable.",
- "G2": "The filter removes mostly Dynamic sites that the model over-predicts. The Dynamic sites it keeps are those whose accessibility the model can explain from sequence, so the filtered result describes that subset of dynamic AP-1 sites and not all of them.",
- "G3": "Among Stable sites, those the model predicts well also show the largest dependence on their surroundings, which means the filtered Stable-vs-Dynamic gaps are partly a product of selecting well-explained sites.",
- "G4": "The qualitative picture is the same in every tier: a larger loss in Stable sites, which in the previous chapter is largely explained by chromatin context.",
- "G6": "The finding that surrounding sequence carries the predicted accessibility does not depend on which sites are kept.",
- "C7": "A model of chromatin accessibility ranks which sequences are open, and does so weakly for MPRA activity, but it does not predict how much reporter activity changes when the core motif or flanks of a 170&nbsp;bp element are scrambled on a plasmid. This fits accessibility and enhancer activity being different properties that sequence changes move differently, which is the manuscript's own reason for training a probe directly on the MPRA.",
- "D4": "Taking the elements out of their genomic setting does not rescue the prediction, so the mismatch is not because the model uses the surrounding genome. It more likely reflects that the MPRA effects are small and that accessibility is not enhancer activity.",
- "B5": "Shuffling a single distal AP-1 site or peak barely changes predicted expression of nearby genes. This is expected if individual distal elements each contribute little to a gene's expression, or if the model does not capture enhancer-gene effects; nothing can be concluded about regulation of target genes.",
- "B8b": "No conclusion can be drawn: the model's lack of response cannot be separated from the floor effect, although it is consistent with the AP-1 motif not being sufficient to create accessibility on its own.",
+ "A1": "AP-1 is bound in all three conditions at most sites, so occupancy here is largely constitutive; only about a fifth of sites change.",
+ "B1": "The model has learned enough regulatory logic to rank real regions moderately; the cardiac track transfers to fibroblast sites almost as well as to cardiomyocyte sites, the Patski cell line far less.",
+ "A2": "Sites where AP-1 binding changes sit in narrower peaks, not nearer or farther from genes.",
+ "A4": "AP-1 gain goes with chromatin opening; AP-1 loss goes with only slight closing (footprints and accessibility share data, so treat as consistency).",
+ "A5": "One reading of the over-prediction is that Dynamic sites carry permissive sequence but are open only under certain conditions or cell states (an interpretation, not a test).",
+ "B2": "Most of an AP-1 site's predicted accessibility is in the surrounding sequence; the motif is a minority share (about a third).",
+ "C1": "At many sites the motif is not what the model relies on, so AP-1 may be bound to accessibility made by other factors.",
+ "D1": "Accessibility at an AP-1 site is encoded in a compact neighbourhood of a few hundred base pairs; the AP-1 core is a minority of it.",
+ "D2": "The model reads the site's accessibility mainly from neighbouring sequence; the motif counts a little more with the fibroblast-like track, but that follows the track, not the cell type.",
+ "B8a": "A peak keeps its rank when moved but its level shifts with the new location: sequence carries the potential, the environment scales it (limited power for Dynamic donors).",
+ "C3": "AP-1 rarely acts alone in the model. Cooperation with lineage factors such as GATA, TBX or MEF2 is a plausible reading but is not tested here.",
+ "C2": "More open, narrower elements lose more when their sequence is removed, because there is more to lose.",
+ "C6": "Promoter-proximal AP-1 sites depend less on their local neighbourhood than distal ones; promoter accessibility may be maintained by other features (not adjusted for accessibility).",
+ "C4": "Well-bound AP-1 sites sit in accessible, motif-rich sequence; this partly restates that open chromatin supports binding.",
+ "C5": "Nothing can be said about redundancy between neighbouring AP-1 sites from these data.",
+ "B3": "Sites whose AP-1 binding changes lose less accessibility when their surroundings are removed; the next section asks whether that is more than chromatin context.",
+ "H1": "Responsive AP-1 sites are not obviously built differently from constitutive ones: once their weaker chromatin context is counted, little extra sequence dependence remains. Their responsiveness may therefore come from things a sequence-only baseline model does not see (AP-1 activity, co-factors, chromatin state), as the manuscript suggests for dynamic elements. This cannot be tested here, because the model predicts baseline accessibility, not response.",
+ "B4": "The model cannot tell age-driven from exercise-driven AP-1 changes by sequence at these sample sizes.",
+ "D3": "The same picture at fibroblast AP-1 sites (indicative only; weak tracks).",
+ "G2": "The well-predicted Dynamic sites are those whose accessibility is sequence-driven; the filtered result describes them, not all dynamic sites.",
+ "C7": "Accessibility and reporter activity are different properties: a model that ranks open sequences does not predict how much activity a scramble removes, which is the manuscript's own reason for training a probe on the MPRA.",
+ "D4": "The mismatch is not caused by the model using the surrounding genome; MPRA effects are small and accessibility is not enhancer activity.",
+ "B5": "Single distal AP-1 elements barely change predicted gene expression; nothing about target-gene regulation can be concluded.",
+ "B8b": "No conclusion about whether the motif alone can create accessibility.",
 }
 
+TECH = U(f"Shuffles lower accessibility at {q6.loc[('170', 'Stable'), 'frac_sites_decreased']:.0%} of Stable sites (170 bp) and {q6.loc[('motif', 'Stable'), 'frac_sites_decreased']:.0%} (motif only; about a quarter go up), so effects are not an artefact of broken sequence.",
+         f"Replicates: a single shuffle is off by about {q7.loc[('170', 1)]:.2f} (170 bp) and {q7.loc[('peak', 1)]:.2f} (peak) log2; with 5 it is {q7.loc[('170', 5)]:.2f} and {q7.loc[('peak', 5)]:.2f}. Ten are enough for group medians; per-site peak-shuffle values stay noisy.",
+         f"The effect arms use 10 shuffles per site (5 for replace, dinucleotide and flank edits; 3 for the core edit), averaged per site.",
+         f"GPU type: no difference between L40S and A100 chunks (p {q8.kruskal_p_across_gpus.min():.2f} to {q8.kruskal_p_across_gpus.max():.2f}); the H100 ran one 91-site chunk and cannot be assessed.") + \
+       "<details><summary>Tables and figures for these checks</summary><h4>Shuffle behaviour</h4>" + SEC["A6"] + "<h4>Replicate convergence</h4>" + SEC["A7"] + "<h4>Noise per site</h4>" + SEC["B7"] + "<h4>GPU consistency</h4>" + SEC["A8"] + "</details>"
+B2 = U(f"Shuffling the 11&nbsp;bp motif: {m.loc['motif', 'median_stable']:.2f} log2 at the motif (about a third lost). Shuffling the 170&nbsp;bp: {m.loc['170', 'median_stable']:.2f} (about 70% lost). Shuffling the whole peak: {m.loc['peak', 'median_stable']:.2f} over the peak (Stable sites).",
+       f"Dynamic sites lose less in most cells ({m.loc['motif', 'median_dynamic']:.2f}, {m.loc['170', 'median_dynamic']:.2f}, {m.loc['peak', 'median_dynamic']:.2f}).",
+       "The order motif < 170 bp ≈ peak is robust; peak-shuffle values are noisy per site.") + \
+    f"<figure>{ximg('x2_shuffle_dotplot', 'Shuffle effects as a grouped dot plot')}<figcaption>Each panel is one shuffle; the three positions are the region over which the effect is read. Median with 95% bootstrap CI; marks: Stable vs Dynamic (Mann&ndash;Whitney, BH over the nine comparisons).</figcaption></figure>" + \
+    f"<details><summary>The same numbers as a heatmap and a table</summary><figure>{img(CM / 'figures' / 'fig2s_shuffle_heatmaps_stars.png', 'Shuffle effect heatmaps')}<figcaption>Median log2FC per shuffle width (rows) and readout region (columns); left Stable, right Dynamic with marks against Stable.</figcaption></figure>{table(stv_tab)}</details>"
 
+SPECIAL = {"MAN": MAN, "NOTE": NOTE, "NEXT": NEXT, "TECH": TECH, "B2": B2}
+
+# ---------------- summary
+GLOSS = U("<strong>Site</strong> = one Fos (AP-1) motif footprint called by TOBIAS in a cell type. <strong>Stable</strong> = bound in all three conditions; <strong>Dynamic</strong> = any other pattern.",
+          "<strong>YS / MAS / MAE</strong> = young sedentary, aged sedentary, aged + exercise. Age Up = bound in MAS but not YS; Exercise Up = bound in MAE but not MAS; Down = the reverse.",
+          "<strong>Effect</strong> = log2(edited / native) of predicted accessibility, so <strong>negative = accessibility lost</strong>. 'Dynamic minus Stable = +0.5' therefore means Dynamic loses <em>less</em>. In the mutation arm, dependency = minus effect (positive = lost).",
+          "<strong>Readout</strong> = the region accessibility is averaged over: the 11&nbsp;bp motif, the 170&nbsp;bp or the whole peak; <strong>matched</strong> = the same region that was edited.",
+          "<strong>Heart</strong> and <strong>Patski</strong> = the mouse heart and Patski (fibroblast-like cell line) ATAC tracks of the model. <strong>snATAC</strong> = measured single-nucleus ATAC. <strong>MPRA</strong> = the lenti-STARR reporter assay in cardiac fibroblasts. <strong>Tier</strong> = a filtered set of well-predicted sites (chapter 5).",
+          "Stars: <code>***</code> FDR &lt; 0.001, <code>**</code> &lt; 0.01, <code>*</code> &lt; 0.05, <code>ns</code> not significant. Read the effect size before the stars. Confidence labels are explained with each result.")
+SUMMARY = f"""
+<div class="box"><strong>Key terms and conventions</strong>{GLOSS}</div>
+<div class="box"><strong>Summary</strong> <span class="small">(confidence label, then what it means)</span>
+{U(f"{badge('ok')} <strong>Context, not the motif.</strong> Shuffling the 170&nbsp;bp around an AP-1 site costs {m.loc['170', 'median_stable']:.2f} log2 vs {m.loc['motif', 'median_stable']:.2f} for the 11&nbsp;bp motif (Stable sites): most predicted accessibility sits in the surrounding sequence ({clink('depend')}).",
+   f"{badge('mid')} <strong>Local and saturating.</strong> A same-size shuffle 300&nbsp;bp away does nothing ({co_.loc['Stable', 'offset_pm300_median']:.2f}); the loss saturates near 340&nbsp;bp; replacing everything but the motif keeps {ratio_cm170:.0%} (CM) / {ratio_fb170:.0%} (FB) of the loss, though a ratio near 100% is partly expected and follows the track ({link('D1')}, {link('D2')}).",
+   f"{badge('mid')} <strong>Stable vs Dynamic is mostly chromatin context.</strong> The gap is {m.loc['170', 'diff_dyn_minus_stable']:+.2f} raw and {hg(cmn, M_FULL).gap:+.2f} after accounting for accessibility, peak width and TSS distance (Patski: {hg(fbp, M_MATCH).gap:+.2f} matched only, {hg(fbp, M_FULL).gap:+.2f} full). A separate sequence effect is neither shown nor excluded ({clink('dyn')}).",
+   f"{badge('mid')} <strong>Sequence sets rank, location sets level</strong> in a peak swap, equally for Stable and Dynamic donors; only 4 recipient windows ({link('B8a')}).",
+   f"{badge('mid')} <strong>The model tracks measured accessibility moderately</strong> (rho {xov.loc['CM sites, heart ATAC', 'rho']:.2f} cardiomyocyte, {xov.loc['FB sites, heart ATAC', 'rho']:.2f} fibroblast with the heart track, {xov.loc['FB sites, Patski ATAC', 'rho']:.2f} with Patski); Dynamic sites are over-predicted ({clink('found')}).",
+   f"{badge('mid')} <strong>The native head does not explain the MPRA.</strong> Predicted scrambling effects correlate about 0 with MPRA changes, in genomic and neutral windows; the MPRA's own effects are tiny ({clink('mpra')}).",
+   f"{badge('mid')} <strong>Results hold in well-predicted sites</strong>, but the filter drops mostly over-predicted Dynamic sites, so filtered gaps are partly selection ({clink('robust')}).",
+   f"{badge('bad')} <strong>Did not work:</strong> RNA (effects about zero) and motif insertion into random backgrounds (floor effect); {badge('inc')} age vs exercise classes (underpowered) and multi-motif peaks (few sites). Fibroblast conclusions are indicative only ({clink('fail')}).")}
+<p class="small">Numbers were re-checked against the tables by reviewers; corrections are listed in {clink('open')}.</p></div>"""
+
+# ---------------- key figures (presentation)
 KEYFIGS = [
  ("The model recovers measured accessibility at real AP-1 sites", ximg('x4_observed_vs_predicted', 'Observed vs predicted accessibility'),
-  f"Predicted accessibility ranks measured accessibility moderately well (rho {xov.loc['CM sites, heart ATAC', 'rho']:.2f} for cardiomyocyte sites, {xov.loc['FB sites, heart ATAC', 'rho']:.2f} for fibroblast sites with the heart track), but the fibroblast-like Patski track does much worse on the same sites ({xov.loc['FB sites, Patski ATAC', 'rho']:.2f}).",
-  "Moderate, not precise; bulk tissue and a cell line stand in for purified cell types.", "mid"),
+  f"rho {xov.loc['CM sites, heart ATAC', 'rho']:.2f} (cardiomyocyte), {xov.loc['FB sites, heart ATAC', 'rho']:.2f} (fibroblast, heart track) but {xov.loc['FB sites, Patski ATAC', 'rho']:.2f} with Patski.", "Moderate, not precise; bulk tissue and a cell line stand in for purified cell types.", "mid"),
  ("Shuffling the 170 bp around an AP-1 site removes far more accessibility than shuffling the motif", ximg('x2_shuffle_dotplot', 'Shuffle effects as a grouped dot plot'),
-  f"Median effect {m.loc['170', 'median_stable']:.2f} log2 for the 170 bp shuffle against {m.loc['motif', 'median_stable']:.2f} for the 11 bp motif in Stable sites: the surrounding sequence, not the motif, carries most of the predicted accessibility.",
-  "A model prediction, not a measurement; Stable and Dynamic sites differ for reasons shown in figure 4.", "ok"),
+  f"{m.loc['170', 'median_stable']:.2f} vs {m.loc['motif', 'median_stable']:.2f} log2 in Stable sites: the surrounding sequence carries most of the predicted accessibility.", "A model prediction, not a measurement.", "ok"),
  ("The effect is local and builds up to about 340 bp", oimg('d1_controls_titration', 'Controls and width titration'),
-  f"The same-size shuffle 300 bp away does almost nothing ({co_.loc['Stable', 'offset_pm300_median']:.2f} vs {co_.loc['Stable', 'centred_170_median']:.2f} centred), and the loss grows with the shuffled width and levels off near 340 bp; the 7 bp core alone gives about {fr_.loc[7]:.0%} of the 170 bp effect.",
-  "A distance control, not an AP-1-specific one.", "mid"),
+  f"300 bp away: {co_.loc['Stable', 'offset_pm300_median']:.2f} vs {co_.loc['Stable', 'centred_170_median']:.2f} centred; the 7 bp core gives about {fr_.loc[7]:.0%} of the 170 bp effect.", "A distance control, not an AP-1-specific one.", "mid"),
  ("Stable sites lose more mainly because their chromatin context is stronger", img(AU / 'figures' / 'h1_gap_models.png', 'Gap by model'),
-  f"The raw Stable-vs-Dynamic gap of {hg(cmn, M_RAW).gap:+.2f} shrinks to {hg(cmn, M_MATCH).gap:+.2f} with matched-readout accessibility, {hg(cmn, M_FULL).gap:+.2f} with peak width and TSS distance, and is {hg(fbp, M_MATCH).gap:+.2f} with the Patski track: responsive AP-1 sites show no separate sequence logic once context is accounted for.",
-  "Footprint score partly defines the classes, so the last row is a sensitivity check; Patski is not an independent confirmation.", "mid"),
+  f"{hg(cmn, M_RAW).gap:+.2f} raw → {hg(cmn, M_MATCH).gap:+.2f} → {hg(cmn, M_FULL).gap:+.2f} as accessibility, width and TSS distance are added.", "Footprint score partly defines the classes; Patski is not an independent confirmation.", "mid"),
  ("Predicted accessibility changes do not track the fibroblast MPRA, even outside the genome", oimg('d4_mpra_context', 'MPRA genomic vs neutral context'),
-  f"Native predicted accessibility correlates weakly with MPRA activity (rho {mc_.loc[('heart ATAC', 'genomic context', 'native level vs MPRA activity'), 'rho']:+.2f} heart), but predicted scrambling effects correlate about 0 with the MPRA changes in the genomic window and in a neutral window.",
-  "The MPRA's own scramble effects are tiny, so the null does not discriminate model quality; only 2 neutral backgrounds.", "mid"),
+  f"Native level rho {mc_.loc[('heart ATAC', 'genomic context', 'native level vs MPRA activity'), 'rho']:+.2f} (heart); scramble effects about 0 in both windows.", "MPRA effects are tiny, so the null does not rank models; 2 neutral backgrounds.", "mid"),
 ]
-KEY_HTML = "<p>If only five figures were shown, these tell the story in order: the model can be trusted, the sequence context (not the motif) carries the effect, it is local, responsive sites are explained by context, and accessibility is not enhancer activity. Each has the headline to put on the slide and the caveat to say aloud.</p>" + "".join(
-    f"<div class='keyfig'><h3><span class='num'>{i}</span>{ttl}</h3>{badge(k)}<figure>{fg}</figure><p><strong>Takeaway.</strong> {msg}</p><p class='small'><strong>Caveat.</strong> {cav}</p></div>" for i, (ttl, fg, msg, cav, k) in enumerate(KEYFIGS, 1))
-KEY_HTML += "<p class='small'>Runners-up: the mutation-arm decomposition (surroundings alone keep most of the loss), the peak swap (sequence sets the rank, location sets the level) and the prediction-quality-by-class figure.</p>"
+KEY_HTML = U("If only five figures were shown, in order: the model can be trusted; context (not the motif) carries the effect; it is local; responsive sites are explained by context; accessibility is not enhancer activity.") + "".join(
+    f"<div class='keyfig'><h3><span class='num'>{i}</span>{ttl}</h3>{badge(k)}<figure>{fg}</figure>{U(msg, '<em>Caveat:</em> ' + cav)}</div>" for i, (ttl, fg, msg, cav, k) in enumerate(KEYFIGS, 1))
+KEY_HTML += "<p class='small'>Runners-up: the mutation-arm decomposition, the peak swap and the prediction-quality-by-class figure.</p>"
 
-# ---- assemble
+# ---------------- assemble
 toc = ["<div class='toc'>"]
 for ck, ct, cintro, subs in CH:
     toc.append(f"<div><a href='#ch-{ck}'><strong>{N[ck]}. {ct}</strong></a><ul>" + "".join(f"<li><a href='#sec-{sk}'>{N[sk]} {st}</a></li>" for sk, st in subs) + "</ul></div>")
 toc.append("</div>")
 
-SPECIAL = {"MAN": MAN, "NOTE": NOTE, "NEXT": NEXT}
 chapters = []
 for ck, ct, cintro, subs in CH:
     h = f"<h2 id='ch-{ck}'><span class='num'>{N[ck]}</span>{ct}</h2>"
     if ck == "design":
-        chapters.append(h + "<p>The figures below show what each experiment does to the sequence and what is measured, so that the results that follow can be read without the methods.</p>" + fixrefs(re.sub(r"<h2.*?</h2>", "", DESIGN, count=1, flags=re.S)))
+        chapters.append(h + "<p>What each experiment does to the sequence and what is measured.</p>" + fixrefs(re.sub(r"<h2.*?</h2>", "", DESIGN, count=1, flags=re.S)))
         continue
     if ck == "reg":
-        chapters.append(h + "<p>All experiments in one table, with how far to trust each and why. The detailed claim-by-claim table follows.</p>" + fixrefs(REG_HTML + "<h3>Claim-by-claim evidence</h3><table class='t reg'><tr><th>Claim</th><th>Confidence</th><th>Evidence</th></tr>" + claims_html + "</table>"))
+        chapters.append(h + fixrefs(REG_HTML))
         continue
     if ck == "bio":
         chapters.append(h + BIO)
@@ -1025,32 +1150,40 @@ for ck, ct, cintro, subs in CH:
     if ck == "key":
         chapters.append(h + fixrefs(KEY_HTML))
         continue
-    body_ = fixrefs(eval('f"""' + cintro + '"""') if cintro else "")
-    parts_ = [h, body_]
+    parts_ = [h, fixrefs(cintro) if cintro else ""]
     for sk, st in subs:
+        if sk in SPECIAL:
+            body_ = SPECIAL[sk]
+        elif sk in ("H2", "H3"):
+            body_ = SEC[sk]
+        else:
+            body_ = PTS[sk] + strip_prose(SEC[sk], keep_tables=KEEP_T.get(sk)) if sk in PTS else SEC[sk]
         c_ = conf(*CONF[sk]) if sk in CONF else ""
-        content = SPECIAL[sk] if sk in SPECIAL else SEC[sk]
         bx = f"<div class='bio'><strong>What this means biologically.</strong> {BIO_SEC[sk]}</div>" if sk in BIO_SEC else ""
-        parts_.append(f"<h3 id='sec-{sk}'><span class='num'>{N[sk]}</span>{st}</h3>{c_}{fixrefs(content)}{fixrefs(bx.replace('{DYN}', N['dyn']))}")
+        parts_.append(f"<h3 id='sec-{sk}'><span class='num'>{N[sk]}</span>{st}</h3>{c_}{fixrefs(body_)}{fixrefs(bx)}")
     chapters.append("\n".join(parts_))
 
 METHODS = """<details><summary>Methods and files</summary>
-<p class="small">Predictions: alphagenome-pytorch with <code>model_all_folds</code> weights, mouse organism, 131,072&nbsp;bp window centred on the motif midpoint, mouse heart ATAC track (1&nbsp;bp, mean over region) and Patski ATAC for fibroblast sites, 10 uniform random shuffles per width. Stable = bound in YS, MAS and MAE; age class compares YS and MAS; exercise class compares MAS and MAE. Class comparisons: Mann&ndash;Whitney, BH within families, bootstrap CIs, Cliff's delta; adjusted models are OLS with HC3 (or peak-clustered) standard errors. Sites are treated as independent in most tests, but about 15% share a peak, so p-values are mildly optimistic; effect sizes and intervals are the better guide. Tables: <code>Analysis/cm/tables</code>, <code>Analysis/cm/stats</code>, <code>Analysis/overnight</code>, <code>Analysis/agreement</code>, <code>Analysis/agreement_floor25</code>, <code>Analysis/audit</code>; scripts: <code>Scripts/22&ndash;31</code> and <code>25_build_report.py</code>.</p></details>"""
+<ul class="pts"><li>Predictions: alphagenome-pytorch with <code>model_all_folds</code> weights, mouse organism, 131,072&nbsp;bp window centred on the motif midpoint, mouse heart ATAC track (1&nbsp;bp, mean over region) and Patski ATAC for fibroblast sites.</li>
+<li>Replicates per site: 10 shuffles per width; 5 for replace, dinucleotide-shuffle and flank edits; 3 for the core edit.</li>
+<li>Stable = bound in YS, MAS and MAE; age class compares YS and MAS; exercise class compares MAS and MAE.</li>
+<li>Tests: Mann&ndash;Whitney with Benjamini&ndash;Hochberg within families, bootstrap CIs, Cliff's delta; adjusted models are OLS with HC3 (or peak-clustered) standard errors. About 15% of sites share a peak, so most p-values are mildly optimistic; effect sizes and intervals are the better guide.</li>
+<li>Tables: <code>Analysis/cm</code>, <code>overnight</code>, <code>agreement</code>, <code>agreement_floor25</code>, <code>audit</code>, <code>extra</code>; scripts <code>Scripts/22&ndash;32</code> and <code>25_build_report.py</code>.</li></ul></details>"""
 
-# extra plots kept in a collapsed block so they can be pruned later
 EXTRA = f"""<details><summary>Additional plots (alternative versions, for choosing which to keep)</summary>
-<figure>{img(AN / 'agreement' / 'figures' / 'e1_tier_C_selection.png', 'Tier C selection')}<figcaption>Predicted native ATAC against measured snATAC with tier C sites in blue (absolute values).</figcaption></figure>
+<figure>{img(AN / 'agreement' / 'figures' / 'e1_tier_C_selection.png', 'Tier C selection')}<figcaption>Predicted native ATAC against measured snATAC with tier C sites in blue.</figcaption></figure>
 <figure>{img(AN / 'agreement' / 'figures' / 'e2_retention_by_class.png', 'Retention by class')}<figcaption>Share of each class retained per tier.</figcaption></figure>
-<figure>{img(AN / 'agreement_floor25' / 'figures' / 'e3_stable_vs_dynamic_by_tier.png', 'Floor 25 stable vs dynamic')}<figcaption>Stable versus Dynamic by tier with the stricter 25th-percentile floor.</figcaption></figure>
-<figure>{img(AN / 'agreement_floor25' / 'figures' / 'e0b_rank_map.png', 'Floor 25 rank map')}<figcaption>Rank map with the stricter 25th-percentile floor.</figcaption></figure>
-<figure>{img(CM / 'figures' / 'fig2_shuffle_effect_heatmaps.png', 'Heatmaps without marks')}<figcaption>Shuffle heatmaps without significance marks.</figcaption></figure>
-<figure>{img(CM / 'figures' / 'fig3_shuffle_effect_by_class.png', 'Class effects without marks')}<figcaption>Effect by class without significance marks.</figcaption></figure></details>"""
+<figure>{img(AN / 'agreement_floor25' / 'figures' / 'e3_stable_vs_dynamic_by_tier.png', 'Floor 25 stable vs dynamic')}<figcaption>Stable versus Dynamic by tier with the stricter floor.</figcaption></figure>
+<figure>{img(AN / 'agreement_floor25' / 'figures' / 'e0b_rank_map.png', 'Floor 25 rank map')}<figcaption>Rank map with the stricter floor.</figcaption></figure>
+<figure>{img(CM / 'figures' / 'fig3_shuffle_effect_by_class.png', 'Class effects without marks')}<figcaption>Effect by class without significance marks.</figcaption></figure>
+<figure>{img(CM / 'figures' / 'fig1_native_vs_measured.png', 'Predicted vs measured')}<figcaption>Predicted vs measured accessibility, cardiomyocyte sites (single panel).</figcaption></figure>
+<figure>{img(CM / 'qc' / 'figures' / 'qc5_prediction_vs_measured_by_class.png', 'Prediction by class')}<figcaption>Earlier version of the prediction-by-class figure.</figcaption></figure>
+<figure>{img(AU / 'figures' / 'h2_gap_by_matched_decile.png', 'Gap by decile')}<figcaption>Stable vs Dynamic effect by decile of native accessibility at the 170 bp readout.</figcaption></figure></details>"""
 
 head = f"""<h1>AlphaGenome in-silico perturbation of AP-1 (Fos) sites in mouse cardiomyocytes and fibroblasts</h1>
-<p class="sub">Generated {date.today():%d %b %Y} &middot; {int(m.loc['170', 'n_stable'] + m.loc['170', 'n_dynamic']):,} cardiomyocyte and 5,018 fibroblast Fos sites &middot; mouse heart and Patski ATAC tracks &middot; shuffle, mutation, insertion, control and MPRA experiments</p>"""
+<p class="sub">{int(m.loc['170', 'n_stable'] + m.loc['170', 'n_dynamic']):,} cardiomyocyte and 5,018 fibroblast Fos sites &middot; generated {date.today():%d %b %Y}</p>"""
 CHKEY = {v: k for k, v in N.items() if k in {c[0] for c in CH}}
-NUMKEY = {v: k for k, v in N.items()}
-SUMMARY = re.sub(r"\(section ([\d.]+)\)", lambda mm: f'(<a href="#{"ch" if "." not in mm.group(1) else "sec"}-{NUMKEY[mm.group(1)]}">section {mm.group(1)}</a>)', SUMMARY)
+NUMKEY = {v: k for k, v in N.items() if k in SEC or k in SPECIAL or k in {c[0] for c in CH}}
 body = head + SUMMARY + "<h2>Contents</h2>" + "".join(toc) + "\n".join(chapters) + EXTRA + METHODS
 doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AP-1 shuffle analysis report</title><style>{CSS}</style></head><body><main>{body}</main></body></html>"""
