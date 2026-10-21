@@ -20,17 +20,18 @@
 #   GPU=any bash submit_all.sh pilot
 #   GPU=A100 BATCH=8 bash submit_all.sh full
 #   DRY=1 GPU=any bash submit_all.sh full
-# Logs go to logs/ (the GPU used is printed at the top of each log), results to results/.
+# Logs: logs/<date>_<jobname>[_chunkNNofMM]_<GPU>_<jobid>.log (readable); PBS raw output in logs/pbs/. Results: results/.
+#   bash submit_all.sh logs      lists the newest logs
 set -e
 cd "$(dirname "$0")"
-mkdir -p logs results
+mkdir -p logs/pbs results
 
 if [ -n "$ACCOUNT" ]; then GPU=${GPU:-any}; else GPU=${GPU:-H200}; fi
 if [ "$GPU" = "any" ]; then GPU_SEL=""; else GPU_SEL=":gpu_model=$GPU"; fi
 RES="-l select=1:ncpus=6:mem=96gb:ngpus=1${GPU_SEL}"   # command-line resources override the #PBS lines in pbs/*.pbs
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
-O="-o $PWD/logs/${ACCOUNT:+ -A $ACCOUNT}"
+O="-o $PWD/logs/pbs/${ACCOUNT:+ -A $ACCOUNT}"
 case "$1" in full) CFG=${CONFIG:-config.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
 [ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
 BATCH_VAR="${BATCH_VAR},AG_CONFIG=$PWD/$CFG"
@@ -46,7 +47,8 @@ sub() {
 
 echo "config=$CFG  GPU=$GPU${ACCOUNT:+  account=$ACCOUNT}${BATCH:+  batch=$BATCH}  resources: $RES"
 case "$1" in
-  check) sub -m ae "" pbs/00_check_env.pbs ;;
+  logs) ls -t logs/*.log 2>/dev/null | head -20; exit 0 ;;
+  check) sub -m ae -N ag_check "" pbs/00_check_env.pbs ;;
   pilot)
     W="-m ae -l walltime=01:30:00"  # short walltime starts sooner; one email per single job
     sub $W -N ag_pilot_cm  "PREFIX=pilot_,SITES=cm,NCHUNKS=1,LIMIT=30" pbs/11_perturb.pbs
@@ -54,9 +56,9 @@ case "$1" in
     sub $W -N ag_pilot_ins "PREFIX=pilot_,LIMIT=3" pbs/12_insertion.pbs
     sub $W -N ag_pilot_mpra "PREFIX=pilot_,NCHUNKS=1,LIMIT=150" pbs/13_mpra.pbs ;;
   full)
-    sub -J 0-39 "SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
-    sub -J 0-39 "SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs
-    sub -m ae "" pbs/12_insertion.pbs
-    sub -J 0-3 "NCHUNKS=4" pbs/13_mpra.pbs ;;
+    sub -J 0-39 -N ag_perturb_cm "SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
+    sub -J 0-39 -N ag_perturb_fb "SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs
+    sub -m ae -N ag_insertion "" pbs/12_insertion.pbs
+    sub -J 0-3 -N ag_mpra "NCHUNKS=4" pbs/13_mpra.pbs ;;
   *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|pilot|full"; exit 1 ;;
 esac

@@ -12,11 +12,11 @@ output tables) was tested locally with a mock model. Do the check step first.
 | `scripts/` | `ag_lib.py` (shared), `00_check_env.py`, `11_perturb_sites.py`, `12_insertion.py`, `13_mpra.py` |
 | `pbs/` | PBS job files (Katana H200 header as in the demo script); `common.sh` activates the conda env |
 | `submit_all.sh` | `check`, `pilot`, `full` |
-| `results/`, `logs/` | outputs (copy `results/` back for replotting) |
+| `results/`, `logs/` | outputs (copy `results/` back for replotting). Readable logs are named `logs/<date>_<jobname>[_chunkNNofMM]_<GPU>_<jobid>.log` (e.g. `20261021-1152_ag_pilot_cm_L40S_9578160.log`); PBS's raw `<jobid>.<server>.OU` files go to `logs/pbs/`. `bash submit_all.sh logs` lists the newest. |
 
 ## Run order
 1. **Environment** (once): `bash setup_env.sh` (creates a Python 3.12 env on scratch (home quota is small), path saved in `.env_prefix`, alphagenome-pytorch from GitHub; the pip release is too old). To match Minh's code exactly: `REF=<commit> bash setup_env.sh` (commit from `git -c safe.directory='*' -C /srv/scratch/wonglab/minh/alphagenome/alphagenome-pytorch rev-parse HEAD`). Then run `python scripts/00_inspect_weights.py` once to confirm the weights match the package.
-2. **Check**: `bash submit_all.sh check`, then read `logs/ag_check_env.o*`. It confirms the genome, GTF and weights paths, loads the weights,
+2. **Check**: `bash submit_all.sh check`, then read the newest log (`bash submit_all.sh logs`). It confirms the genome, GTF and weights paths, loads the weights,
    writes `results/mouse_tracks.csv` (all mouse tracks), shows which tracks each trackset regex matched, and times a forward pass.
    Fix `config.json` (weights path, `tracksets`) until it passes. The weights path is a guess:
    `/srv/scratch/wonglab/minh/alphagenome/weights/model_all_folds.safetensors`.
@@ -31,7 +31,7 @@ Avoid V100 (no native bf16): with `GPU=any` check the logs and resubmit chunks t
 
 ## Private GPUs (mwac_wonglab account)
 `pbs/00_check_access.pbs` has `-A mwac_wonglab`, `-m ae`, `-j oe` and no GPU model. It tests whether the account works and what you get, then runs the normal environment check:
-`qsub -o $PWD/logs/ pbs/00_check_access.pbs` (or `ACCOUNT=mwac_wonglab bash submit_all.sh check`). Read `logs/ag_check_access.o*`: the header lists the queue, account and GPU.
+`qsub -o $PWD/logs/pbs/ pbs/00_check_access.pbs` (or `ACCOUNT=mwac_wonglab bash submit_all.sh check`). Read the newest `logs/*_ag_check_access_*.log`: the header lists the queue, account and GPU.
 Any submit_all.sh command accepts `ACCOUNT=mwac_wonglab` (GPU defaults to `any` when an account is given; single jobs get `-m ae`, arrays do not).
 
 ## Site labels (in every site table and output)
