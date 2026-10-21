@@ -1,0 +1,7 @@
+compared_with,rho,p,n
+donor native (sequence),0.7459061642450465,4.1085020655347337e-53,292
+"donor native (sequence), Stable donors",0.7068348154114461,2.209561708313834e-30,192
+"donor native (sequence), Dynamic donors",0.7773489654360409,1.92431803200498e-21,100
+recipient native (location),0.35637615323705185,3.5937836780943614e-10,292
+"recipient native (location), Stable donors",0.37772185841186323,6.622555627709957e-08,192
+"recipient native (location), Dynamic donors",0.35137461833809397,0.00033762130731960463,100
