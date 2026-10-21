@@ -49,7 +49,8 @@ def main():
             torch.cuda.synchronize()
         dt = time.time() - t0
     print(f"forward pass, batch {x.shape[0]}: {dt:.2f}s ({dt / x.shape[0]:.3f} s/sequence)")
-    per_site = 72
+    conds = L.build_conditions(cfg['perturb']['reps'], cfg['perturb'].get('reps_width'))
+    per_site = 1 + sum(c[3] for c in conds)
     print(f"-> ~{per_site * dt / x.shape[0]:.0f} s per site at {per_site} passes/site; "
           f"CM+FB (8,697 sites) ~{8697 * per_site * dt / x.shape[0] / 3600:.0f} GPU-hours in total")
 

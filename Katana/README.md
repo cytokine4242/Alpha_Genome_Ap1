@@ -21,7 +21,9 @@ output tables) was tested locally with a mock model. Do the check step first.
    Fix `config.json` (weights path, `tracksets`) until it passes. The weights path is a guess:
    `/srv/scratch/wonglab/minh/alphagenome/weights/model_all_folds.safetensors`.
 3. **Pilot**: `bash submit_all.sh pilot` (10 CM + 10 FB sites, 3 insertion backgrounds, 20 MPRA elements). Check `results/` and s/site in the logs.
-4. **Full**: `bash submit_all.sh full` (40 CM + 40 FB array tasks at 12 h walltime, 4 MPRA tasks, 1 insertion job; each chunk is resumable, rerun the same command to continue).
+4. **Phased full run** (recommended): `bash submit_all.sh phase1` = shuffle arm on all sites (about 19 passes/site) + insertion + MPRA, outputs `results/shuffle_*`, `mpra_*`, `insertion_*`;
+   then `bash submit_all.sh phase2` = mutation arm (random, dinuc, core, flank; about 26 passes/site), outputs `results/mut_*`. `bash submit_all.sh full` runs every edit kind in one go (`results/cm_*`, `fb_*`).
+   Each is 40 CM + 40 FB array tasks at 12 h walltime and is resumable (rerun the same command to continue). Every output also contains the native rows.
 
 ## Choosing the GPU
 `submit_all.sh` takes environment variables: `GPU=H200` (default), `GPU=A100`, `GPU=L40S`, ... or `GPU=any` (no `gpu_model` request, so whichever GPU frees up first),
@@ -56,8 +58,7 @@ A site carries all of them (e.g. "MAS only" is Age Up and Exercise Down).
 - Window 131,072 bp centred on the motif midpoint; ATAC at 1 bp, RNA at 128 bp; multiple matched tracks are averaged (RNA strands included).
 - Motif = 11 bp TOBIAS interval; "170 bp" = motif midpoint +-85; "peak" = the TOBIAS peak. Core = `TGA[CG]TCA` inside the motif (central 7 bp if absent).
 - Core edit: transversion (A<->C, G<->T). Flank edits mutate every flank base (motif flanks = motif minus core; 170 flanks = 170 bp minus motif). Edits are seeded per site.
-- Cost: 72 forward passes per site with default reps (10 shuffle, 5 random, 5 dinuc, 5 flank), 8,697 sites. The check job prints a GPU-hour
-  estimate; lower `perturb.reps` in `config.json` if it is too large.
+- Cost: replicates are capped per edit width (`perturb.reps_width`: motif 10, 170 bp 5, peak 3; random/dinuc/flank 3) = 44 passes per site (19 shuffle + 26 mutation - native). The check job prints a GPU-hour estimate; at 0.29 s/sequence on an L40S that is about 31 GPU-hours for all 8,697 sites. Wall-clock = GPU-hours / GPUs you get at once, so spread jobs over queues (e.g. phase1 under `ACCOUNT=mwac_wonglab`, phase2 on the general H200 queue).
 - Peak swap: recipients are CM sites at the 10/40/70/95th percentile of native peak ATAC; donors are 50 Stable + 25 Dynamic. Motif insertion:
   50 random mm10 backgrounds, dinucleotide-shuffled, TGAGTCA inserted at the centre, shuffled-motif control.
 - The slide site counts (2,663 CM / 2,320 Stable) are not reproduced by the TOBIAS table: these jobs use all 3,679 CM and 5,018 fibroblast Fos sites.

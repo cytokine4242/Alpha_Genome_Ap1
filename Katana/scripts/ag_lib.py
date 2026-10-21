@@ -203,16 +203,18 @@ def has_n(codes, a, b):
     return bool((codes[a:b] == 4).any())
 
 
-# conditions: (name, kind, width). width in motif / 170 / peak
-def build_conditions(reps):
+# conditions: (name, kind, width, reps). width in motif / 170 / peak. reps = min(reps[kind], caps[width]): large edits have
+# large, stable effects and need fewer replicates than motif-width edits.
+def build_conditions(reps, caps=None, kinds=None):
+    caps = caps or {}
     conds = []
     for kind in ("shuffle", "random", "dinuc"):
         for width in ("motif", "170", "peak"):
-            conds.append((f"{kind}@{width}", kind, width, reps[kind]))
+            conds.append((f"{kind}@{width}", kind, width, min(reps[kind], caps.get(width, 10**6))))
     conds.append(("core@motif", "core", "motif", 1))
-    conds.append(("flank@motif", "flank", "motif", reps["flank"]))
-    conds.append(("flank@170", "flank", "170", reps["flank"]))
-    return conds
+    conds.append(("flank@motif", "flank", "motif", min(reps["flank"], caps.get("motif", 10**6))))
+    conds.append(("flank@170", "flank", "170", min(reps["flank"], caps.get("170", 10**6))))
+    return [c for c in conds if not kinds or c[1] in kinds]
 
 
 def apply_condition(codes, regions, kind, width, rng):

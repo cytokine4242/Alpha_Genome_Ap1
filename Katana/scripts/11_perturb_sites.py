@@ -28,6 +28,7 @@ def main():
     ap.add_argument("--out", required=True, help="output prefix; writes <prefix>_chunk<N>.csv")
     ap.add_argument("--chunk", type=int, default=0)
     ap.add_argument("--n-chunks", type=int, default=1)
+    ap.add_argument("--kinds", default="", help="comma- or colon-separated edit kinds to run: shuffle,random,dinuc,core,flank (default all); native is always run")
     ap.add_argument("--limit", type=int, default=0, help="only the first N sites of this chunk (pilot)")
     ap.add_argument("--config", default=None)
     args = ap.parse_args()
@@ -37,7 +38,8 @@ def main():
     genome = L.Genome(cfg["paths"]["genome"])
     tss_index = L.TssIndex(cfg["paths"]["gtf"])
     ag = L.AG(cfg)
-    conds = L.build_conditions(cfg["perturb"]["reps"])
+    conds = L.build_conditions(cfg["perturb"]["reps"], cfg["perturb"].get("reps_width"),
+                               set(args.kinds.replace(":", ",").split(",")) if args.kinds else None)
 
     sites = pd.read_csv(args.sites)
     sites = sites.iloc[args.chunk::args.n_chunks]
