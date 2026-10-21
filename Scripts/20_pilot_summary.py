@@ -57,7 +57,7 @@ for label, df, ts in (("CM sites, CM tracks", cm, "CM"), ("FB sites, FB tracks",
         t = pd.DataFrame({c: p[(p.stable_dynamic == sd) & p.condition.str.startswith("shuffle")].groupby("condition").lfc.median()
                           for c, p in parts.items()}).reindex(["shuffle@motif", "shuffle@170", "shuffle@peak"])
         print(f"{sd} (n sites = {df[df.stable_dynamic == sd].site_id.nunique()})\n{t.round(2).to_string()}")
-print("\nslides (CM, Stable, fine-tuned model): motif shuffle -0.12/-0.26/-0.11, 170 bp shuffle -2.25/-1.84/-0.75, peak shuffle -2.76/-2.53/-1.53 (motif/170/peak readouts)")
+print("\nslides (CM, Stable; made with the AlphaGenome API, different site set): motif shuffle -0.12/-0.26/-0.11, 170 bp shuffle -2.25/-1.84/-0.75, peak shuffle -2.76/-2.53/-1.53 (motif/170/peak readouts)")
 
 print("\n=== 3. mutation dependency = -log2FC (mean over sites), CM sites, readouts motif / 170 / peak")
 parts = {c: log2fc(cm[cm.trackset == "CM"], c) for c in READ}
