@@ -9,6 +9,7 @@ Dependency (mutation arm) = -effect. Tests: Mann-Whitney (Dynamic vs Stable), pa
 from __future__ import annotations
 
 import glob
+import sys
 import warnings
 from pathlib import Path
 
@@ -22,6 +23,10 @@ from matplotlib.colors import LinearSegmentedColormap
 from scipy.stats import mannwhitneyu, spearmanr, t as tdist, wilcoxon
 
 warnings.filterwarnings("ignore")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from edit_labels import EDIT_LABEL, REGION_LABEL, PEAK_MEDIAN, short  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "Analysis" / "overnight"
 (OUT / "tables").mkdir(parents=True, exist_ok=True)
@@ -180,18 +185,48 @@ sv = pd.DataFrame(sv)
 sv["fdr"] = bh(sv.p)
 sv["sig"] = sv.fdr.map(stars)
 star_row(ax, tw, sv.sig.tolist())
-ax.axhline(-0.12, color=INK, ls=":", lw=1.2); ax.text(7, -0.17, "slides: motif shuffle on the motif readout", fontsize=8, ha="left", va="top")
 ax.set_xscale("log")
 ax.set_xticks(tw, [str(w) for w in tw])
 ax.set_xlabel("Width of the centred shuffle (bp, log scale)")
 ax.set_ylabel("Median effect (log2FC)")
 ax.set_title("Dose-response: effect grows with the shuffled width", fontsize=10, loc="left", pad=18)
-h, l = ax.get_legend_handles_labels()
-keep = [i for i, s in enumerate(l) if "motif readout" in s]
-ax.legend([h[i] for i in keep], [l[i] for i in keep], frameon=False, fontsize=8, loc="lower left")
-fig.text(0.50, -0.03, "Thick lines: motif readout with 95% CI. Thin lines: 170 bp and peak readouts. Marks above: Stable vs Dynamic (Mann-Whitney, BH), motif readout.", fontsize=8, color=MUTED)
+leg = [Line2D([], [], color=BLUE, lw=2.2, label="Stable sites"), Line2D([], [], color=ORANGE, lw=2.2, label="Dynamic sites"),
+       Line2D([], [], color=INK, lw=2, marker="o", ms=5, label="effect read over the 11 bp motif (thick line, 95% CI band)"),
+       Line2D([], [], color=INK, lw=1, alpha=0.6, marker="s", ms=4, label="effect read over the 170 bp (thin line)"),
+       Line2D([], [], color=INK, lw=1, alpha=0.6, marker="^", ms=4, label="effect read over the whole peak (thin line)")]
+ax.legend(handles=leg, frameon=False, fontsize=7.5, loc="lower left")
+fig.text(0.50, -0.03, "Colour = site class. Line weight and marker = which region the effect is read over. Marks above the plot: Stable vs Dynamic, motif readout (Mann-Whitney, BH).", fontsize=8, color=MUTED)
 fig.tight_layout()
 save(fig, "d1_controls_titration")
+
+# same plot as the left panel, but with the effect read over the 11 bp motif, the 170 bp and the whole peak
+fig, axes = plt.subplots(1, 3, figsize=(13, 3.8), sharey=False)
+rows_o = []
+for ax, (w_rd, ttl) in zip(axes, (("motif", "Effect read over the 11 bp motif"), ("170", "Effect read over the 170 bp"), ("peak", "Effect read over the whole peak"))):
+    t_, _ = lfc_tab(co, "CM", RD[w_rd])
+    for k, (sd, col) in enumerate((("Stable", BLUE), ("Dynamic", ORANGE))):
+        ids = SD[SD == sd].index
+        med, lo, hi = [], [], []
+        for c in order:
+            v = t_.loc[ids, c].dropna()
+            l_, h_ = boot(v)
+            med.append(v.median()); lo.append(l_); hi.append(h_)
+            rows_o.append({"readout": w_rd, "class": sd, "shuffle_position": c, "median": v.median(), "ci_lo": l_, "ci_hi": h_, "n": len(v)})
+        xs = np.arange(5) + (k - 0.5) * 0.14
+        ax.errorbar(xs, med, yerr=[np.array(med) - lo, np.array(hi) - med], fmt="o", color=col, ms=5, lw=1.2, capsize=0, label=sd)
+        cen, off = t_.loc[ids, "titrate@170"], t_.loc[ids, ["offset@-300", "offset@+300"]].mean(1)
+        rows_o.append({"readout": w_rd, "class": sd, "shuffle_position": "centred vs +-300 (paired)", "median": cen.median() - off.median(), "ci_lo": np.nan, "ci_hi": np.nan,
+                       "n": int((cen < off).sum()), "share_centred_more_negative": float((cen < off).mean()), "paired_wilcoxon_p": wilcoxon(cen, off).pvalue})
+    ax.set_xticks(range(5), names)
+    ax.set_xlabel("Centre of the shuffled 170 bp, relative to the motif (bp)")
+    ax.axhline(0, color=MUTED, lw=0.8)
+    ax.set_title(ttl, fontsize=10, loc="left")
+axes[0].set_ylabel("Median effect (log2FC)")
+axes[0].legend(frameon=False)
+fig.text(0.5, -0.03, "Every panel shows the same experiment (a 170 bp shuffle centred on the motif or moved 300 or 600 bp away); only the region the effect is read over differs. Median with 95% bootstrap CI.", fontsize=8, color=MUTED, ha="center")
+fig.tight_layout()
+save(fig, "d1c_offsets_by_readout")
+pd.DataFrame(rows_o).to_csv(OUT / "tables" / "d1c_offsets_by_readout.csv", index=False)
 res.to_csv(OUT / "tables" / "d1_titration_medians.csv", index=False)
 pd.DataFrame(rows_c).to_csv(OUT / "tables" / "d1_centred_vs_offset.csv", index=False)
 sv.to_csv(OUT / "tables" / "d1_titration_stable_vs_dynamic.csv", index=False)
@@ -204,9 +239,8 @@ frac.to_csv(OUT / "tables" / "d1_fraction_of_170.csv")
 mc, mf = load("mut_cm"), load("mut_fb")
 EDITS = [("random@motif", "motif"), ("dinuc@motif", "motif"), ("core@motif", "motif"), ("flank@motif", "motif"),
          ("random@170", "170"), ("dinuc@170", "170"), ("flank@170", "170"), ("random@peak", "peak"), ("dinuc@peak", "peak")]
-SLIDES = {"random@motif": 0.47, "dinuc@motif": 0.29, "core@motif": 1.18}
 rows = []
-fig, axes = plt.subplots(2, 1, figsize=(11.5, 7.2), sharex=True)
+fig, axes = plt.subplots(2, 1, figsize=(13, 7.6), sharex=True)
 for ax, (d, ts, sites_csv, ttl) in zip(axes, ((mc, "CM", "cm_fos_sites.csv", "Cardiomyocyte sites, heart ATAC"), (mf, "FB", "fb_fos_sites.csv", "Fibroblast sites, Patski ATAC"))):
     l_ = labels(d, sites_csv)
     sdv = l_.stable_dynamic
@@ -228,14 +262,16 @@ for ax, (d, ts, sites_csv, ttl) in zip(axes, ((mc, "CM", "cm_fos_sites.csv", "Ca
         pass
     for i, (cname, w) in enumerate(EDITS):
         rows.append({"sites": ttl, "edit": cname, "readout": w, "class": "Stable-vs-Dynamic FDR", "mean_dependency": q[i], "ci_lo": np.nan, "ci_hi": np.nan, "n": 0})
-        if ts == "CM" and cname in SLIDES:
-            ax.plot([i - 0.19], [SLIDES[cname]], "D", color=INK, ms=6, mfc="none", mew=1.4, label="slides (Stable)" if cname == "random@motif" else None)
     ax.set_title(ttl, fontsize=10, loc="left", pad=18)
     ax.set_ylabel("Dependency (-log2FC)\nmean over sites")
-axes[0].legend(handles=[plt.Rectangle((0, 0), 1, 1, color=BLUE, alpha=0.85), plt.Rectangle((0, 0), 1, 1, color=ORANGE, alpha=0.85), plt.Line2D([], [], marker="D", color=INK, mfc="none", ls="")],
-               labels=["Stable", "Dynamic", "slides (Stable)"], frameon=False, ncol=3, loc="upper left")
-axes[1].set_xticks(range(len(EDITS)), [e.replace("@", "\n@") for e, _ in EDITS], fontsize=8.5)
-fig.text(0.01, -0.01, "Each edit is read out over its own region (motif, 170 bp or peak). Bars: mean with 95% bootstrap CI. Marks: Stable vs Dynamic, Mann-Whitney, BH within panel.", fontsize=8, color=MUTED)
+axes[0].legend(handles=[plt.Rectangle((0, 0), 1, 1, color=BLUE, alpha=0.85), plt.Rectangle((0, 0), 1, 1, color=ORANGE, alpha=0.85)],
+               labels=["Stable sites", "Dynamic sites"], frameon=False, ncol=2, loc="upper left")
+axes[1].set_xticks(range(len(EDITS)), [short(e) for e, _ in EDITS], fontsize=8)
+for ax in axes:
+    ax.axvline(3.5, color=MUTED, lw=0.8, ls=":"); ax.axvline(6.5, color=MUTED, lw=0.8, ls=":")
+for x_, key_ in ((1.5, "motif"), (5.0, "170"), (7.5, "peak")):
+    axes[1].text(x_, -0.42, REGION_LABEL[key_], transform=axes[1].get_xaxis_transform(), ha="center", va="top", fontsize=9, fontweight="bold")
+fig.text(0.01, -0.01, "Each edit is read out over the region it changes. Bar labels give the edit and the exact number of bases changed. Bars: mean with 95% bootstrap CI. Marks: Stable vs Dynamic, Mann-Whitney, BH within panel.", fontsize=8, color=MUTED)
 fig.tight_layout()
 save(fig, "d2_mutation_arm")
 D2 = pd.DataFrame(rows)
@@ -244,8 +280,8 @@ D2.to_csv(OUT / "tables" / "d2_mutation_dependency.csv", index=False)
 # decomposition: what carries the dependence
 rows = []
 fig, axes = plt.subplots(1, 2, figsize=(10.5, 3.6))
-for ax, (w, items, ttl) in zip(axes, (("motif", [("random@motif", "all 11 bp\nmutated"), ("core@motif", "7 bp core\nmutated"), ("flank@motif", "4 flank bases\nmutated (core kept)")], "Within the 11 bp motif (motif readout)"),
-                                      ("170", [("random@170", "170 bp mutated\n(motif included)"), ("flank@170", "170 bp mutated,\nmotif kept intact")], "Within the 170 bp (170 bp readout)"))):
+for ax, (w, items, ttl) in zip(axes, (("motif", [("random@motif", "Replace all\n11 bp of the motif"), ("core@motif", "Replace the\n7 bp core only"), ("flank@motif", "Replace the 4 flank\nbases (core kept)")], "Within the 11 bp motif (motif readout)"),
+                                      ("170", [("random@170", "Replace all 170 bp\n(motif included)"), ("flank@170", "Replace the 159 bp around\nthe motif (motif kept)")], "Within the 170 bp (170 bp readout)"))):
     for sites_label, d, ts, off, col in (("CM, heart ATAC", mc, "CM", -0.17, BLUE), ("FB, Patski ATAC", mf, "FB", 0.17, AQUA)):
         l_ = labels(d, "cm_fos_sites.csv" if ts == "CM" else "fb_fos_sites.csv")
         stab = l_.index[l_.stable_dynamic == "Stable"]
@@ -348,7 +384,6 @@ save(fig, "d3b_replication_forest")
 # classes in FB sites (Patski track)
 FAMS = (("age", "age_class", "Stable"), ("exercise", "ex_class", "Stable"), ("binding", "binding_category", "YS+MAS+MAE"))
 rows = []
-fig, axes = plt.subplots(3, 3, figsize=(10.5, 8.2), sharex="col")
 for r_i, (fam, col, ref) in enumerate(FAMS):
     classes = list(dict.fromkeys(lfb[col].dropna()))
     classes = [ref] + [c for c in classes if c != ref]
@@ -368,28 +403,30 @@ for fam in Cl.family.unique():
     Cl.loc[ix, "fdr"] = bh(Cl.loc[ix, "p"])
 Cl["sig"] = Cl.fdr.map(stars)
 Cl.to_csv(OUT / "tables" / "d3_fb_class_effects.csv", index=False)
-for r_i, (fam, col, ref) in enumerate(FAMS):
-    x = Cl[Cl.family == fam]
-    order = list(dict.fromkeys(x["class"]))
-    for c_i, w in enumerate(WIDTHS):
-        ax = axes[r_i, c_i]
+CLASS_LAB = {("age", "Stable"): "Bound in both YS and MAS", ("age", "Age Up"): "Age Up (gained with age)", ("age", "Age Down"): "Age Down (lost with age)",
+             ("age", "Neither YS nor MAS (= MAE only)"): "Bound in MAE only", ("exercise", "Stable"): "Bound in both MAS and MAE", ("exercise", "Exercise Up"): "Exercise Up (gained)",
+             ("exercise", "Exercise Down"): "Exercise Down (lost)", ("exercise", "Neither MAS nor MAE (= YS only)"): "Bound in YS only", ("binding", "YS+MAS+MAE"): "YS+MAS+MAE (Stable)"}
+FAM_TITLE = {"age": "Age: young vs aged sedentary", "exercise": "Exercise: aged sedentary vs aged exercised", "binding": "All seven binding patterns"}
+for w in WIDTHS:
+    fig, axes = plt.subplots(1, 3, figsize=(15.5, 4.4), gridspec_kw={"width_ratios": [1, 1, 1.15]})
+    for ax, (fam, col, ref) in zip(axes, FAMS):
+        x = Cl[Cl.family == fam]
+        order = list(dict.fromkeys(x["class"]))
         y = x[x.width == w].set_index("class").loc[order]
         pos = np.arange(len(order))[::-1]
         for pi, k in zip(pos, order):
             v = y.loc[k]
-            ax.errorbar(v["median"], pi, xerr=[[v["median"] - v.ci_lo], [v.ci_hi - v["median"]]], fmt="o", color=BLUE if k == ref else ORANGE, ms=5, lw=1.2, capsize=0)
+            ax.errorbar(v["median"], pi, xerr=[[v["median"] - v.ci_lo], [v.ci_hi - v["median"]]], fmt="o", color=BLUE if k == ref else ORANGE, ms=6, lw=1.4, capsize=0)
             if k != ref:
-                ax.text(1.02, pi, v.sig, transform=ax.get_yaxis_transform(), va="center", fontsize=8)
+                ax.text(1.02, pi, v.sig, transform=ax.get_yaxis_transform(), va="center", fontsize=9)
         ax.axvline(y.loc[ref, "median"], color=BLUE, lw=0.8, ls=":")
-        ax.set_yticks(pos, [f"{k} (n={int(n)})" for k, n in zip(order, y.n)], fontsize=8)
-        if r_i == 0:
-            ax.set_title(f"{LBL[w]} shuffle, {LBL[w].lower()} readout", fontsize=10, loc="left")
-        if r_i == 2:
-            ax.set_xlabel("Median log2FC (95% CI)")
-    axes[r_i, 0].annotate({"age": "Age (YS vs MAS)", "exercise": "Exercise (MAS vs MAE)", "binding": "Binding pattern"}[fam], (0, 1.13), xycoords="axes fraction", fontsize=9, color=MUTED)
-fig.text(0.01, -0.01, "Fibroblast sites, Patski ATAC. Blue = Stable reference. Marks: Mann-Whitney vs the reference, BH within each family.", fontsize=8, color=MUTED)
-fig.tight_layout()
-save(fig, "d3c_fb_class_effects")
+        ax.set_yticks(pos, [f"{CLASS_LAB.get((fam, k), k)}  (n={int(n)})" for k, n in zip(order, y.n)], fontsize=9)
+        ax.set_title(FAM_TITLE[fam], fontsize=10, loc="left")
+        ax.set_xlabel("Median effect (log2FC), 95% CI")
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+    fig.text(0.01, -0.03, f"Fibroblast sites, Patski ATAC. {LBL[w]} shuffle, effect read over the {LBL[w].lower()}. Blue = reference class. Marks: Mann-Whitney against the reference, BH-corrected within each panel.", fontsize=8.5, color=MUTED)
+    fig.tight_layout()
+    save(fig, f"d3c_fb_class_effects_{w}")
 
 # adjusted Stable-vs-Dynamic (native ATAC + peak width) for both site sets / tracks
 rows = []

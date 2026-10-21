@@ -3,6 +3,10 @@ Strokes and text use currentColor so they follow the page theme; blue = native /
 from __future__ import annotations
 
 BLUE, ORANGE, GREEN = "#2a78d6", "#eb6834", "#1baf7a"
+import sys as _sys
+from pathlib import Path as _P
+_sys.path.insert(0, str(_P(__file__).resolve().parent))
+from edit_labels import PEAK_MEDIAN, PEAK_Q1, PEAK_Q3  # noqa: E402
 
 
 def T(x, y, s, size=12, anchor="start", weight="normal", fill="currentColor", op=1.0):
@@ -158,15 +162,15 @@ def d3_experiments():
     x, y = 510, 20
     s.append(card(x, y, 470, 250, "2  Mutation arm", "done (CM, FB)", GREEN))
     s.append(T(x + 14, y + 52, "CHANGE", 11, weight="bold", op=0.7))
-    rows = (("random", "every base replaced by a different one", (0, 360)), ("dinucleotide", "order shuffled, dinucleotides kept", (160, 40)),
-            ("core", "TGA[C/G]TCA 7 bp disrupted", (178, 4)), ("flanks", "motif kept, flanking bases mutated", (160, 40)))
+    rows = (("Replace", "every base replaced", (0, 360)), ("Dinuc. shuffle", "order shuffled, pairs kept", (160, 40)),
+            ("Replace core", "7 bp core replaced", (178, 4)), ("Replace flanks", "flanks replaced, core kept", (160, 40)))
     for i, (nm, desc, seg) in enumerate(rows):
         yy = y + 62 + i * 30
-        s.append(T(x + 14, yy + 11, nm, 11.5)); s.append(seqbar(x + 100, yy, 150, ORANGE if nm != "flanks" else ORANGE, (60, 10) if nm in ("core", "random") else (40, 70) if nm == "dinucleotide" else (10, 40)))
+        s.append(T(x + 14, yy + 11, nm, 11.5)); s.append(seqbar(x + 100, yy, 150, ORANGE if nm != "flanks" else ORANGE, (60, 10) if nm in ("Replace core", "Replace") else (40, 70) if nm == "Dinuc. shuffle" else (10, 40)))
         s.append(T(x + 262, yy + 11, desc, 11, op=0.9))
-    s.append(T(x + 14, y + 184, "each edit is applied to the motif, the 170 bp or the peak region", 11, op=0.85))
+    s.append(T(x + 14, y + 184, "applied to the 11 bp motif, the 170 bp or the whole peak (exact lengths in diagram 8)", 11, op=0.85))
     s.append(T(x + 14, y + 204, "MEASURED", 11, weight="bold", op=0.7))
-    s.append(TT(x + 14, y + 222, ["same as the shuffle arm; reported as dependency = -log2FC", "(random 5x, dinucleotide 5x, core 3x, flank 5x per site)"], 11.5, "start", lh=15))
+    s.append(TT(x + 14, y + 222, ["same as the shuffle arm; reported as dependency = -log2FC", "(replace 5x, dinucleotide shuffle 5x, core 3x, flanks 5x per site)"], 11.5, "start", lh=15))
     # card 3: insertion
     x, y = 20, 290
     s.append(card(x, y, 470, 290, "3  Insertion experiments", "done (CM)", GREEN))
@@ -281,7 +285,7 @@ def d7_controls():
     cx, sc = 490, 0.5  # 0.5 px per bp
     s.append(T(20, 22, "Where the shuffled region sits, relative to the motif (to scale, +-800 bp shown)", 12.5, weight="bold"))
     s.append(R(cx - 422 / 1.0, 40, 844, 22, "currentColor", "currentColor", 0.04, 1.2, rx=3))
-    s.append(T(cx - 200, 56, "snATAC peak (median 0.85 kb)", 11.5, "middle", op=0.8))
+    s.append(T(cx - 200, 56, f"snATAC peak (median {PEAK_MEDIAN} bp)", 11.5, "middle", op=0.8))
     s.append(R(cx - 3, 36, 6, 30, ORANGE, ORANGE, 0.9, 1, rx=1)); s.append(T(cx, 80, "motif", 11.5, "middle", fill=ORANGE, weight="bold"))
     for off, lab in ((-600, "-600"), (-300, "-300"), (300, "+300"), (600, "+600")):
         x = cx + off * sc - 42.5
@@ -308,16 +312,15 @@ def d8_edits():
     native = "ACGTTCCTGAGTCACCGTAGA"  # motif = index 5..15 (CCTGAGTCACC), core = 7..13 (TGAGTCA)
     rows = [
         ("native", native, None, "unedited reference"),
-        ("shuffle", "ACGTTCGCACTACTGCGTAGA", range(5, 16), "shuffle arm: letters permuted, composition kept"),
-        ("random", "ACGTTTAGCGTAACTAGTAGA", range(5, 16), "mutation arm: every base replaced by a different one"),
-        ("dinucleotide", "ACGTTCCACTGAGTCCGTAGA", range(5, 16), "mutation arm: shuffled, dinucleotide counts kept"),
-        ("core", "ACGTTCCCATCAGGCCGTAGA", range(7, 14), "mutation arm: 7 bp core replaced (no AP-1 half-site left)"),
-        ("flank (motif)", "ACGTTTATGAGTCAGTGTAGA", [5, 6, 14, 15], "mutation arm: 4 motif flank bases mutated, core kept"),
-        ("flank (170 bp)", "GACACCCTGAGTCACCACTAC", list(range(0, 5)) + list(range(16, 21)), "mutation arm: surroundings mutated, whole motif kept"),
+        ("Shuffle", "ACGTTCGCACTACTGCGTAGA", range(5, 16), "letters permuted, composition kept"),
+        ("Replace", "ACGTTTAGCGTAACTAGTAGA", range(5, 16), "every base replaced by a different base"),
+        ("Dinucleotide shuffle", "ACGTTCCACTGAGTCCGTAGA", range(5, 16), "order shuffled, all adjacent pairs kept"),
+        ("Replace core only", "ACGTTCCCATCAGGCCGTAGA", range(7, 14), "7 core bases replaced, no AP-1 half-site left"),
+        ("Replace motif flanks", "ACGTTTATGAGTCAGTGTAGA", [5, 6, 14, 15], "4 bases (2 each side of the core), core kept"),
+        ("Replace surroundings", "GACACCCTGAGTCACCACTAC", list(range(0, 5)) + list(range(16, 21)), "all of the 170 bp except the 11 bp motif (excerpt shows 10 of 159)"),
     ]
     x0, lw = 190, 26
     s.append(T(20, 24, "The same 21 bp excerpt (illustrative letters) under each edit; orange = changed bases", 12.5, weight="bold"))
-    # motif and core brackets over the native row
     s.append(L(x0 + 5 * lw, 52, x0 + 16 * lw - 2, 52, "currentColor", 1.4)); s.append(T(x0 + 10.5 * lw, 46, "11 bp motif", 11.5, "middle"))
     s.append(L(x0 + 7 * lw, 62, x0 + 14 * lw - 2, 62, ORANGE, 2)); s.append(T(x0 + 10.5 * lw, 76, "7 bp core TGA[C/G]TCA", 11, "middle", fill=ORANGE, weight="bold"))
     for r, (name, seq, chg, desc) in enumerate(rows):
@@ -328,8 +331,26 @@ def d8_edits():
             s.append(R(x0 + i * lw, y, lw - 2, 26, ORANGE if ch_ else "currentColor", ORANGE if ch_ else "currentColor", 0.40 if ch_ else 0.06, 1.2, rx=3))
             s.append(T(x0 + i * lw + (lw - 2) / 2, y + 18, ch, 13, "middle", weight="bold"))
         s.append(T(x0 + 21 * lw + 14, y + 18, desc, 11.5, op=0.9))
-    return fig("".join(s), 1160, 340, "a8", "What each edit does to the sequence",
-               "Edit types on one illustrative excerpt: the motif (11 bp, with its 7 bp core) and 5 bp of surrounding sequence either side. Shuffles keep the letters, random edits replace every base, dinucleotide shuffles keep adjacent pairs, the core and flank edits change only part of the motif, and the 170 bp flank edit changes everything but the motif. At the 170 bp and peak widths the same edits apply to those regions.")
+    # exact number of bases changed at each width
+    ty = 88 + len(rows) * 34 + 22
+    s.append(T(20, ty, "Exact number of bases changed (every edit is also run at the 170 bp and whole-peak widths)", 12.5, weight="bold"))
+    cols = (20, 250, 450, 650, 900)
+    heads = ("Edit", "motif width (11 bp)", "170 bp width", f"peak width (median {PEAK_MEDIAN} bp)", "how many shuffles per site")
+    for cx, h in zip(cols, heads):
+        s.append(T(cx, ty + 24, h, 11, weight="bold", op=0.75))
+    s.append(L(20, ty + 31, 1140, ty + 31, "currentColor", 1, op=0.35))
+    table = (("Shuffle", "11", "170", f"whole peak: median {PEAK_MEDIAN} (IQR {PEAK_Q1:,} to {PEAK_Q3:,})", "10"),
+             ("Replace", "11", "170", "whole peak", "5"),
+             ("Dinucleotide shuffle", "11", "170", "whole peak", "5"),
+             ("Replace core only", "7", "not run", "not run", "3"),
+             ("Replace motif flanks", "4", "not run", "not run", "5"),
+             ("Replace surroundings", "not run", "159 (80 left + 79 right)", "not run", "5"))
+    for k, row in enumerate(table):
+        for cx, v in zip(cols, row):
+            s.append(T(cx, ty + 51 + k * 21, v, 11.5, op=0.95 if cx != cols[0] else 1.0, weight="bold" if cx == cols[1] and False else "normal"))
+    h_total = ty + 51 + len(table) * 21 + 14
+    return fig("".join(s), 1160, h_total, "a8", "What each edit does to the sequence, with the exact number of bases changed",
+               "Edit types on one illustrative excerpt (the motif, 11 bp, with its 7 bp core, and 5 bp of surrounding sequence either side). Shuffles keep the letters; Replace swaps every base for a different one; the dinucleotide shuffle keeps adjacent pairs; core and flank edits change only part of the motif; Replace surroundings changes everything in the 170 bp except the motif. The table gives the exact number of bases changed at each width; an 11-mer has few dinucleotide-preserving arrangements, so a few percent of dinucleotide shuffles at the motif width (3.8% of replicates in the data) return the original sequence.")
 
 
 # ---------------------------------------------------------------- D9: neutral-context MPRA

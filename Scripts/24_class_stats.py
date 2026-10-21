@@ -137,7 +137,9 @@ rows, omni = [], []
 FAMS = (("age", "age_class", "Stable"), ("exercise", "ex_class", "Stable"), ("binding", "binding_category", "YS+MAS+MAE"))
 for fam, col, ref in FAMS:
     for w in WIDTHS:
-        y = EFF[("CM", w)].to_frame("y").join(cov).dropna(subset=["y", "log_nat", "log_pw", col])
+        cov_w = cov.copy()
+        cov_w["log_nat"] = np.log10(NAT[("CM", w)].reindex(cov.index) + 1e-3)   # native accessibility at the SAME readout region the effect is read over
+        y = EFF[("CM", w)].to_frame("y").join(cov_w, rsuffix="_peak").dropna(subset=["y", "log_nat", "log_pw", col])
         classes = [c for c in y[col].unique() if c != ref]
         grp = [y[y[col] == c].y.values for c in [ref] + classes]
         omni.append({"family": fam, "width": w, "kruskal_H": kruskal(*grp).statistic, "kruskal_p": kruskal(*grp).pvalue})
@@ -156,7 +158,7 @@ for fam, col, ref in FAMS:
                          "raw_p": mannwhitneyu(xx, base).pvalue if len(xx) >= 5 else np.nan, "cliffs_delta": cliffs(xx.values, base.values),
                          "adj_diff": beta[i], "adj_lo": beta[i] - 1.96 * se[i], "adj_hi": beta[i] + 1.96 * se[i], "adj_p": pv[i]})
         # coefficients of the covariates (reported once per model)
-        rows.append({"family": fam, "width": w, "class": "[log10 native ATAC, per 1]", "n": len(y), "adj_diff": beta[-2], "adj_lo": beta[-2] - 1.96 * se[-2], "adj_hi": beta[-2] + 1.96 * se[-2], "adj_p": pv[-2]})
+        rows.append({"family": fam, "width": w, "class": "[log10 native ATAC at the matched readout, per 1]", "n": len(y), "adj_diff": beta[-2], "adj_lo": beta[-2] - 1.96 * se[-2], "adj_hi": beta[-2] + 1.96 * se[-2], "adj_p": pv[-2]})
         rows.append({"family": fam, "width": w, "class": "[log10 peak width, per 1]", "n": len(y), "adj_diff": beta[-1], "adj_lo": beta[-1] - 1.96 * se[-1], "adj_hi": beta[-1] + 1.96 * se[-1], "adj_p": pv[-1]})
 B = pd.DataFrame(rows)
 ok = ~B["class"].str.startswith("[") & B.raw_p.notna()
@@ -217,12 +219,16 @@ fig.text(0.01, -0.04, "Marks on the Dynamic panel: Mann-Whitney vs Stable, BH-co
 fig.savefig(OUT / "figures" / "fig2s_shuffle_heatmaps_stars.png", bbox_inches="tight")
 plt.close(fig)
 
-fig, axes = plt.subplots(3, 3, figsize=(10.5, 8.2), sharex="col")
-for r, (fam, col, ref) in enumerate(FAMS):
-    x = B[(B.family == fam) & ~B["class"].str.startswith("[")]
-    order = list(dict.fromkeys(x["class"]))
-    for c, w in enumerate(WIDTHS):
-        ax = axes[r, c]
+# one figure per shuffle width (three panels: age, exercise, binding pattern) instead of a dense 3 x 3 grid; plain class names
+CLASS_LAB = {("age", "Stable"): "Bound in both YS and MAS", ("age", "Age Up"): "Age Up (gained with age)", ("age", "Age Down"): "Age Down (lost with age)",
+             ("age", "Neither YS nor MAS (= MAE only)"): "Bound in MAE only", ("exercise", "Stable"): "Bound in both MAS and MAE", ("exercise", "Exercise Up"): "Exercise Up (gained)",
+             ("exercise", "Exercise Down"): "Exercise Down (lost)", ("exercise", "Neither MAS nor MAE (= YS only)"): "Bound in YS only", ("binding", "YS+MAS+MAE"): "YS+MAS+MAE (Stable)"}
+FAM_TITLE = {"age": "Age: young vs aged sedentary", "exercise": "Exercise: aged sedentary vs aged exercised", "binding": "All seven binding patterns"}
+for w in WIDTHS:
+    fig, axes = plt.subplots(1, 3, figsize=(15.5, 4.4), gridspec_kw={"width_ratios": [1, 1, 1.15]})
+    for ax, (fam, col, ref) in zip(axes, FAMS):
+        x = B[(B.family == fam) & ~B["class"].str.startswith("[")]
+        order = list(dict.fromkeys(x["class"]))
         yy = x[x.width == w].set_index("class").loc[order]
         pos = np.arange(len(order))[::-1]
         for pi, k in zip(pos, order):
@@ -230,49 +236,42 @@ for r, (fam, col, ref) in enumerate(FAMS):
             xs = EFF[("CM", w)].to_frame("y").join(lab)
             vals = xs[xs[col] == k].y.dropna()
             lo, hi = np.percentile([np.median(rng.choice(vals, len(vals))) for _ in range(500)], [2.5, 97.5])
-            ax.errorbar(v["median"], pi, xerr=[[v["median"] - lo], [hi - v["median"]]], fmt="o", color=BLUE if k == ref else ORANGE, ecolor=BLUE if k == ref else ORANGE, ms=5, lw=1.2, capsize=0)
-        ax.set_yticks(pos, [f"{k} (n={int(n)})" for k, n in zip(order, yy.n)], fontsize=8)
+            ax.errorbar(v["median"], pi, xerr=[[v["median"] - lo], [hi - v["median"]]], fmt="o", color=BLUE if k == ref else ORANGE, ecolor=BLUE if k == ref else ORANGE, ms=6, lw=1.4, capsize=0)
+        ax.set_yticks(pos, [f"{CLASS_LAB.get((fam, k), k)}  (n={int(n)})" for k, n in zip(order, yy.n)], fontsize=9)
         ax.axvline(yy.loc[ref, "median"], color=BLUE, lw=0.8, ls=":")
-        xmax = ax.get_xlim()[1]
         for pi, k in zip(pos, order):
             if k != ref:
-                ax.text(1.02, pi, yy.loc[k, "raw_sig"], transform=ax.get_yaxis_transform(), va="center", fontsize=8, color=INK)
-        if r == 0:
-            ax.set_title(f"{LABEL[w]} shuffle, {LABEL[w].lower()} readout", fontsize=10, loc="left")
-        if r == 2:
-            ax.set_xlabel("Median log2FC (95% CI)")
-    axes[r, 0].annotate({"age": "Age (YS vs MAS)", "exercise": "Exercise (MAS vs MAE)", "binding": "Binding pattern"}[fam], (0, 1.13), xycoords="axes fraction", fontsize=9, color=MUTED)
-fig.text(0.01, -0.01, "Blue = reference (Stable). Marks: Mann-Whitney vs the reference, BH-corrected within each family.  *** FDR<0.001  ** <0.01  * <0.05  ns not significant", fontsize=8, color=MUTED)
-fig.tight_layout()
-fig.savefig(OUT / "figures" / "fig3s_class_effects_stars.png", bbox_inches="tight")
-plt.close(fig)
+                ax.text(1.02, pi, yy.loc[k, "raw_sig"], transform=ax.get_yaxis_transform(), va="center", fontsize=9, color=INK)
+        ax.set_title(FAM_TITLE[fam], fontsize=10, loc="left")
+        ax.set_xlabel("Median effect (log2FC), 95% CI")
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+    fig.text(0.01, -0.03, f"{LABEL[w]} shuffle, effect read over the {LABEL[w].lower()}. Blue = reference class. Marks: Mann-Whitney against the reference, BH-corrected within each panel. *** FDR<0.001  ** <0.01  * <0.05  ns not significant", fontsize=8.5, color=MUTED)
+    fig.tight_layout()
+    fig.savefig(OUT / "figures" / f"fig3s_class_effects_{w}.png", bbox_inches="tight")
+    plt.close(fig)
 
-fig, axes = plt.subplots(3, 3, figsize=(10.5, 8.2), sharex="col")
-for r, (fam, col, ref) in enumerate(FAMS):
-    x = B[(B.family == fam) & ~B["class"].str.startswith("[") & (B["class"] != ref)]
-    order = list(dict.fromkeys(x["class"]))
-    for c, w in enumerate(WIDTHS):
-        ax = axes[r, c]
+for w in WIDTHS:
+    fig, axes = plt.subplots(1, 3, figsize=(15.5, 4.4), gridspec_kw={"width_ratios": [1, 1, 1.15]})
+    for ax, (fam, col, ref) in zip(axes, FAMS):
+        x = B[(B.family == fam) & ~B["class"].str.startswith("[") & (B["class"] != ref)]
+        order = list(dict.fromkeys(x["class"]))
         yy = x[x.width == w].set_index("class").loc[order]
         pos = np.arange(len(order))[::-1]
-        raw = yy.raw_diff
-        ax.errorbar(yy.adj_diff, pos, xerr=[yy.adj_diff - yy.adj_lo, yy.adj_hi - yy.adj_diff], fmt="o", color=BLUE, ms=5, lw=1.2, capsize=0, label="Adjusted (native ATAC, peak width)")
-        ax.scatter(raw, pos, marker="D", s=22, facecolor="none", edgecolor=ORANGE, lw=1.2, label="Raw difference of medians")
+        ax.errorbar(yy.adj_diff, pos, xerr=[yy.adj_diff - yy.adj_lo, yy.adj_hi - yy.adj_diff], fmt="o", color=BLUE, ms=6, lw=1.4, capsize=0, label="After adjusting for accessibility and peak width (95% CI)")
+        ax.scatter(yy.raw_diff, pos, marker="D", s=26, facecolor="none", edgecolor=ORANGE, lw=1.3, label="Raw difference of medians")
         ax.axvline(0, color=MUTED, lw=0.8)
-        ax.set_yticks(pos, [f"{k} (n={int(n)})" for k, n in zip(order, yy.n)], fontsize=8)
+        ax.set_yticks(pos, [f"{CLASS_LAB.get((fam, k), k)}  (n={int(n)})" for k, n in zip(order, yy.n)], fontsize=9)
         for pi, k in zip(pos, order):
-            ax.text(1.02, pi, yy.loc[k, "adj_sig"], transform=ax.get_yaxis_transform(), va="center", fontsize=8)
-        if r == 0:
-            ax.set_title(f"{LABEL[w]} shuffle", fontsize=10, loc="left")
-        if r == 2:
-            ax.set_xlabel("Difference vs reference (log2FC)")
-    axes[r, 0].annotate({"age": "Age (YS vs MAS)", "exercise": "Exercise (MAS vs MAE)", "binding": "Binding pattern"}[fam], (0, 1.13), xycoords="axes fraction", fontsize=9, color=MUTED)
-h, l = axes[0, 0].get_legend_handles_labels()
-fig.legend(h, l, frameon=False, fontsize=8, loc="upper right", ncol=2)
-fig.text(0.01, -0.01, "Positive = less accessibility lost than the reference. Marks: adjusted effect, HC3 robust SE, BH-corrected within each family.", fontsize=8, color=MUTED)
-fig.tight_layout()
-fig.savefig(OUT / "figures" / "fig7_class_effects_adjusted.png", bbox_inches="tight")
-plt.close(fig)
+            ax.text(1.02, pi, yy.loc[k, "adj_sig"], transform=ax.get_yaxis_transform(), va="center", fontsize=9)
+        ax.set_title(FAM_TITLE[fam], fontsize=10, loc="left")
+        ax.set_xlabel("Difference from the reference class (log2FC)")
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, frameon=False, fontsize=9, loc="upper center", ncol=2, bbox_to_anchor=(0.5, 1.07))
+    fig.text(0.01, -0.03, f"{LABEL[w]} shuffle, effect read over the {LABEL[w].lower()}. Positive = the class loses less accessibility than the reference. Adjusted for native accessibility at the same readout and for peak width (HC3 robust SE); marks: adjusted effect, BH within each panel.", fontsize=8.5, color=MUTED)
+    fig.tight_layout()
+    fig.savefig(OUT / "figures" / f"fig7_class_effects_adjusted_{w}.png", bbox_inches="tight")
+    plt.close(fig)
 
 fig, ax = plt.subplots(figsize=(6.4, 3.8))
 for sd, c, off in (("stable", BLUE, -0.06), ("dynamic", ORANGE, 0.06)):

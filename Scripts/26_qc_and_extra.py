@@ -4,8 +4,8 @@ Reads Katana/results/shuffle_cm_chunk*.csv (+ mpra_chunk*.csv), site tables, mea
 Writes tables to Analysis/cm/qc/tables and figures to Analysis/cm/qc/figures; used by 25_build_report.py.   python3 26_qc_and_extra.py
 
 QC:  qc1 site composition / chromosomes      qc2 site geometry (peak width, TSS distance, motifs per peak)
-     qc3 native predicted ATAC distributions (vs the slides' QC values)   qc4 class labels vs independent measured snATAC by condition
-     qc5 prediction-vs-measurement by class   qc6 shuffled-vs-native QC (as on the slides)   qc7 replicate convergence   qc8 GPU / chunk consistency
+     qc3 native predicted ATAC distributions   qc4 class labels vs independent measured snATAC by condition
+     qc5 prediction-vs-measurement by class   qc6 shuffled-vs-native QC   qc7 replicate convergence   qc8 GPU / chunk consistency
 Analyses: an1 effect distributions  an2 effect vs native accessibility / peak width / TSS distance  an3 motif vs context dependence (site types)
           an4 TOBIAS footprint score vs predicted dependence   an5 several Fos motifs in one peak   an6 promoter-proximal vs distal   an7 MPRA
 """
@@ -39,7 +39,6 @@ plt.rcParams.update({"font.size": 9.5, "axes.facecolor": SURF, "figure.facecolor
 WIDTHS = ["motif", "170", "peak"]
 READ = {"motif": "atac_motif", "170": "atac_170", "peak": "atac_peak"}
 LABEL = {"motif": "Motif", "170": "170 bp", "peak": "Peak"}
-SLIDE_NATIVE = {"Stable": {"motif": 1.760, "170": 1.747, "peak": 0.833}, "Dynamic": {"motif": 0.386, "170": 0.422, "peak": 0.337}}  # QC slide, native
 
 
 def save(fig, name):
@@ -204,14 +203,14 @@ for ax, w in zip(axes, WIDTHS):
     bins = np.linspace(-2.5, 1.0, 36)
     for sd, c in (("Stable", BLUE), ("Dynamic", ORANGE)):
         v = lab[SD == sd][col]
-        ax.hist(np.log10(v + 1e-3), bins=bins, histtype="step", color=c, lw=1.6, density=True, label=f"{sd}: mean {v.mean():.2f} (slides {SLIDE_NATIVE[sd][w]:.2f})")
-        rows.append({"class": sd, "readout": w, "our_mean": v.mean(), "slide_mean": SLIDE_NATIVE[sd][w], "our_median": v.median(), "n": len(v)})
+        ax.hist(np.log10(v + 1e-3), bins=bins, histtype="step", color=c, lw=1.6, density=True, label=f"{sd}: mean {v.mean():.2f}, median {v.median():.2f}")
+        rows.append({"class": sd, "readout": w, "mean": v.mean(), "median": v.median(), "n": len(v)})
     ax.set_xlabel(f"log10 native predicted ATAC, {LABEL[w].lower()} readout")
     ax.legend(frameon=False, fontsize=7.5, loc="upper left")
 axes[0].set_ylabel("Density")
 fig.tight_layout()
 save(fig, "qc3_native_distributions")
-pd.DataFrame(rows).to_csv(QC / "tables" / "qc3_native_means_vs_slides.csv", index=False)
+pd.DataFrame(rows).to_csv(QC / "tables" / "qc3_native_means.csv", index=False)
 
 # ================= QC4 class labels vs measured snATAC by condition
 cc = lab.join(cond[["cm_ys", "cm_mas", "cm_mae"]])
@@ -264,7 +263,7 @@ ax.legend(frameon=False)
 fig.tight_layout()
 save(fig, "qc5_prediction_vs_measured_by_class")
 
-# ================= QC6 shuffled vs native (slide-style QC)
+# ================= QC6 shuffled vs native
 rows = []
 fig, axes = plt.subplots(1, 3, figsize=(12.5, 3.4))
 for ax, w in zip(axes, WIDTHS):
@@ -556,4 +555,4 @@ print("\nAN4\n", AN4.round(3).to_string(index=False))
 print("\nAN5\n", AN5.round(3).to_string(index=False))
 print("\nAN6 tss proximity p (<=2kb vs >30kb):", {k: f"{v:.1e}" for k, v in prox_p.items()})
 print("\nQC2 medians\n", geo.round(1).to_string(), "\np:", {k: f"{v:.1e}" for k, v in geo_p.items()})
-print("\nQC3\n", pd.DataFrame(rows if False else pd.read_csv(QC / "tables" / "qc3_native_means_vs_slides.csv")).round(3).to_string(index=False))
+print("\nQC3\n", pd.read_csv(QC / "tables" / "qc3_native_means.csv").round(3).to_string(index=False))

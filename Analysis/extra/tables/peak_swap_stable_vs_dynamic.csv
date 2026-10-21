@@ -1,0 +1,8 @@
+quantity,stable_median,dynamic_median,n_stable_donors,n_dynamic_donors,p_mannwhitney
+donor native accessibility,0.3244659751653671,0.172391876578331,48.0,25.0,0.09528523600288068
+swapped accessibility (mean over 4 recipients),0.4274298492819071,0.3094259649515152,48.0,25.0,0.16127866060360507
+retention: log2(swapped / donor native),0.17702047742346633,0.362508911806031,48.0,25.0,0.33753707355431595
+donor peak width (bp),860.5,704.0,48.0,25.0,0.24740236810495286
+"Spearman rho, swapped vs donor native (Stable donors, 192 pairs)",0.7068348154114461,,48.0,,2.209561708313834e-30
+"Spearman rho, swapped vs donor native (Dynamic donors, 100 pairs)",0.7773489654360409,,25.0,,1.92431803200498e-21
+"log2 swapped ~ log2 donor native + Dynamic donor + recipient (coefficient on Dynamic, cluster-robust by donor)",-0.03699272065427284,-0.22895127673474155,,0.15496583542619588,0.7056470679602651
