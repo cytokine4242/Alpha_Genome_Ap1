@@ -66,6 +66,6 @@ for tab in ("cm", "fb"):
         if (tab, tf) in wide and (tab, tc) in wide and col in wide[(tab, tf)] and col in wide[(tab, tc)]:
             f, c = wide[(tab, tf)], wide[(tab, tc)]
             pred = np.log2(f[col] + 0.01) - np.log2(c[col].reindex(f.index) + 0.01)
-            obs = f.log2_fb_cpm_per_kb - f.log2_cm_cpm_per_kb
+            obs = np.log2(f.fb_cpm_per_kb + 1) - np.log2(f.cm_cpm_per_kb + 1)
             r, lo, hi, n = rho_ci(pred, obs)
             print(f"{tab.upper()} sites | {label:55s} rho={r:+.2f} [{lo:+.2f}, {hi:+.2f}] n={n}")
