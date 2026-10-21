@@ -372,6 +372,44 @@ PART_D = f"""
 </ul>
 """
 
+# ======================= Part G: agreement-filtered analyses =======================
+AG_ = AN / "agreement"
+G_ret = pd.read_csv(AG_ / "tables" / "retention_by_tier.csv")
+G_sv = pd.read_csv(AG_ / "tables" / "stable_vs_dynamic_by_tier.csv")
+G_mu = pd.read_csv(AG_ / "tables" / "mutation_arm_by_tier.csv")
+G_ct = pd.read_csv(AG_ / "tables" / "controls_by_tier.csv")
+G_ret_tab = G_ret[["combo", "tier", "n", "n_stable", "n_dynamic", "retained_stable", "retained_dynamic", "rho_pred_vs_meas_in_tier"]].copy()
+G_ret_tab.columns = ["Site set, track", "Tier", "Sites", "Stable", "Dynamic", "Stable kept", "Dynamic kept", "rho in tier"]
+G_sv170 = G_sv[G_sv.width == "170"][["combo", "tier", "n_stable", "n_dynamic", "median_stable", "median_dynamic", "diff_dyn_minus_stable", "ci_lo", "ci_hi", "sig"]].copy()
+G_sv170.columns = ["Site set, track", "Tier", "n Stable", "n Dynamic", "Stable median", "Dynamic median", "Dyn - Stable", "CI lo", "CI hi", "FDR"]
+G_mu_tab = G_mu[["combo", "tier", "ratio_flank170_over_random170", "ratio_lo", "ratio_hi", "ratio_core_over_random_motif"]].copy()
+G_mu_tab.columns = ["Site set, track", "Tier", "Surroundings-only / full 170 bp loss", "CI lo", "CI hi", "Core / full motif loss"]
+gs = lambda c, w, t_: G_sv[(G_sv.combo == c) & (G_sv.width == w) & (G_sv.tier == t_)].iloc[0]
+gr = lambda c, t_: G_ret[(G_ret.combo == c) & (G_ret.tier == t_)].iloc[0]
+cmn, fbh, fbp = "CM sites, heart ATAC", "FB sites, heart ATAC", "FB sites, Patski ATAC"
+PART_G = f"""
+<h2 id="partG">Part G. Restricting to sites where predicted accessibility agrees with measured accessibility</h2>
+<p>To exclude noisy or poorly predicted regions, every analysis was repeated on nested subsets chosen <em>only</em> from the native prediction versus the measured snATAC (never from the perturbation effects), separately for each site set and track: <strong>A</strong> all sites; <strong>B</strong> a measured peak exists and predicted accessibility is above the 25th percentile; <strong>C</strong> B and the predicted-minus-measured rank (percentile) differs by at most 1 SD; <strong>D</strong> B and at most 0.5 SD (strict). Fibroblast sites are checked against measured fibroblast accessibility, with the heart and the Patski track each judged on their own agreement.</p>
+<figure>{img(AG_ / 'figures' / 'e1_tier_C_selection.png', 'Tier C selection')}<figcaption>Predicted native ATAC against measured snATAC for each site set and track. Blue = sites kept in tier C.</figcaption></figure>
+<h3>G1. What is kept</h3>
+<figure>{img(AG_ / 'figures' / 'e2_retention_by_class.png', 'Retention by class')}<figcaption>Share of each class retained per tier.</figcaption></figure>
+{table(G_ret_tab, {'Stable kept': '{:.0%}', 'Dynamic kept': '{:.0%}', 'rho in tier': '{:.2f}'})}
+<p>Tier C keeps about {gr(cmn, 'C').retained_all:.0%} of cardiomyocyte sites ({gr(cmn, 'C').n:,}) and tier D about {gr(cmn, 'D').retained_all:.0%} ({gr(cmn, 'D').n:,}). <strong>Dynamic sites are kept less often</strong> (tier C: {gr(cmn, 'C').retained_dynamic:.0%} vs {gr(cmn, 'C').retained_stable:.0%} of Stable), mainly through the accessibility floor, because they are less accessible. The correlation inside a tier (0.7 to 0.9) is circular, since the tier is defined by agreement; it only shows the selection worked.</p>
+<h3>G2. Does Stable vs Dynamic survive?</h3>
+<figure>{img(AG_ / 'figures' / 'e3_stable_vs_dynamic_by_tier.png', 'Stable vs Dynamic by tier')}<figcaption>Dynamic minus Stable (median log2FC, 95% bootstrap CI) per width and tier. Marks: Mann&ndash;Whitney, BH within each site set and track.</figcaption></figure>
+{table(G_sv170, {'Stable median': '{:.2f}', 'Dynamic median': '{:.2f}', 'Dyn - Stable': '{:+.2f}', 'CI lo': '{:+.2f}', 'CI hi': '{:+.2f}'})}
+<p><strong>At the 170&nbsp;bp shuffle the difference holds in every tier and gets larger with stricter agreement</strong>: cardiomyocyte sites {gs(cmn, '170', 'A').diff_dyn_minus_stable:+.2f} (all) &rarr; {gs(cmn, '170', 'C').diff_dyn_minus_stable:+.2f} (C) &rarr; {gs(cmn, '170', 'D').diff_dyn_minus_stable:+.2f} (D); fibroblast sites with the heart track {gs(fbh, '170', 'A').diff_dyn_minus_stable:+.2f} &rarr; {gs(fbh, '170', 'D').diff_dyn_minus_stable:+.2f}, with Patski {gs(fbp, '170', 'A').diff_dyn_minus_stable:+.2f} &rarr; {gs(fbp, '170', 'D').diff_dyn_minus_stable:+.2f} (all FDR &lt; 0.001). The Patski gap dips in tier B ({gs(fbp, '170', 'B').diff_dyn_minus_stable:+.2f}) before recovering, so the floor alone does not explain it and the agreement step matters. <strong>The motif-width shuffle remains not different between classes</strong> (small, mostly ns). The peak-width difference loses significance in tier B but is significant in C and D, so it is unstable under filtering; treat it as before (partial). The caveat is the retention bias above: Dynamic sites that survive are the better-predicted ones, so the result applies to well-predicted sites and not to all Dynamic sites.</p>
+<h3>G3. Mutation arm and controls in the filtered sets</h3>
+<figure>{img(AG_ / 'figures' / 'e4_other_results_by_tier.png', 'Other results by tier')}<figcaption>Left: share of the 170&nbsp;bp mutation loss that is left when the motif is kept intact. Middle and right: width titration and offset controls, Stable CM sites, by tier.</figcaption></figure>
+{table(G_mu_tab, {c: '{:.2f}' for c in ['Surroundings-only / full 170 bp loss', 'CI lo', 'CI hi', 'Core / full motif loss']})}
+<p>These are unchanged by the filter: the surroundings carry {G_mu[(G_mu.combo == cmn)].ratio_flank170_over_random170.min():.0%} to {G_mu[(G_mu.combo == cmn)].ratio_flank170_over_random170.max():.0%} of the 170&nbsp;bp mutation loss in cardiomyocyte sites in every tier, the 7&nbsp;bp core stays at about {G_ct.core7_share_of_170.min():.0%} to {G_ct.core7_share_of_170.max():.0%} of the 170&nbsp;bp shuffle effect, and a same-size shuffle 300&nbsp;bp away costs about {G_ct.offset_pm300.mean():.2f} versus {G_ct.centred_170.mean():.2f} centred. <strong>These findings do not depend on poorly predicted sites.</strong></p>
+<h3>G4. Takeaway</h3>
+<ul><li>Restricting to well-predicted sites <strong>does not weaken any main conclusion</strong>; the 170&nbsp;bp Stable-vs-Dynamic difference gets larger, the mutation decomposition and controls do not change.</li>
+<li>The filter is least informative where the earlier verdict was already weak: the motif-width difference stays null and the peak-width difference is unstable.</li>
+<li>Prediction quality is the limit for fibroblasts: only about {gr(fbp, 'C').retained_all:.0%} of sites reach tier C with Patski, and the unfiltered rho is {gr(fbp, 'A').rho_pred_vs_meas_in_tier:.2f}.</li>
+<li>For figures in a paper, report the unfiltered result and tier C beside it, with the retention table.</li></ul>
+"""
+
 DESIGN = dg.design_section()
 
 claims = [
@@ -557,7 +595,7 @@ body = f"""
 <figure>{img(CM / 'figures' / 'fig5_confidence_tiers.png', 'Confidence tiers')}
 <figcaption>Median effect in three nested sets chosen only from native prediction vs measurement (never from the effects): A all sites; B sites with a measured peak and predicted accessibility above the 25th percentile; C = B plus prediction-measurement rank agreement within 1 SD.</figcaption></figure>
 {table(t5_tab)}
-<p><strong>What it shows.</strong> Effects get somewhat larger in the filtered sets (the model is more confident at accessible, well-predicted sites) and the Stable vs Dynamic gap at 170&nbsp;bp stays. <strong>Trust:</strong> conclusions are not an artefact of poorly predicted sites; report all three tiers.</p>
+<p><strong>What it shows.</strong> Effects get somewhat larger in the filtered sets (the model is more confident at accessible, well-predicted sites) and the Stable vs Dynamic gap at 170&nbsp;bp stays. <strong>Trust:</strong> conclusions are not an artefact of poorly predicted sites; report all three tiers. Part G repeats this with a stricter tier and for the mutation arm, controls and fibroblast sites.</p>
 
 <h3 class="sec">B7. How much is noise?</h3>
 {table(D_tab, {'Sites with |effect| > 2 SE': '{:.0%}', 'Sites with effect < -2 SE': '{:.0%}'})}
@@ -575,6 +613,7 @@ body = f"""
 
 {PART_C}
 {PART_D}
+{PART_G}
 <h2>E. What to trust</h2>
 <table class="t"><tr><th>Claim</th><th>Verdict</th><th>Evidence</th></tr>{claims_html}</table>
 
