@@ -89,7 +89,7 @@ main{max-width:1000px;margin:0 auto;padding:32px 16px 80px}h1{font-size:1.9rem;l
 p,li{max-width:78ch}.sub{color:var(--ink2);margin:0 0 20px}.box{background:var(--panel);border-radius:10px;padding:14px 18px;margin:16px 0}.box ul{margin:6px 0;padding-left:20px}
 figure{margin:18px 0}figcaption{color:var(--ink2);font-size:.9rem;margin-top:6px;max-width:80ch}img{border-radius:8px;border:1px solid var(--rule);background:#fcfcfb;height:auto}
 table.t{border-collapse:collapse;font-size:.86rem;margin:10px 0;display:block;overflow-x:auto;max-width:100%}table.t th,table.t td{padding:4px 10px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}table.t th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--bg)}table.t td:first-child,table.t th:first-child{text-align:left}
-div.bio{border-left:4px solid var(--green);background:var(--panel);padding:10px 16px;margin:14px 0;border-radius:6px;max-width:80ch}div.bio strong:first-child{color:var(--green)}.conf{margin:6px 0 10px;font-size:.92rem}.conf .badge{margin-right:6px}.toc{columns:2;column-gap:32px;font-size:.92rem;margin:8px 0}.toc ul{margin:0 0 8px;padding-left:18px}.toc a{color:var(--blue);text-decoration:none}h2 .num,h3 .num{color:var(--ink2);margin-right:6px}.badge{display:inline-block;font-size:.78rem;font-weight:600;border-radius:99px;padding:1px 9px;border:1.5px solid currentColor;white-space:nowrap}.ok{color:var(--green)}.mid{color:var(--amber)}.bad{color:var(--red)}.na{color:var(--grey)}
+div.bio{border-left:4px solid var(--green);background:var(--panel);padding:10px 16px;margin:14px 0;border-radius:6px;max-width:80ch}div.bio strong:first-child{color:var(--green)}.keyfig{margin:26px 0;padding-top:6px;border-top:1px dotted var(--rule)}.conf{margin:6px 0 10px;font-size:.92rem}.conf .badge{margin-right:6px}.toc{columns:2;column-gap:32px;font-size:.92rem;margin:8px 0}.toc ul{margin:0 0 8px;padding-left:18px}.toc a{color:var(--blue);text-decoration:none}h2 .num,h3 .num{color:var(--ink2);margin-right:6px}.badge{display:inline-block;font-size:.78rem;font-weight:600;border-radius:99px;padding:1px 9px;border:1.5px solid currentColor;white-space:nowrap}.ok{color:var(--green)}.mid{color:var(--amber)}.bad{color:var(--red)}.na{color:var(--grey)}
 td.v{white-space:normal!important;text-align:left!important;min-width:260px}.small{font-size:.86rem;color:var(--ink2)}code{background:var(--panel);padding:1px 5px;border-radius:4px;font-size:.88em}
 details{margin:10px 0}summary{cursor:pointer;color:var(--ink2)}
 """
@@ -826,6 +826,7 @@ CH = [
  ("reg", "Experiment register: every experiment, with confidence and reasons", None, []),
  ("bio", "What it means biologically", None, []),
  ("open", "Review log, open issues and next steps", None, [("H2", "Corrections made after the independent review"), ("H3", "Code issues found and not yet fixed"), ("NEXT", "Next steps")]),
+ ("key", "Five key figures for a presentation", None, []),
 ]
 for ci, (ck, ct, cintro, subs) in enumerate(CH, 1):
     N[ck] = str(ci)
@@ -964,6 +965,28 @@ BIO_SEC = {
  "B8b": "No conclusion can be drawn: the model's lack of response cannot be separated from the floor effect, although it is consistent with the AP-1 motif not being sufficient to create accessibility on its own.",
 }
 
+
+KEYFIGS = [
+ ("The model recovers measured accessibility at real AP-1 sites", ximg('x4_observed_vs_predicted', 'Observed vs predicted accessibility'),
+  f"Predicted accessibility ranks measured accessibility moderately well (rho {xov.loc['CM sites, heart ATAC', 'rho']:.2f} for cardiomyocyte sites, {xov.loc['FB sites, heart ATAC', 'rho']:.2f} for fibroblast sites with the heart track), but the fibroblast-like Patski track does much worse on the same sites ({xov.loc['FB sites, Patski ATAC', 'rho']:.2f}).",
+  "Moderate, not precise; bulk tissue and a cell line stand in for purified cell types.", "mid"),
+ ("Shuffling the 170 bp around an AP-1 site removes far more accessibility than shuffling the motif", ximg('x2_shuffle_dotplot', 'Shuffle effects as a grouped dot plot'),
+  f"Median effect {m.loc['170', 'median_stable']:.2f} log2 for the 170 bp shuffle against {m.loc['motif', 'median_stable']:.2f} for the 11 bp motif in Stable sites: the surrounding sequence, not the motif, carries most of the predicted accessibility.",
+  "A model prediction, not a measurement; Stable and Dynamic sites differ for reasons shown in figure 4.", "ok"),
+ ("The effect is local and builds up to about 340 bp", oimg('d1_controls_titration', 'Controls and width titration'),
+  f"The same-size shuffle 300 bp away does almost nothing ({co_.loc['Stable', 'offset_pm300_median']:.2f} vs {co_.loc['Stable', 'centred_170_median']:.2f} centred), and the loss grows with the shuffled width and levels off near 340 bp; the 7 bp core alone gives about {fr_.loc[7]:.0%} of the 170 bp effect.",
+  "A distance control, not an AP-1-specific one.", "mid"),
+ ("Stable sites lose more mainly because their chromatin context is stronger", img(AU / 'figures' / 'h1_gap_models.png', 'Gap by model'),
+  f"The raw Stable-vs-Dynamic gap of {hg(cmn, M_RAW).gap:+.2f} shrinks to {hg(cmn, M_MATCH).gap:+.2f} with matched-readout accessibility, {hg(cmn, M_FULL).gap:+.2f} with peak width and TSS distance, and is {hg(fbp, M_MATCH).gap:+.2f} with the Patski track: responsive AP-1 sites show no separate sequence logic once context is accounted for.",
+  "Footprint score partly defines the classes, so the last row is a sensitivity check; Patski is not an independent confirmation.", "mid"),
+ ("Predicted accessibility changes do not track the fibroblast MPRA, even outside the genome", oimg('d4_mpra_context', 'MPRA genomic vs neutral context'),
+  f"Native predicted accessibility correlates weakly with MPRA activity (rho {mc_.loc[('heart ATAC', 'genomic context', 'native level vs MPRA activity'), 'rho']:+.2f} heart), but predicted scrambling effects correlate about 0 with the MPRA changes in the genomic window and in a neutral window.",
+  "The MPRA's own scramble effects are tiny, so the null does not discriminate model quality; only 2 neutral backgrounds.", "mid"),
+]
+KEY_HTML = "<p>If only five figures were shown, these tell the story in order: the model can be trusted, the sequence context (not the motif) carries the effect, it is local, responsive sites are explained by context, and accessibility is not enhancer activity. Each has the headline to put on the slide and the caveat to say aloud.</p>" + "".join(
+    f"<div class='keyfig'><h3><span class='num'>{i}</span>{ttl}</h3>{badge(k)}<figure>{fg}</figure><p><strong>Takeaway.</strong> {msg}</p><p class='small'><strong>Caveat.</strong> {cav}</p></div>" for i, (ttl, fg, msg, cav, k) in enumerate(KEYFIGS, 1))
+KEY_HTML += "<p class='small'>Runners-up: the mutation-arm decomposition (surroundings alone keep most of the loss), the peak swap (sequence sets the rank, location sets the level) and the prediction-quality-by-class figure.</p>"
+
 # ---- assemble
 toc = ["<div class='toc'>"]
 for ck, ct, cintro, subs in CH:
@@ -982,6 +1005,9 @@ for ck, ct, cintro, subs in CH:
         continue
     if ck == "bio":
         chapters.append(h + BIO)
+        continue
+    if ck == "key":
+        chapters.append(h + fixrefs(KEY_HTML))
         continue
     body_ = fixrefs(eval('f"""' + cintro + '"""') if cintro else "")
     parts_ = [h, body_]
