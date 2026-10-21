@@ -40,6 +40,13 @@ def main():
     print(df.groupby("head").size().to_string())
     print(f"all {len(df)} tracks written to {out}")
     print("heads computed in predictions:", ag.heads)
+    try:  # human tracks too, to look for more cell-type-specific cardiac / fibroblast tracks (applied to mouse sequence)
+        hdf = pd.DataFrame(ag.track_table(organism=0))
+        hdf.to_csv(L.ROOT / "results" / "human_tracks.csv", index=False)
+        print(hdf.groupby("head").size().to_string())
+        print(f"{len(hdf)} human tracks written to results/human_tracks.csv")
+    except Exception as e:
+        print("human track listing failed:", type(e).__name__, str(e)[:300])
 
     x = torch.zeros((cfg["model"]["batch_size"], ag.size, 4), device=device)
     for _ in range(2):

@@ -325,17 +325,28 @@ class AG:
         with self.torch.no_grad():
             return self.model.predict(x, organism_index=self.org, named_outputs=True, **kw)
 
-    def track_table(self):
-        x = self.torch.zeros((1, self.size, 4), dtype=self.torch.float32, device=self.device)
-        named = self._named(x, all_heads=True)
+    def track_table(self, organism=None):
+        """All tracks of the catalog for an organism (default: the config organism). Human (0) temporarily swaps the catalog."""
+        from alphagenome_pytorch.named_outputs import TrackMetadataCatalog
+        org = self.org if organism is None else organism
+        swap = org != self.org
+        if swap:
+            self.model.set_track_metadata_catalog(TrackMetadataCatalog.load_builtin({0: "human", 1: "mouse"}[org]))
+        try:
+            x = self.torch.zeros((1, self.size, 4), dtype=self.torch.float32, device=self.device)
+            with self.torch.no_grad():
+                named = self.model.predict(x, organism_index=org, named_outputs=True)
+        finally:
+            if swap:
+                self.model.set_track_metadata_catalog(TrackMetadataCatalog.load_builtin({0: "human", 1: "mouse"}[self.org]))
         rows = []
         for head, res in (("atac", 1), ("rna_seq", 128), ("dnase", 128), ("cage", 128), ("chip_tf", 128), ("chip_histone", 128)):
             try:
                 for i, t in enumerate(getattr(named, head)[res].tracks):
                     d = t.to_dict()
-                    d.update(head=head, index=i)
+                    d.update(head=head, index=i, organism=org)
                     rows.append(d)
-            except Exception as e:  # head missing for mouse
+            except Exception as e:  # head missing for this organism
                 print(f"skip head {head}: {e}")
         return rows
 
