@@ -4,6 +4,8 @@
 #   bash submit_all.sh pilot            # 30 CM sites, 30 FB sites, tiny insertion, 150 MPRA elements, with CAGE (pilot_* outputs)
 #   bash submit_all.sh validate         # native predictions only (1 pass/site) for 1000 CM + 1000 FB sites, mouse AND human tracksets -> results/validate_*
 #   bash submit_all.sh phase1           # shuffle arm on all sites (40+40 chunks) + insertion + MPRA   -> results/shuffle_*, mpra_*, insertion_*
+#   (phase1_cm | phase1_fb | phase1_other, phase2_cm | phase2_fb submit the parts separately, e.g. to spread over queues:
+#      bash submit_all.sh phase1_cm;  ACCOUNT= GPU=H200 bash submit_all.sh phase1_fb)
 #   bash submit_all.sh phase2           # mutation arm (random, dinuc, core, flank) on all sites       -> results/mut_*
 #   bash submit_all.sh full             # phase1 + phase2 together (every edit kind in one go)         -> results/cm_*, fb_*
 #
@@ -49,6 +51,12 @@ sub() {
   if [ -n "$DRY" ]; then echo "${cmd[@]}"; else "${cmd[@]}"; fi
 }
 
+p1_cm()    { sub -J 0-39 -N ag_shuffle_cm "PREFIX=shuffle_,KINDS=shuffle,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
+p1_fb()    { sub -J 0-39 -N ag_shuffle_fb "PREFIX=shuffle_,KINDS=shuffle,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs; }
+p1_other() { sub -m ae -N ag_insertion "" pbs/12_insertion.pbs; sub -J 0-7 -N ag_mpra "NCHUNKS=8" pbs/13_mpra.pbs; }
+p2_cm()    { sub -J 0-39 -N ag_mut_cm "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
+p2_fb()    { sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs; }
+
 echo "config=$CFG  GPU=$GPU${ACCOUNT:+  account=$ACCOUNT}${BATCH:+  batch=$BATCH}  resources: $RES"
 case "$1" in
   logs) ls -t logs/*.log 2>/dev/null | head -20; exit 0 ;;
@@ -68,13 +76,12 @@ case "$1" in
     W="-m ae -l walltime=02:00:00"
     sub $W -N ag_validate_cm "PREFIX=validate_,KINDS=native,SITES=cm,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs
     sub $W -N ag_validate_fb "PREFIX=validate_,KINDS=native,SITES=fb,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs ;;
-  phase1)
-    sub -J 0-39 -N ag_shuffle_cm "PREFIX=shuffle_,KINDS=shuffle,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
-    sub -J 0-39 -N ag_shuffle_fb "PREFIX=shuffle_,KINDS=shuffle,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs
-    sub -m ae -N ag_insertion "" pbs/12_insertion.pbs
-    sub -J 0-7 -N ag_mpra "NCHUNKS=8" pbs/13_mpra.pbs ;;
-  phase2)
-    sub -J 0-39 -N ag_mut_cm "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
-    sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|pilot|validate|phase1|phase2|full"; exit 1 ;;
+  phase1)        p1_cm; p1_fb; p1_other ;;
+  phase1_cm)     p1_cm ;;
+  phase1_fb)     p1_fb ;;
+  phase1_other)  p1_other ;;
+  phase2)        p2_cm; p2_fb ;;
+  phase2_cm)     p2_cm ;;
+  phase2_fb)     p2_fb ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|pilot|validate|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
 esac
