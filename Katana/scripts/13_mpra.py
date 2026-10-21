@@ -41,6 +41,7 @@ def main():
     mpra = pd.read_csv(L.ROOT / "data" / "MPRA_Results_with_TSS_distance.csv")
     xm = pd.read_csv(L.ROOT / "data" / "fb_mpra_tobias_crossmap.csv")
     xm = xm[xm.overlap_status == "Matched"]
+    mpra = mpra.drop_duplicates("Coords").reset_index(drop=True)  # 359 elements are listed under two MPRA groups (identical values)
     mpra = mpra.iloc[args.chunk::args.n_chunks]
     if args.limit:  # pilot: random subset
         mpra = mpra.sample(n=min(args.limit, len(mpra)), random_state=mc["seed"])

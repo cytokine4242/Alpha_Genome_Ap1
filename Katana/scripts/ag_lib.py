@@ -19,7 +19,6 @@ for i, ch in enumerate("ACGT"):
     LUT[ord(ch.lower())] = i
 BASES = np.array(list("ACGTN"))
 COMPLEMENT = np.array([3, 2, 1, 0, 4], dtype=np.uint8)
-TRANSVERSION = np.array([1, 0, 3, 2, 4], dtype=np.uint8)  # A<->C, G<->T, used for the targeted core edit
 CORE_RE = re.compile("TGA[CG]TCA")
 ONEHOT = np.eye(5, 4, dtype=np.float32)  # row 4 (N) is all zeros
 
@@ -175,10 +174,20 @@ def core_interval(codes, motif, motif_len=11):
     return mid - 3, mid + 4, False
 
 
-def core_edit(codes, motif):
+HALF_SITES = ("TGAC", "GTCA", "TGAG", "CTCA")  # AP-1 half-sites TGA[CG] and their reverse complements
+
+
+def core_edit(codes, motif, rng):
+    """Disrupt the AP-1 core: every core base is replaced by a different random base, redrawn until no AP-1 half-site
+    (TGAC/TGAG, or their reverse complements GTCA/CTCA) is left in the core or at its junction with the flanks.
+    (A fixed transversion A<->C, G<->T would turn TGAGTCA into GTCTGAC, which still holds the half-site TGAC.)"""
     c0, c1, found = core_interval(codes, motif)
-    out = codes.copy()
-    out[c0:c1] = TRANSVERSION[out[c0:c1]]
+    for _ in range(200):
+        out = codes.copy()
+        out[c0:c1] = (out[c0:c1] + rng.integers(1, 4, size=c1 - c0)).astype(np.uint8) % 4
+        ctx = decode(out[max(c0 - 3, 0):c1 + 3])
+        if not any(h in ctx for h in HALF_SITES):
+            return out, found
     return out, found
 
 
@@ -211,7 +220,7 @@ def build_conditions(reps, caps=None, kinds=None):
     for kind in ("shuffle", "random", "dinuc"):
         for width in ("motif", "170", "peak"):
             conds.append((f"{kind}@{width}", kind, width, min(reps[kind], caps.get(width, 10**6))))
-    conds.append(("core@motif", "core", "motif", 1))
+    conds.append(("core@motif", "core", "motif", reps.get("core", 3)))
     conds.append(("flank@motif", "flank", "motif", min(reps["flank"], caps.get("motif", 10**6))))
     conds.append(("flank@170", "flank", "170", min(reps["flank"], caps.get("170", 10**6))))
     return [c for c in conds if not kinds or c[1] in kinds]
@@ -220,7 +229,7 @@ def build_conditions(reps, caps=None, kinds=None):
 def apply_condition(codes, regions, kind, width, rng):
     """Return edited window, or None if the edit region holds N. regions: dict of (a, b) offsets in the window."""
     if kind == "core":
-        return core_edit(codes, regions["motif"])[0]
+        return core_edit(codes, regions["motif"], rng)[0]
     if kind == "flank":
         return flank_edit(codes, regions, width, rng)[0]
     key = {"motif": "motif", "170": "w170", "peak": "peak"}[width]
