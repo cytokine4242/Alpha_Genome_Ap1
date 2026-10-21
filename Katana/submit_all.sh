@@ -2,6 +2,7 @@
 # Usage (from the Katana/ folder on Katana):
 #   bash submit_all.sh check            # environment + track check (do this first, read logs/)
 #   bash submit_all.sh pilot            # 30 CM sites, 30 FB sites, tiny insertion, 150 MPRA elements, with CAGE (pilot_* outputs)
+#   bash submit_all.sh validate         # native predictions only (1 pass/site) for 1000 CM + 1000 FB sites, mouse AND human tracksets -> results/validate_*
 #   bash submit_all.sh phase1           # shuffle arm on all sites (40+40 chunks) + insertion + MPRA   -> results/shuffle_*, mpra_*, insertion_*
 #   bash submit_all.sh phase2           # mutation arm (random, dinuc, core, flank) on all sites       -> results/mut_*
 #   bash submit_all.sh full             # phase1 + phase2 together (every edit kind in one go)         -> results/cm_*, fb_*
@@ -35,7 +36,7 @@ RES="-l select=1:ncpus=6:mem=96gb:ngpus=1${GPU_SEL}"   # command-line resources 
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
 O="-o $PWD/logs/pbs/${ACCOUNT:+ -A $ACCOUNT}"
-case "$1" in full|phase1|phase2) CFG=${CONFIG:-config.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+case "$1" in full|phase1|phase2) CFG=${CONFIG:-config.json} ;; validate) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
 [ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
 BATCH_VAR="${BATCH_VAR},AG_CONFIG=$PWD/$CFG"
 
@@ -63,6 +64,10 @@ case "$1" in
     sub -J 0-39 -N ag_perturb_fb "SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs
     sub -m ae -N ag_insertion "" pbs/12_insertion.pbs
     sub -J 0-3 -N ag_mpra "NCHUNKS=4" pbs/13_mpra.pbs ;;
+  validate)
+    W="-m ae -l walltime=02:00:00"
+    sub $W -N ag_validate_cm "PREFIX=validate_,KINDS=native,SITES=cm,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs
+    sub $W -N ag_validate_fb "PREFIX=validate_,KINDS=native,SITES=fb,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs ;;
   phase1)
     sub -J 0-39 -N ag_shuffle_cm "PREFIX=shuffle_,KINDS=shuffle,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
     sub -J 0-39 -N ag_shuffle_fb "PREFIX=shuffle_,KINDS=shuffle,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs
@@ -71,5 +76,5 @@ case "$1" in
   phase2)
     sub -J 0-39 -N ag_mut_cm "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
     sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|pilot|phase1|phase2|full"; exit 1 ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|pilot|validate|phase1|phase2|full"; exit 1 ;;
 esac

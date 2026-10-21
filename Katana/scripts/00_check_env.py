@@ -32,26 +32,18 @@ def main():
 
     ag = L.AG(cfg, strict=False)
     device = ag.device
-    rows = ag.track_table()
-    out = L.ROOT / "results" / "mouse_tracks.csv"
-    out.parent.mkdir(exist_ok=True)
-    df = pd.DataFrame(rows)
-    df.to_csv(out, index=False)
-    print(df.groupby("head").size().to_string())
-    print(f"all {len(df)} tracks written to {out}")
-    print("heads computed in predictions:", ag.heads)
-    try:  # human tracks too, to look for more cell-type-specific cardiac / fibroblast tracks (applied to mouse sequence)
-        hdf = pd.DataFrame(L.catalog_tracks(0))
-        hdf.to_csv(L.ROOT / "results" / "human_tracks.csv", index=False)
-        print(hdf.groupby("head").size().to_string())
-        print(f"{len(hdf)} human tracks written to results/human_tracks.csv")
-    except Exception as e:
-        print("human track listing failed:", type(e).__name__, str(e)[:300])
+    out = L.ROOT / "results"
+    out.mkdir(exist_ok=True)
+    for org, name in ((1, "mouse_tracks.csv"), (0, "human_tracks.csv")):
+        df = pd.DataFrame(L.catalog_tracks(org))
+        df.to_csv(out / name, index=False)
+        print(f"{L.ORG_NAME[org]}: {len(df)} tracks -> results/{name}  ({df.groupby('head').size().to_dict()})")
+    print("heads computed per organism:", ag.heads)
 
     x = torch.zeros((cfg["model"]["batch_size"], ag.size, 4), device=device)
     for _ in range(2):
         t0 = time.time()
-        ag._named(x)  # same heads as the real runs
+        ag.forward_all(x)  # same heads/organisms as the real runs
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         dt = time.time() - t0

@@ -317,81 +317,82 @@ def track_text(row):
     return " | ".join(str(row.get(k, "")) for k in TRACK_FIELDS)
 
 
-class AG:
-    """AlphaGenome mouse predictor: per-trackset averaged tracks. ATAC/DNase at 1 bp, RNA-seq/CAGE at 128 bp.
+ORG_NAME = {0: "human", 1: "mouse"}
 
-    config tracksets: {name: {head: regex}}, head in atac / dnase / rna_seq / cage. The regex (case-insensitive) is searched in
-    "biosample_name | ontology_curie | track_name | assay_title | life_stage | strand | biosample_type".
+
+class AG:
+    """AlphaGenome predictor with per-trackset averaged tracks. ATAC/DNase at 1 bp, RNA-seq/CAGE at 128 bp.
+
+    config tracksets: {name: {"organism": 0|1 (optional, default model.organism_index), head: regex, ...}}, head in
+    atac / dnase / rna_seq / cage. The regex (case-insensitive) is searched in
+    "biosample_name | ontology_curie | track_name | assay_title | life_stage | strand | biosample_type" of that organism's catalog.
+    A trackset with organism 0 runs the human output heads on the mouse sequence (an extra forward pass per sequence).
     Only the heads used by the tracksets are computed. strict=False reports unmatched tracksets instead of exiting."""
 
     def __init__(self, cfg, strict=True):
         import torch
-        from alphagenome_pytorch.named_outputs import TrackMetadataCatalog
         self.torch = torch
         self.cfg = cfg
         self.size = cfg["model"]["window"]
-        self.org = cfg["model"]["organism_index"]
+        self.default_org = cfg["model"]["organism_index"]
         self.bs = cfg["model"]["batch_size"]
         self.model, self.device = load_model(cfg)
-        self.model.set_track_metadata_catalog(TrackMetadataCatalog.load_builtin("mouse"))
-        self.heads = None
-        self.tracksets = self._resolve_tracks(strict)
-        self.heads = sorted({h for spec in self.tracksets.values() for h in spec}) or None
+        self._cats, self._cat_org = {}, None
+        self.tracksets, self.org_of = self._resolve_tracks(strict)
+        self.heads = {}  # organism -> sorted heads to compute
+        for ts, spec in self.tracksets.items():
+            self.heads.setdefault(self.org_of[ts], set()).update(spec)
+        self.heads = {o: sorted(h) for o, h in self.heads.items() if h}
 
-    def _named(self, x, all_heads=False):
-        kw = {}
-        if not all_heads and self.heads:
-            kw["heads"] = tuple(self.heads)
+    def _set_catalog(self, org):
+        from alphagenome_pytorch.named_outputs import TrackMetadataCatalog
+        if org not in self._cats:
+            self._cats[org] = TrackMetadataCatalog.load_builtin(ORG_NAME[org])
+        if self._cat_org != org:
+            self.model.set_track_metadata_catalog(self._cats[org])
+            self._cat_org = org
+
+    def _named(self, x, org=None, heads=None):
+        org = self.default_org if org is None else org
+        self._set_catalog(org)
+        kw = {"heads": tuple(heads)} if heads else {}
         with self.torch.no_grad():
-            return self.model.predict(x, organism_index=self.org, named_outputs=True, **kw)
+            return self.model.predict(x, organism_index=org, named_outputs=True, **kw)
+
+    def forward_all(self, x):
+        """One forward pass per organism used by the tracksets (only the heads needed). Returns {organism: named outputs}."""
+        return {org: self._named(x, org, heads) for org, heads in self.heads.items()}
 
     def track_table(self, organism=None):
-        """All tracks of the catalog for an organism (default: the config organism). Human (0) temporarily swaps the catalog."""
-        from alphagenome_pytorch.named_outputs import TrackMetadataCatalog
-        org = self.org if organism is None else organism
-        swap = org != self.org
-        if swap:
-            self.model.set_track_metadata_catalog(TrackMetadataCatalog.load_builtin({0: "human", 1: "mouse"}[org]))
-        try:
-            x = self.torch.zeros((1, self.size, 4), dtype=self.torch.float32, device=self.device)
-            with self.torch.no_grad():
-                named = self.model.predict(x, organism_index=org, named_outputs=True)
-        finally:
-            if swap:
-                self.model.set_track_metadata_catalog(TrackMetadataCatalog.load_builtin({0: "human", 1: "mouse"}[self.org]))
-        rows = []
-        for head, res in (("atac", 1), ("rna_seq", 128), ("dnase", 128), ("cage", 128), ("chip_tf", 128), ("chip_histone", 128)):
-            try:
-                for i, t in enumerate(getattr(named, head)[res].tracks):
-                    d = t.to_dict()
-                    d.update(head=head, index=i, organism=org)
-                    rows.append(d)
-            except Exception as e:  # head missing for this organism
-                print(f"skip head {head}: {e}")
-        return rows
+        """All tracks of an organism's catalog (CPU only)."""
+        return catalog_tracks(self.default_org if organism is None else organism)
 
     def _resolve_tracks(self, strict=True):
-        rows = self.track_table()
-        out = {}
+        out, org_of, cache = {}, {}, {}
         for name, spec in self.cfg["tracksets"].items():
+            org = spec.get("organism", self.default_org)
+            org_of[name] = org
+            rows = cache.setdefault(org, catalog_tracks(org))
             out[name] = {}
             for head, pat in spec.items():
+                if head == "organism":
+                    continue
                 if head not in ACC_HEADS and head not in EXPR_HEADS:
                     raise SystemExit(f"trackset {name}: unsupported head '{head}' (use atac, dnase, rna_seq, cage)")
                 rx = re.compile(pat, re.I)
                 hit = [r for r in rows if r["head"] == head and rx.search(track_text(r))]
-                print(f"trackset {name} {head} /{pat}/: {len(hit)} tracks", flush=True)
+                print(f"trackset {name} ({ORG_NAME[org]}) {head} /{pat}/: {len(hit)} tracks", flush=True)
                 for r in hit:
                     print(f"    [{r['index']}] {r.get('track_name')} | {r.get('biosample_name')} | {r.get('biosample_life_stage')} | strand {r.get('strand')}", flush=True)
                 if not hit:
-                    msg = (f"trackset {name}/{head}: pattern '{pat}' matches no mouse track; edit config.json "
-                           "(see results/mouse_tracks.csv from 00_check_env)")
+                    msg = (f"trackset {name}/{head}: pattern '{pat}' matches no {ORG_NAME[org]} track; edit config.json "
+                           "(see results/*tracks.csv, 00_list_tracks.py)")
                     if strict:
                         raise SystemExit(msg)
                     print("TRACKSET PROBLEM:", msg, flush=True)
                     continue
                 out[name][head] = [r["index"] for r in hit]
-        return out
+        return out, org_of
 
     def predict(self, seqs):
         """seqs: list of window codes -> list of {trackset: {head: 1-D array (L at 1 bp, L/128 at 128 bp)}}."""
@@ -399,9 +400,10 @@ class AG:
         res = []
         for i in range(0, len(seqs), self.bs):
             x = torch.from_numpy(np.stack([onehot(s) for s in seqs[i:i + self.bs]])).to(self.device)
-            named = self._named(x)
+            named_by_org = self.forward_all(x)
             per = {}
             for ts, spec in self.tracksets.items():
+                named = named_by_org[self.org_of[ts]]
                 per[ts] = {}
                 for head, idx in spec.items():
                     tens = getattr(named, head)[1 if head in ACC_HEADS else 128].tensor
