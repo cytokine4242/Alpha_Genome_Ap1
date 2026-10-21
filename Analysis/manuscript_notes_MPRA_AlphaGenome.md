@@ -1,0 +1,39 @@
+# Notes: our AlphaGenome results against the manuscript's MPRA and AlphaGenome claims
+
+Sources read: `Manuscript/check_20261014/clarke_et_al_main-5_JC_v2.docx` (main text, tracked changes accepted), `clarke_et_al_submission_SM_20261014.docx`, and the consistency check note. Text and legends only; I did not see the figures. Supplementary Table S27 is `Katana/data/MPRA_Results_with_TSS_distance.csv`. Numbers below come from `Analysis/mpra_manuscript_checks.txt` (script `Scripts/27_mpra_manuscript_checks.py`) and from the CM shuffle / MPRA runs on Katana.
+
+## What the manuscript does with AlphaGenome (so we compare like with like)
+- MPRA: lenti-STARR-seq in primary cardiac **fibroblasts**, 1,861 designed 170 bp AP-1 elements, 1,653 retained, plus a core-motif-scrambled and a fully scrambled version of each.
+- AlphaGenome is used as a **frozen encoder with a linear probe trained on the MPRA** (AlphaGenome-MPRA model), not as the native ATAC head. Reported held-out Pearson r = 0.73. ISM, seqlets, epistasis and rescue are all in silico on that probe.
+- **What I ran is different:** the native mouse ATAC/RNA heads on the endogenous genomic context (131 kb window), with shuffles. So our results speak to *predicted chromatin accessibility*, not to the manuscript's MPRA-trained probe.
+
+## Verdicts
+Legend: **Validated** = our data reproduce or independently support it. **Opposed** = our data point the other way. **Unclear** = cannot be tested with our data, or not comparable.
+
+| # | Manuscript claim | Verdict | Evidence from our analysis |
+|---|---|---|---|
+| 1 | Dynamic AP-1 elements have lower baseline accessibility | **Validated** | Predicted native ATAC is lower for Dynamic MPRA elements (Cohen's d -0.47 Patski, -0.57 heart; p < 1e-14) and for Dynamic CM Fos sites (mean 0.39 vs 0.79). |
+| 2 | Dynamic elements have lower GC content | **Validated** (MPRA elements) | Median GC 0.494 vs 0.512, p = 9e-8 (Table S27). Not testable for CM sites locally (genome is on Katana). |
+| 3 | Dynamic elements are farther from promoters | **Weakly validated / inconsistent** | MPRA elements: 9.2 vs 7.9 kb, p = 0.027. In our CM Fos-site set the difference is not significant (9.2 vs 8.8 kb, p = 0.14). Different cell type and site definition. |
+| 4 | Age-gained sequences have reporter activity on par with stable | **Validated** | Median log2 alpha +0.250 (Age Up, n = 641) vs +0.260 (Stable, n = 457), p = 0.78. Ex Up and Ex Down also similar; Age Down slightly lower, p = 0.13. |
+| 5 | ...despite weaker endogenous chromatin features, so chromatin context rather than sequence autonomy explains them | **Validated (supportive)** | AlphaGenome predicts clearly lower accessibility for the same sequences (row 1) while MPRA activity is equal. Native predicted accessibility explains little of MPRA activity (Spearman 0.19 Patski, 0.24 heart). |
+| 6 | Shuffling the AP-1 core has a minor effect on activity | **Validated** | Mean core loss 0.021 log2 units overall (Stable 0.011, Dynamic 0.025, p = 0.34). |
+| 7 | Flank-shuffle activity loss is greater for dynamic than stable (0.128 vs 0.016, d = 0.144, FDR = 0.034) | **Validated (numbers reproduce exactly), small effect** | Age Up 0.128 vs Stable 0.016, d = 0.144, Mann-Whitney p = 0.017. Pooling all dynamic classes: 0.112 vs 0.016, d = 0.12. The effect is about 0.1 log2 units and marginal; worth stating the effect size. |
+| 8 | The surrounding sequence distinguishes classes more than the core does | **Validated within the MPRA** | Flank difference p = 0.017 vs core difference p = 0.34 (same data). |
+| 9 | (Implied) the same flank dependence is a property of the sequence the model can read | **Opposed** | The native AlphaGenome accessibility head gives the **opposite direction**: predicted flank-loss is *lower* in Dynamic elements (d = -0.30, p = 1e-8) and in CM sites the 170 bp shuffle costs Stable sites more (-1.75 vs -1.23). Per-element predicted vs measured flank loss: rho 0.04 (Patski), -0.01 (heart); core loss rho about 0. Accessibility and episomal activity are different quantities, so this is not a contradiction of the biology, but the native model does not explain the MPRA class difference. |
+| 10 | AlphaGenome-MPRA probe: Pearson r = 0.73 on held-out sequences | **Unclear** | Cannot evaluate their probe. Context: the native ATAC head correlates only 0.19 to 0.24 with MPRA activity, whereas **GC content alone has Spearman 0.505**. The SM describes a random 10-fold split; please report the chromosome-held-out r and a GC/composition-only baseline beside 0.73. |
+| 11 | ISM: important substitutions cluster at the AP-1 site in stable elements, dispersed in dynamic | **Unclear (partial tension)** | Not testable by us. Our native model also finds motif-only dependence rare, with Stable only negligibly more motif-dependent than Dynamic (difference +0.055, negligible effect size). The measured core-scramble effect in Stable MPRA elements is about 0 (0.011), so "AP-1 reliance" is a relative importance within the probe, not a measured dependence. |
+| 12 | Seqlets (12 bp), epistasis and rescue explain dispersed activity | **Unclear / not experimentally validated** | All in silico on the same probe. The 142 follow-up loci were chosen for agreement between measured and predicted contrasts (reliability score), which biases the effect sizes upward; the SM itself reports no stable-vs-dynamic difference in seqlet strength, epistasis or rescue. Our analysis (no buffering between neighbouring Fos motifs) is not comparable. |
+| 13 | Sequence models discriminate age-gained from age-decreased better than age-gained from stable; AlphaGenome embeddings best (Fig. 5L) | **Unclear** | Not comparable: a full embedding classifier vs our one-number summary. In our crude summary, Stable vs Dynamic separates strongly while Age Up vs Age Down does not (170 bp, peak), the reverse ordering, but I would not lean on it. |
+| 14 | Motif enrichments (MEF2C, TCF7L2, GATA4 in dynamic; NFATC3, ETV4 in stable; C/EBP with AP-1 loss) | **Unclear** | Needs a motif scan on sequences; the genome is on Katana. Could be done there. |
+
+## Points I would raise or clarify in the manuscript
+1. **GC baseline for the probe.** GC alone correlates 0.505 with activity, and dynamic elements have lower GC. State what GC/composition-only models achieve on the same splits as the 0.73.
+2. **Effect sizes.** The flank-loss difference (d = 0.14, mean 0.11 to 0.13 log2 units, p = 0.017) supports "distinguishes classes" statistically but is small; the text says "more clearly" than the core, which is true only relative to a null core effect.
+3. **ISM claim vs measured core effect.** The measured core scramble does almost nothing in stable elements (0.011), so "stable elements rely on the AP-1 site" rests on probe attribution, not on an observed MPRA effect.
+4. **Selection bias in the seqlet panel** (142 loci ranked by measured-predicted concordance) and the fact that rescue, epistasis and seqlet effects are model predictions.
+5. **Your own consistency check already flags** ISM on "all 1,653" (main) vs 310 enhancers (SM and Fig. 5H legend), and 457 vs 452 stable elements; those should be fixed before the AlphaGenome section is read closely.
+6. **Fibroblast vs cardiomyocyte.** The MPRA is in fibroblasts; our shuffle arm is cardiomyocyte (the fibroblast arm has not run yet), and our site set (TOBIAS "Fos" motifs) differs from the c-FOS CUT&Tag-based classes. Direct agreement should not be expected for every statement.
+
+## Caveats on this comparison
+Our readout is native predicted accessibility, not activity, so rows 9 and 11 are comparisons of different quantities. The MPRA table has 2,012 rows for 1,653 unique elements (elements appear once per class); the checks above use rows as in Table S27, matching the manuscript's counts.

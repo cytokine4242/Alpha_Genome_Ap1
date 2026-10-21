@@ -1,0 +1,33 @@
+rows 2012, unique elements 1653, Stable rows 457
+
+(a) MPRA endogenous activity (log2 alpha) by class vs Stable
+  Age Up    n= 641 median +0.250 vs Stable +0.260 | MWU p=0.783
+  Age Down  n= 241 median +0.180 vs Stable +0.260 | MWU p=0.134
+  Ex Up     n= 326 median +0.265 vs Stable +0.260 | MWU p=0.928
+  Ex Down   n= 347 median +0.238 vs Stable +0.260 | MWU p=0.142
+
+(b) core vs flank contribution (manuscript: flank loss dynamic 0.128 vs stable 0.016, d=0.144, FDR=0.034)
+  flank loss all dynamic rows     mean +0.112 vs Stable +0.016 | d=0.119 | MWU p=0.0164
+  core  loss all dynamic rows     mean +0.025 vs Stable +0.011 | d=0.050 | MWU p=0.344
+  flank loss age-gained (Age Up)  mean +0.128 vs Stable +0.016 | d=0.144 | MWU p=0.0169
+  core  loss age-gained (Age Up)  mean +0.023 vs Stable +0.011 | d=0.043 | MWU p=0.448
+  overall mean core loss 0.021, flank loss 0.090
+
+(c) AlphaGenome-predicted (native ATAC head, genomic context, 170 bp readout), same elements
+  [Patski ATAC] n rows 2012
+     predicted native ATAC    Dynamic mean +0.377 vs Stable +0.567 | d=-0.467 | MWU p=9.17e-15
+     predicted core loss      Dynamic mean +1.345 vs Stable +1.382 | d=-0.046 | MWU p=0.285
+     predicted flank loss     Dynamic mean +0.522 vs Stable +0.756 | d=-0.306 | MWU p=1.24e-08
+     Spearman across elements: predicted vs MPRA flank loss rho=0.036 | core loss rho=-0.006
+     Spearman(predicted native ATAC, log2_alpha_Endo) = 0.187
+  [heart ATAC] n rows 2012
+     predicted native ATAC    Dynamic mean +0.250 vs Stable +0.490 | d=-0.566 | MWU p=6.11e-17
+     predicted core loss      Dynamic mean +0.617 vs Stable +0.686 | d=-0.153 | MWU p=0.00685
+     predicted flank loss     Dynamic mean +0.488 vs Stable +0.710 | d=-0.302 | MWU p=1.19e-08
+     Spearman across elements: predicted vs MPRA flank loss rho=-0.012 | core loss rho=-0.011
+     Spearman(predicted native ATAC, log2_alpha_Endo) = 0.241
+
+(d) GC / TSS distance in the MPRA table: Stable vs Dynamic
+  GC_content   Dynamic median 0.494 vs Stable 0.512 | MWU p=8.73e-08
+  dist_to_TSS  Dynamic median 9238.000 vs Stable 7913.000 | MWU p=0.0267
+  Spearman(GC content, log2_alpha_Endo) = 0.505
