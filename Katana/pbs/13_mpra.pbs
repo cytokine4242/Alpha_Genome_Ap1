@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N ag_mpra
 #PBS -l select=1:ncpus=6:mem=96gb:ngpus=1:gpu_model=H200
-#PBS -l walltime=12:00:00
+#PBS -l walltime=02:00:00
 #PBS -j oe
 # Array job over MPRA element chunks (see submit_all.sh).
 source "$PBS_O_WORKDIR/pbs/common.sh"

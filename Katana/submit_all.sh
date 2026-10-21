@@ -63,7 +63,7 @@ case "$1" in
     sub -J 0-39 -N ag_perturb_cm "SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
     sub -J 0-39 -N ag_perturb_fb "SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs
     sub -m ae -N ag_insertion "" pbs/12_insertion.pbs
-    sub -J 0-3 -N ag_mpra "NCHUNKS=4" pbs/13_mpra.pbs ;;
+    sub -J 0-7 -N ag_mpra "NCHUNKS=8" pbs/13_mpra.pbs ;;
   validate)
     W="-m ae -l walltime=02:00:00"
     sub $W -N ag_validate_cm "PREFIX=validate_,KINDS=native,SITES=cm,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs
@@ -72,7 +72,7 @@ case "$1" in
     sub -J 0-39 -N ag_shuffle_cm "PREFIX=shuffle_,KINDS=shuffle,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
     sub -J 0-39 -N ag_shuffle_fb "PREFIX=shuffle_,KINDS=shuffle,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs
     sub -m ae -N ag_insertion "" pbs/12_insertion.pbs
-    sub -J 0-3 -N ag_mpra "NCHUNKS=4" pbs/13_mpra.pbs ;;
+    sub -J 0-7 -N ag_mpra "NCHUNKS=8" pbs/13_mpra.pbs ;;
   phase2)
     sub -J 0-39 -N ag_mut_cm "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs
     sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank,SITES=fb,NCHUNKS=40" pbs/11_perturb.pbs ;;

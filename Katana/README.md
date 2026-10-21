@@ -23,7 +23,7 @@ output tables) was tested locally with a mock model. Do the check step first.
 3. **Pilot**: `bash submit_all.sh pilot` (10 CM + 10 FB sites, 3 insertion backgrounds, 20 MPRA elements). Check `results/` and s/site in the logs.
 4. **Phased full run** (recommended): `bash submit_all.sh phase1` = shuffle arm on all sites (31 passes/site) + insertion + MPRA, outputs `results/shuffle_*`, `mpra_*`, `insertion_*`;
    then `bash submit_all.sh phase2` = mutation arm (random, dinuc, core, flank; 42 passes/site), outputs `results/mut_*`. `bash submit_all.sh full` runs every edit kind in one go (`results/cm_*`, `fb_*`).
-   Each is 40 CM + 40 FB array tasks at 12 h walltime and is resumable (rerun the same command to continue). Every output also contains the native rows.
+   Each is 40 CM + 40 FB array tasks at 2 h walltime (a chunk takes ~15-30 min on an L40S, so the 2 h queue is used and a slow GPU only lengthens the tail; the MPRA job is 8 chunks) and is resumable (rerun the same command to continue). Every output also contains the native rows.
 
 ## Choosing the GPU
 `submit_all.sh` takes environment variables: `GPU=H200` (default), `GPU=A100`, `GPU=L40S`, ... or `GPU=any` (no `gpu_model` request, so whichever GPU frees up first),
