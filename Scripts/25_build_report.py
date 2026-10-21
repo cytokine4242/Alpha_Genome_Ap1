@@ -9,6 +9,10 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import report_diagrams as dg
 
 ROOT = Path(__file__).resolve().parents[1]
 AN = ROOT / "Analysis"
@@ -75,7 +79,7 @@ CSS = """
 :root{--bg:#fcfcfb;--panel:#f4f3f0;--ink:#0b0b0b;--ink2:#52514e;--rule:#e4e3df;--blue:#2a78d6;--orange:#eb6834;--green:#0d7a54;--amber:#9a6700;--red:#b3261e;--grey:#6b6a66}
 @media (prefers-color-scheme:dark){:root{--bg:#1a1a19;--panel:#242422;--ink:#f0efec;--ink2:#c3c2b7;--rule:#3a3a37;--blue:#3987e5;--orange:#d95926;--green:#3fbf8f;--amber:#e0b341;--red:#f0776f;--grey:#a8a79f}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-main{max-width:1000px;margin:0 auto;padding:32px 16px 80px}h1{font-size:1.9rem;line-height:1.2;margin:0 0 4px}h2{font-size:1.35rem;margin:44px 0 8px;padding-top:12px;border-top:1px solid var(--rule)}h3{font-size:1.05rem;margin:26px 0 4px}h3.sec{font-size:1.15rem;margin:34px 0 6px;padding-top:10px;border-top:1px dotted var(--rule)}
+main{max-width:1000px;margin:0 auto;padding:32px 16px 80px}h1{font-size:1.9rem;line-height:1.2;margin:0 0 4px}h2{font-size:1.35rem;margin:44px 0 8px;padding-top:12px;border-top:1px solid var(--rule)}h3{font-size:1.05rem;margin:26px 0 4px}figure.dia{margin:14px 0}.dia{overflow-x:auto}.dia svg{min-width:760px;width:100%;height:auto;display:block;color:var(--ink)}.dia figcaption{position:sticky;left:0}h3.sec{font-size:1.15rem;margin:34px 0 6px;padding-top:10px;border-top:1px dotted var(--rule)}
 p,li{max-width:78ch}.sub{color:var(--ink2);margin:0 0 20px}.box{background:var(--panel);border-radius:10px;padding:14px 18px;margin:16px 0}.box ul{margin:6px 0;padding-left:20px}
 figure{margin:18px 0}figcaption{color:var(--ink2);font-size:.9rem;margin-top:6px;max-width:80ch}img{border-radius:8px;border:1px solid var(--rule);background:#fcfcfb;height:auto}
 table.t{border-collapse:collapse;font-size:.86rem;margin:10px 0;display:block;overflow-x:auto;max-width:100%}table.t th,table.t td{padding:4px 10px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}table.t th{color:var(--ink2);font-weight:600;position:sticky;top:0;background:var(--bg)}table.t td:first-child,table.t th:first-child{text-align:left}
@@ -250,6 +254,8 @@ PART_C = f"""
 <p>Predicted native accessibility correlates weakly but consistently with MPRA activity (rho {mp_.loc[('heart ATAC', CMP_N, 'all elements'), 'rho']:+.2f} heart, {mp_.loc[('Patski ATAC', CMP_N, 'all elements'), 'rho']:+.2f} Patski), and this holds in the replicated and TOBIAS-motif subsets. <strong>The predicted effect of shuffling does not track the MPRA at all</strong> (motif shuffle {mp_.loc[('Patski ATAC', CMP_M, 'all elements'), 'rho']:+.2f}, full shuffle {mp_.loc[('Patski ATAC', CMP_F, 'all elements'), 'rho']:+.2f} with the Patski track; similar with heart). The MPRA delta is native minus shuffled, so agreement would appear as a <em>negative</em> correlation with the (negative) predicted log2FC; the confidence intervals exclude any correlation beyond about 0.06 in either direction. Possible reasons: the MPRA measures episomal enhancer activity of a 170&nbsp;bp fragment, while the model predicts chromatin accessibility of the same sequence in its genomic context; the MPRA effects are small and noisy; and the fibroblast tracks are weak proxies. <strong>Implication:</strong> accessibility predicted by AlphaGenome should not be used as a proxy for the MPRA effect of disrupting an element.</p>
 """
 
+DESIGN = dg.design_section()
+
 claims = [
     ("Shuffling the 170 bp around a site removes far more predicted accessibility than shuffling the 11 bp motif alone", "ok",
      f"Median log2FC {m.loc['170', 'median_stable']:.2f} (170 bp shuffle) vs {m.loc['motif', 'median_stable']:.2f} (motif shuffle) in Stable sites; "
@@ -369,6 +375,7 @@ body = f"""
 <p><strong>Significance marks.</strong> <code>***</code> FDR &lt; 0.001, <code>**</code> &lt; 0.01, <code>*</code> &lt; 0.05, <code>ns</code> not significant. Tests are two-sided Mann&ndash;Whitney against a reference class, Benjamini&ndash;Hochberg corrected within each family of tests. With thousands of sites a tiny difference is "significant", so each comparison also shows an effect size (difference of medians with a bootstrap 95% CI, and Cliff's delta: about 0.1 small, 0.3 medium, 0.5 large). <strong>Read the effect size before the stars.</strong></p>
 <p><strong>Trust labels.</strong> <span class="badge ok">&#10003; Robust</span> survives the checks below. <span class="badge mid">~ Plausible / partial</span> real but small, or depends on a confound. <span class="badge bad">&#10007; Not supported</span> no evidence, or indistinguishable from noise. <span class="badge na">? Cannot judge yet</span> data not available.</p>
 
+{DESIGN}
 {PART_A}
 <h2 id="partB">Part B. Main results</h2>
 <h3 class="sec">B1. Does the model track real accessibility?</h3>
