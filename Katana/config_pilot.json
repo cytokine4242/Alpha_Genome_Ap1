@@ -3,7 +3,7 @@
     "Pilot config: the main config.json plus CAGE tracks, to test whether CAGE adds signal. Used by 'submit_all.sh check' and 'pilot' (CONFIG= to override).",
     "weights: pretrained AlphaGenome weights. A .safetensors/.pth/.pt file is accepted. CHECK this path on Katana.",
     "tracksets: {name: {head: regex}}; head = atac | dnase | rna_seq | cage. Regex (case-insensitive) is searched in 'biosample_name | ontology_curie | track_name | assay_title | life_stage | strand | biosample_type' of the MOUSE tracks; matches are averaged. Optional extras (more heads = slower): CM dnase '^heart [|].*adult', CM cage 'cardiac muscle cell', FB dnase 'fibroblast of lung', FB cage '^fibroblast [|]'.",
-    "perturb.reps: replicates per stochastic edit kind, capped per edit width by perturb.reps_width (motif 10, 170 bp 5, peak 3). Passes per site = 1 native + sum over conditions (00_check_env prints it)."
+    "perturb.reps: replicates per stochastic edit kind (shuffle 10, random/dinuc/flank 5). Optional perturb.reps_width {motif|170|peak: max reps} caps replicates per edit width (empty = no cap). Passes per site = 1 native + sum over conditions (00_check_env prints it)."
   ],
   "paths": {
     "genome": "/srv/scratch/wonglab/useful/genomes/mm10.fa",
@@ -32,20 +32,16 @@
     "seed": 1,
     "reps": {
       "shuffle": 10,
-      "random": 3,
-      "dinuc": 3,
-      "flank": 3
+      "random": 5,
+      "dinuc": 5,
+      "flank": 5
     },
     "motif_len": 11,
     "w170": 170,
     "max_peak_width": 6000,
     "tss_prox_bp": 2000,
     "local_bp": 50000,
-    "reps_width": {
-      "motif": 10,
-      "170": 5,
-      "peak": 3
-    }
+    "reps_width": {}
   },
   "insertion": {
     "seed": 1,
