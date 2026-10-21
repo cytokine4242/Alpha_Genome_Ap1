@@ -1,6 +1,7 @@
 #!/bin/bash
 # Usage (from the Katana/ folder on Katana):
 #   bash submit_all.sh check            # environment + track check (do this first, read logs/)
+#   bash submit_all.sh benchmark        # times batch size / 1bp decoder / heads on one GPU (GPU=L40S|A100|H100 to choose); read the log
 #   bash submit_all.sh pilot            # 30 CM sites, 30 FB sites, tiny insertion, 150 MPRA elements, with CAGE (pilot_* outputs)
 #   bash submit_all.sh validate         # native predictions only (1 pass/site) for 1000 CM + 1000 FB sites, mouse AND human tracksets -> results/validate_*
 #   bash submit_all.sh phase1           # shuffle arm on all sites (40+40 chunks) + insertion + MPRA   -> results/shuffle_*, mpra_*, insertion_*
@@ -60,6 +61,7 @@ p2_fb()    { sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank
 echo "config=$CFG  GPU=$GPU${ACCOUNT:+  account=$ACCOUNT}${BATCH:+  batch=$BATCH}  resources: $RES"
 case "$1" in
   logs) ls -t logs/*.log 2>/dev/null | head -20; exit 0 ;;
+  benchmark) sub -m ae -N ag_benchmark "" pbs/00_benchmark.pbs ;;
   check) sub -m ae -N ag_check "" pbs/00_check_env.pbs ;;
   pilot)
     W="-m ae -l walltime=01:30:00"  # short walltime starts sooner; one email per single job
@@ -83,5 +85,5 @@ case "$1" in
   phase2)        p2_cm; p2_fb ;;
   phase2_cm)     p2_cm ;;
   phase2_fb)     p2_fb ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|pilot|validate|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
 esac
