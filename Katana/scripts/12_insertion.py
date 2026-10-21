@@ -49,7 +49,7 @@ def peak_swap(cfg, genome, ag, out, limit):
             nat[r["site_id"]] = res
     ranked = sorted(nat, key=lambda k: nat[k][3])
     qs = ic["recipient_quantiles"][: ic["n_recipients"]]
-    recips = [ranked[min(int(q * len(ranked)), len(ranked) - 1)] for q in qs]
+    recips = list(dict.fromkeys(ranked[min(int(q * len(ranked)), len(ranked) - 1)] for q in qs))  # unique, in order
     print("recipients (native peak ATAC):", [(r, round(nat[r][3], 3)) for r in recips], flush=True)
 
     rest = sites[~sites.site_id.isin(recips)]
