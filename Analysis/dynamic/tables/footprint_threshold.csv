@@ -1,2 +1,0 @@
-dynamic_bound_median,dynamic_bound_p25,dynamic_bound_p75,dynamic_unbound_median,dynamic_unbound_p25,dynamic_unbound_p75,threshold,stable_median_score,share_dynamic_bound_calls_within_0.15_of_threshold,share_dynamic_unbound_calls_within_0.15_of_threshold,median_score_sd_across_conditions_stable,median_score_sd_across_conditions_dynamic
-0.60225,0.5672699999999999,0.65436,0.47806,0.43305,0.51202,0.542,1.07519,0.8479582971329279,0.8918454935622318,0.09821434586318507,0.08505698087747385

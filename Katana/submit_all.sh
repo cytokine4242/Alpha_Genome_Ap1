@@ -8,6 +8,9 @@
 #     controls       offset (matched-control) shuffles + width titration of the shuffle     -> results/controls_*   (61 passes/site)
 #     satmut         saturation mutagenesis of the 11 bp motif (33 substitutions)           -> results/sat_*        (34 passes/site)
 #     mpra_neutral   MPRA elements inserted into neutral backgrounds                        -> results/mpra_neutral_* (22 passes/element)
+#     scan           tile scan (10 bp tiles, +-300 bp) + saturation mutagenesis (+-30 bp) on 1,470 CM sites (Dynamic, matched Stable, high-accessibility Stable) -> results/scan_cm_*     (364 passes/site)
+#     titrate        AP-1 core weakening 1-7 bases, consensus upgrade, reverse complement, half-site, and motif move/duplicate at 8 offsets with controls (same sites)     -> results/titrate_cm_*   (94 passes/site)
+#     dynamics       scan + titrate together (cardiomyocyte tracks only, config_cm_only.json); test first with: bash submit_all.sh dynamics_pilot
 #     human_sens     shuffles with human output heads on 500 sites (config_validate.json)   -> results/human_*
 #     context        shuffles on 60 sites with 16 kb / 65 kb / 262 kb windows               -> results/ctx<window>_*
 #   bash submit_all.sh phase1           # shuffle arm on all sites (40+40 chunks) + insertion + MPRA   -> results/shuffle_*, mpra_*, insertion_*
@@ -46,7 +49,7 @@ if [ "$1" = context ] && [ -z "$BATCH" ]; then BATCH=2; fi
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
 O="-o $PWD/logs/pbs/${ACCOUNT:+ -A $ACCOUNT}"
-case "$1" in full|phase1*|phase2*|controls|satmut|mpra_neutral|context) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+case "$1" in scan|titrate|dynamics*) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
 [ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
 BATCH_VAR="${BATCH_VAR},AG_CONFIG=$PWD/$CFG"
 
@@ -67,6 +70,9 @@ p2_fb()    { sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank
 
 p3_controls() { sub -J 0-39 -N ag_controls_cm "PREFIX=controls_,KINDS=offset:titrate,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
 p3_satmut()   { sub -J 0-39 -N ag_satmut_cm "PREFIX=sat_,KINDS=sat,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
+p4_scan()     { sub -J 0-39 -N ag_scan_cm "EXPERIMENT=scan,PREFIX=scan_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
+p4_titrate()  { sub -J 0-39 -N ag_titrate_cm "EXPERIMENT=titrate,PREFIX=titrate_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
+p4_pilot()    { for e in scan titrate; do sub -m ae -l walltime=01:00:00 -N ag_${e}_pilot "EXPERIMENT=$e,PREFIX=pilot_${e}_,NCHUNKS=1,LIMIT=6" pbs/15_scan_titrate.pbs; done; }
 p3_mpran()    { sub -J 0-7 -N ag_mpra_neutral "NCHUNKS=8" pbs/14_mpra_neutral.pbs; }
 p3_human()    { sub -J 0-4 -N ag_human_sens "PREFIX=human_,KINDS=shuffle,SITES=cm,NCHUNKS=5,LIMIT=100" pbs/11_perturb.pbs; }
 p3_context()  { for w in 16384 65536 262144; do sub -N ag_ctx_$w "PREFIX=ctx${w}_,KINDS=shuffle,SITES=cm,NCHUNKS=1,LIMIT=60,AG_WINDOW=$w" pbs/11_perturb.pbs; done; }
@@ -91,6 +97,10 @@ case "$1" in
     W="-m ae -l walltime=02:00:00"
     sub $W -N ag_validate_cm "PREFIX=validate_,KINDS=native,SITES=cm,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs
     sub $W -N ag_validate_fb "PREFIX=validate_,KINDS=native,SITES=fb,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs ;;
+  scan)          p4_scan ;;
+  titrate)       p4_titrate ;;
+  dynamics)      p4_scan; p4_titrate ;;
+  dynamics_pilot) p4_pilot ;;
   controls)      p3_controls ;;
   satmut)        p3_satmut ;;
   mpra_neutral)  p3_mpran ;;
@@ -103,5 +113,5 @@ case "$1" in
   phase2)        p2_cm; p2_fb ;;
   phase2_cm)     p2_cm ;;
   phase2_fb)     p2_fb ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|controls|satmut|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|controls|satmut|scan|titrate|dynamics|dynamics_pilot|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
 esac

@@ -1,0 +1,10 @@
+#!/bin/bash
+#PBS -N ag_scan_titrate
+#PBS -l select=1:ncpus=6:mem=96gb:ngpus=1
+#PBS -l walltime=03:00:00
+#PBS -j oe
+# Array job: qsub -J 0-N-1 -v EXPERIMENT=scan|titrate,NCHUNKS=N,PREFIX=... (see submit_all.sh). Cardiomyocyte tracks only (config_cm_only.json).
+source "$PBS_O_WORKDIR/pbs/common.sh"
+CHUNK=${PBS_ARRAY_INDEX:-0}
+python 15_scan_titrate.py --experiment ${EXPERIMENT} --sites ../data/cm_subset_dynamics.csv --out ../results/${PREFIX}cm \
+    --chunk $CHUNK --n-chunks ${NCHUNKS:-1} ${LIMIT:+--limit $LIMIT}
