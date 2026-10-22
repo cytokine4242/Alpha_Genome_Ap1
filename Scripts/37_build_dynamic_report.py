@@ -132,11 +132,12 @@ MHA = pd.read_csv(MH / "tables" / "importance_by_class.csv").set_index("family")
 
 def top5(contrast, direction, n=5):
     w = MHT[(MHT.contrast == contrast) & (MHT.direction == direction)].head(n)
-    return ", ".join(f"<b>{r.family.split(' (')[0]}</b> ({r.difference:+.2f}, n = {int(r.n_first)}/{int(r.n_second)}{', p = %.3f' % r.p if r.p < 0.05 else ''})" for r in w.itertuples())
+    return ", ".join(f"<b>{r.family.split(' (')[0]}</b> ({r.difference:+.2f}, n = {int(r.n_class)}{', p = %.3f' % r.p if r.p < 0.05 else ''})" for r in w.itertuples())
 
 
-TH_C, AU_C, AD_C = "Dynamic vs\nStable (thr.)", "Age Up vs\nUnchanged (\u0394)", "Age Down vs\nUnchanged (\u0394)"
-MORE, LESS = "more important in the first class", "more important in the second class"
+AGEUP_T, AGEDN_T = "Age Up vs Stable (threshold)", "Age Down vs Stable (threshold)"
+EXUP_T, EXDN_T = "Ex Up vs Stable (threshold)", "Ex Down vs Stable (threshold)"
+MORE, LESS = "more important in this class", "more important in the reference"
 sv = lambda c, m: SVCR[(SVCR.contrast == c) & (SVCR.measure == m)].iloc[0]
 TH, CH, AU, AD = "Threshold: Dynamic vs Stable", "\u0394score: Changing vs Steady", "\u0394score: Age Up vs Unchanged", "\u0394score: Age Down vs Unchanged"
 nyes = lambda c: int((SVCR[SVCR.contrast == c].detects == "YES").sum())
@@ -292,21 +293,23 @@ sec("spacing", "Spacing: is there a rule, and is there helical phasing?", "mid",
       + "</details>"
     + bio("The partners cluster just outside the AP-1 motif, with a mode around 13&ndash;16 bp between centres, and they lose influence as they move away. That is what cooperative binding on nearby DNA looks like. What is missing is the signature of a fixed protein-protein interface: no 10&ndash;11 bp repeat, so no evidence that AP-1 and MEF2 must sit on the same face of the helix. Read together, these AP-1 sites look like members of a compact cardiac enhancer module built by local co-occupancy rather than by a rigid composite element."))
 
-sec("motifmap", "Which motifs the shuffle screen marks as important, per class", "inc",
-    f"Exploratory: the top five each way are listed whether or not they reach significance, and most per-class cells hold {int(MHT.n_first.median())}&ndash;{int(MHT.n_second.median())} sites.",
-    U("The heatmap below has two halves. Left: how important each factor is within each class, measured against that site's own footprint-free tiles, so a class that loses less overall is not penalised. Right: the difference between classes, with the top five in each direction boxed.",
-      f"<b>The ranking itself is the same in every class.</b> MEF2, NFI, GATA, TEAD and CTCF head the list whether the sites are Dynamic, Stable, age-gained or age-lost. The class differences are rearrangements within that ranking, not a different cast of factors.",
-      f"<b>Dynamic vs Stable (threshold), more important at Dynamic sites:</b> {top5(TH_C, MORE)}.",
-      f"<b>&hellip; and more important at Stable sites:</b> {top5(TH_C, LESS)}.",
-      f"<b>Age Up (&Delta;score) vs Unchanged, more important at age-gained sites:</b> {top5(AU_C, MORE)}.",
-      f"<b>&hellip; and more important at Unchanged sites:</b> {top5(AU_C, LESS)}.",
-      f"<b>Age Down (&Delta;score) vs Unchanged, more important at age-lost sites:</b> {top5(AD_C, MORE)}.",
-      f"<b>&hellip; and more important at Unchanged sites:</b> {top5(AD_C, LESS)}.",
-      "<b>Two patterns are worth noticing, both unconfirmed.</b> CTCF is the largest single difference anywhere in the table and runs the same way in both Stable comparisons (&minus;0.49 and &minus;0.52), so architectural factors may matter more at Dynamic sites. And MEF2 moves in opposite directions for the two age classes (+0.27 at Age Up, &minus;0.11 at Age Down), the same split already seen in MEF2 presence, distance and motif strength.",
-      "Treat the individual cells as leads. Only CTCF against high-accessibility Stable survives correction; everything else here is a ranking, not a result."),
-    fig(MH / "figures" / "x1_motif_importance_heatmap.png", "Motif importance by class, and the top five each way",
-        "Left: median importance of each factor within each class (negative = replacing a tile over that factor's footprint closes the site). Right: the difference between classes, boxed where a family is in the top five in either direction. Blank cells have fewer than 8 sites.")
-    + bio("Whatever makes a site responsive, it is not a switch to a different set of partners. The same cardiac factors matter in every class and in the same order; what shifts is how much weight a few of them carry. The CTCF signal at Dynamic sites and the opposite MEF2 behaviour of the two age classes are the two leads worth following when the full scan finishes."))
+sec("motifmap", "Which motifs matter, broken down by DIRECTION of change", "inc",
+    "Exploratory and thin: Age Down is 29 scanned sites and Exercise Up 22, so most cells rest on 5\u201320 sites. Every cell carries its n, and p-values are uncorrected.",
+    U("Rather than Stable vs Dynamic, the classes here are directional. On the left of the heatmap the <b>threshold (binary call)</b> classes &mdash; Age Up, Age Down, Exercise Up, Exercise Down, each against Stable. On the right the <b>&Delta;score</b> classes against Unchanged. Importance is the median effect of replacing a 10 bp tile over that factor's footprint, measured against the same site's footprint-free tiles.",
+      f"<b>The ranking holds in every direction.</b> MEF2, CTCF, NFI, TEAD and GATA lead the list in all five threshold classes. No direction of change recruits a different cast of factors.",
+      f"<b>Age Up (threshold), more important than at Stable sites:</b> {top5(AGEUP_T, MORE)}.",
+      f"<b>&hellip; and less important:</b> {top5(AGEUP_T, LESS)}.",
+      f"<b>Age Down (threshold), more important:</b> {top5(AGEDN_T, MORE)}.",
+      f"<b>&hellip; and less important:</b> {top5(AGEDN_T, LESS)}.",
+      f"<b>Exercise Up (threshold), more important:</b> {top5(EXUP_T, MORE)}.",
+      f"<b>Exercise Down (threshold), more important:</b> {top5(EXDN_T, MORE)}.",
+      "<b>The pattern that recurs across directions is CTCF.</b> It is the largest difference for Age Up (threshold), Age Down (threshold) and Exercise Down, always in the same direction: architectural factors matter more at sites whose binding call changes, whichever way it changes. The Age Down cell is &minus;1.62 on six sites, so the size is not trustworthy, but the sign repeats across four independent contrasts.",
+      "<b>MEF2 does the opposite and is direction-specific.</b> It is less important than Stable at every threshold class that gains or loses a call, and in the &Delta;score classes it splits: less important at Age Up, more important at Age Down. This is the fourth measure to show that split, after presence, distance and motif strength.",
+      "<b>NF-kB and heat-shock factors come up at Age Up and Exercise Down</b> (both p &lt; 0.05 uncorrected). Given AP-1's role in stress signalling that is worth a look, but it rests on 10&ndash;22 sites and no correction.",
+      "Treat every cell as a lead. Nothing here survives multiple-testing correction across the table, and the full scan will roughly quadruple the counts."),
+    fig(MH / "figures" / "x1_motif_importance_heatmap.png", "Motif importance by direction of change",
+        "Left: median importance within each class, n shown in each cell; threshold classes to the left of the black line, &Delta;score to the right. Right: difference from the reference class (Stable for threshold, Unchanged for &Delta;score), boxed where the family is in the top five either way, * = p &lt; 0.05 uncorrected. Colour is clipped so one six-site cell does not flatten the rest; printed values are exact.")
+    + bio("Changing a binding call in any direction goes with CTCF mattering more and MEF2 mattering less &mdash; a site drifting toward architectural rather than tissue-identity support. The two age directions then separate on MEF2 specifically, matching everything else we have seen: age-lost sites are MEF2-anchored, age-gained sites are not. All of it is thin, and the full scan is the test."))
 
 sec("answer", "The central question: does anything separate stable from changing?", "ok",
     f"One panel of 16 measures, four contrasts, identical matching on predicted accessibility, peak width, TSS distance and measured accessibility (balance within {SVCR.balance_sd.max():.3f} SD); BH-corrected within each contrast.",
