@@ -11,3 +11,4 @@ Katana/logs/*
 !Katana/logs/.keep
 .env_prefix
 .playwright-mcp/
+Data/derived/tobias_cm_all_motifs.csv.gz

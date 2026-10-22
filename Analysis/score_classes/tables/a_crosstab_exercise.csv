@@ -1,0 +1,5 @@
+ex_class,Exercise Down (score),Exercise Up (score),Unchanged
+Exercise Down,137,0,139
+Exercise Up,0,81,105
+Neither MAS nor MAE (= YS only),2,2,96
+Stable,597,653,1867

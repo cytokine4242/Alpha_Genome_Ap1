@@ -1,0 +1,51 @@
+contrast,matching,covariate,std_diff_after
+Age Up (score),context only,l_170,0.0013626379282994712
+Age Up (score),context only,l_peak,0.005677731692377091
+Age Up (score),context only,l_pw,0.0017776901587130479
+Age Up (score),context only,l_tss,-0.008531878136581189
+Age Up (score),context only,l_score,0.20726570473640732
+Age Up (score),context + absolute footprint score,l_170,-0.008071826021652887
+Age Up (score),context + absolute footprint score,l_peak,0.004053448993918374
+Age Up (score),context + absolute footprint score,l_pw,-0.006094127624214319
+Age Up (score),context + absolute footprint score,l_tss,-0.014244499384974902
+Age Up (score),context + absolute footprint score,l_score,0.01823771876682971
+Age Down (score),context only,l_170,0.00953318796262018
+Age Down (score),context only,l_peak,-0.00500678035392273
+Age Down (score),context only,l_pw,0.0015331883451136321
+Age Down (score),context only,l_tss,0.0003666311014509032
+Age Down (score),context only,l_score,0.5534687189965607
+Age Down (score),context + absolute footprint score,l_170,-0.014894009024439221
+Age Down (score),context + absolute footprint score,l_peak,0.003289068782056048
+Age Down (score),context + absolute footprint score,l_pw,0.0025730657897829468
+Age Down (score),context + absolute footprint score,l_tss,-0.006509777487248827
+Age Down (score),context + absolute footprint score,l_score,0.007050059743680896
+Exercise Up (score),context only,l_170,-0.003953851456698881
+Exercise Up (score),context only,l_peak,0.007439974270506222
+Exercise Up (score),context only,l_pw,-4.4601673721318645e-05
+Exercise Up (score),context only,l_tss,0.010103941179176493
+Exercise Up (score),context only,l_score,0.4965856592453516
+Exercise Up (score),context + absolute footprint score,l_170,-0.0020139774959223884
+Exercise Up (score),context + absolute footprint score,l_peak,0.01234882195334762
+Exercise Up (score),context + absolute footprint score,l_pw,0.006801895502447604
+Exercise Up (score),context + absolute footprint score,l_tss,-0.010355517817170371
+Exercise Up (score),context + absolute footprint score,l_score,0.010894979182320737
+Exercise Down (score),context only,l_170,-0.0005503732399263846
+Exercise Down (score),context only,l_peak,0.004619152750662193
+Exercise Down (score),context only,l_pw,0.003338986243562966
+Exercise Down (score),context only,l_tss,0.0019935001627132847
+Exercise Down (score),context only,l_score,0.19875187880311998
+Exercise Down (score),context + absolute footprint score,l_170,-0.007542511384130811
+Exercise Down (score),context + absolute footprint score,l_peak,0.007759352395623491
+Exercise Down (score),context + absolute footprint score,l_pw,-0.007568125625109092
+Exercise Down (score),context + absolute footprint score,l_tss,0.023144268514220016
+Exercise Down (score),context + absolute footprint score,l_score,0.01666770189318627
+Changing (score),context only,l_170,0.002988344959654122
+Changing (score),context only,l_peak,-0.0050548913245709445
+Changing (score),context only,l_pw,0.002693425560771461
+Changing (score),context only,l_tss,-0.011767217248303102
+Changing (score),context only,l_score,0.6058817012382355
+Changing (score),context + absolute footprint score,l_170,-0.00600428967440348
+Changing (score),context + absolute footprint score,l_peak,-0.0028102731731442093
+Changing (score),context + absolute footprint score,l_pw,-0.0038850130209849587
+Changing (score),context + absolute footprint score,l_tss,-0.007285588026262145
+Changing (score),context + absolute footprint score,l_score,0.017262230471858517

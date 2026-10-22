@@ -1,0 +1,211 @@
+contrast,matching,group,mutation,n_pairs,matched_diff,p_matched,fdr
+Age Up (score),context only,Within the 11 bp motif (read over the motif),shuffle the motif,692,-0.1915544359448621,0.0007079869345762105,0.002477954271016737
+Age Up (score),context only,Within the 11 bp motif (read over the motif),replace the motif,692,-0.1395258856630997,0.0007055384760889471,0.002477954271016737
+Age Up (score),context only,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,692,-0.11302607710456425,0.0006591089688555132,0.002477954271016737
+Age Up (score),context only,Within the 11 bp motif (read over the motif),replace the 7 bp core,692,-0.09382458549747391,0.00872891882779089,0.022913411922951085
+Age Up (score),context only,Within the 11 bp motif (read over the motif),replace the 4 flank bases,692,-0.11139954854406703,0.0007040731802406797,0.002477954271016737
+Age Up (score),context only,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,692,0.015325601374545694,0.7125780198916492,0.7482069208862316
+Age Up (score),context only,Within the 170 bp (read over the 170 bp),replace the 170 bp,692,-0.005855899007344512,0.22095427215694174,0.27294351266445743
+Age Up (score),context only,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,692,0.0190768568639178,0.5937603513478085,0.6562614409633672
+Age Up (score),context only,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,692,-0.039806564680825274,0.3431382325347013,0.40032793795715155
+Age Up (score),context only,Whole peak (read over the peak),shuffle the peak,692,-0.035846568666660694,0.07171547129101809,0.11584806900856769
+Age Up (score),context only,Whole peak (read over the peak),replace the peak,692,-0.10621023630075732,0.0015436905175735848,0.004631071552720754
+Age Up (score),context only,Whole peak (read over the peak),dinucleotide-shuffle the peak,692,0.01588019660171669,0.8018760854128368,0.8018760854128368
+Age Up (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,692,-0.012562072485297737,0.08417218872646384,0.11784106421704937
+Age Up (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,692,-0.006994000476303901,0.04789771161824197,0.10058519439830813
+Age Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",692,-0.1548547435672964,0.00012226245386957104,0.002477954271016737
+Age Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",692,-0.04690850349124809,0.026569207722675774,0.06199481801957681
+Age Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",692,-0.15410975624409984,0.0003215646703052716,0.002477954271016737
+Age Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",692,-0.09922122569997216,0.10659670361086777,0.13990817348926396
+Age Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",692,-0.1231433586453749,0.06628860403339505,0.11584806900856769
+Age Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",692,-0.09761513954658657,0.06312251557353309,0.11584806900856769
+Age Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",692,-0.11900242112124781,0.08359341479512414,0.11784106421704937
+Age Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),shuffle the motif,506,-0.1125075984929392,0.004032681868271789,0.017873268794756796
+Age Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the motif,506,-0.09798165804953667,0.006552223023304077,0.01965666906991223
+Age Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,506,-0.0938665973972862,0.005106648227073371,0.017873268794756796
+Age Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 7 bp core,506,-0.10230116998255104,0.01111114980197538,0.025926016204609218
+Age Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 4 flank bases,506,-0.08043894087706796,0.003149233731642357,0.017873268794756796
+Age Up (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,506,0.07248847092179972,0.35691800159725817,0.5254046261336737
+Age Up (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 170 bp,506,0.02035898201069307,0.9821797845722025,0.9821797845722025
+Age Up (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,506,0.03588429325259912,0.3752890186669098,0.5254046261336737
+Age Up (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,506,0.006492485111272206,0.6982999442300796,0.9165186768019794
+Age Up (score),context + absolute footprint score,Whole peak (read over the peak),shuffle the peak,506,0.03866584745067558,0.7661917089118443,0.9464721110087488
+Age Up (score),context + absolute footprint score,Whole peak (read over the peak),replace the peak,506,-0.10706135729269906,0.001364885116860084,0.015968964598325565
+Age Up (score),context + absolute footprint score,Whole peak (read over the peak),dinucleotide-shuffle the peak,506,0.014125979332567096,0.9596456200709931,0.9821797845722025
+Age Up (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,506,-0.0272652189094642,0.004358491572048485,0.017873268794756796
+Age Up (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,506,-0.006090217835344599,0.13546921000547538,0.21883487770115254
+Age Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",506,-0.12760240499861797,0.0015208537712691013,0.015968964598325565
+Age Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",506,-0.07895577998090132,0.10050850957290665,0.18904075458152259
+Age Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",506,-0.12493028779982492,0.010227137213612809,0.025926016204609218
+Age Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",506,-0.08356433565156585,0.10802328833229863,0.18904075458152259
+Age Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",506,-0.18273875535729603,0.10505691041723977,0.18904075458152259
+Age Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",506,0.07883010656081202,0.8428176882094661,0.9821797845722025
+Age Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",506,0.03519451100898596,0.9132454144467945,0.9821797845722025
+Age Down (score),context only,Within the 11 bp motif (read over the motif),shuffle the motif,684,-0.02335198450491649,0.2385625713588816,0.3578438570383224
+Age Down (score),context only,Within the 11 bp motif (read over the motif),replace the motif,684,0.007080652957139652,0.8592114411815418,0.8592114411815418
+Age Down (score),context only,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,684,-0.03687148611121693,0.7220478082319182,0.8423891096039046
+Age Down (score),context only,Within the 11 bp motif (read over the motif),replace the 7 bp core,684,0.03899578366808493,0.29784937844921333,0.39983070739558907
+Age Down (score),context only,Within the 11 bp motif (read over the motif),replace the 4 flank bases,684,-0.16333131542437654,0.014010817592891684,0.0523540483183955
+Age Down (score),context only,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,684,-0.09955293046780445,4.204520983746261e-05,0.0008829494065867149
+Age Down (score),context only,Within the 170 bp (read over the 170 bp),replace the 170 bp,684,-0.04046171112305702,0.16665078410083478,0.2692051127782716
+Age Down (score),context only,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,684,-0.12052246313310383,0.0007070819031652197,0.004949573322156538
+Age Down (score),context only,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,684,-0.05113542334873633,0.035414764836274,0.09296375769521925
+Age Down (score),context only,Whole peak (read over the peak),shuffle the peak,684,-0.06743160483292907,0.014958299519541573,0.0523540483183955
+Age Down (score),context only,Whole peak (read over the peak),replace the peak,684,0.0374402458382751,0.13831804630280142,0.2420565810299025
+Age Down (score),context only,Whole peak (read over the peak),dinucleotide-shuffle the peak,684,-0.00014156458241498804,0.4215621081778591,0.5207531924550024
+Age Down (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,684,0.014085809051897345,0.13591556281934156,0.2420565810299025
+Age Down (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,684,-0.0038057587443214966,0.1300258228338702,0.2420565810299025
+Age Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",684,-0.0054000859846536076,0.8316523389259518,0.8592114411815418
+Age Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",684,-0.008919794887530363,0.8538971847104694,0.8592114411815418
+Age Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",684,-0.02300902448387887,0.11469291768179506,0.2420565810299025
+Age Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",684,-0.09449895410654241,0.30463291992044883,0.39983070739558907
+Age Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",684,-0.1691324716465028,0.022838464972118642,0.06851539491635593
+Age Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",684,-0.20125385987635494,0.0006825605380400048,0.004949573322156538
+Age Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",684,-0.1844729050003424,0.002446068117402215,0.01284185761636163
+Age Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),shuffle the motif,467,0.0527442044647037,0.2714474694519904,0.4592402185784948
+Age Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the motif,467,0.08232211347958907,0.2579439850997085,0.4592402185784948
+Age Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,467,0.00934260422420119,0.5731595174780703,0.7080205804140869
+Age Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 7 bp core,467,0.10010736175931212,0.030267575172542423,0.3428073524234745
+Age Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 4 flank bases,467,-0.043215433237607015,0.3042204423764402,0.4592402185784948
+Age Down (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,467,-0.011799674629721313,0.40652312110532385,0.5617084569791448
+Age Down (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 170 bp,467,0.07178159976505294,0.10867113240045428,0.45641875608190796
+Age Down (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,467,-0.027440116058244923,0.7377599302878527,0.8607199186691614
+Age Down (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,467,0.05843423032075812,0.3061601457189965,0.4592402185784948
+Age Down (score),context + absolute footprint score,Whole peak (read over the peak),shuffle the peak,467,-0.05229535325075518,0.048972478917639214,0.3428073524234745
+Age Down (score),context + absolute footprint score,Whole peak (read over the peak),replace the peak,467,0.054164313861361446,0.1980266517225031,0.4592402185784948
+Age Down (score),context + absolute footprint score,Whole peak (read over the peak),dinucleotide-shuffle the peak,467,-0.025768323055620046,0.23816523248158705,0.4592402185784948
+Age Down (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,467,0.0004283813130488978,0.9814079141713641,0.9814079141713641
+Age Down (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,467,-0.0050235808567137,0.09118394498061719,0.45641875608190796
+Age Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",467,0.10214604297795421,0.0359933738798602,0.3428073524234745
+Age Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",467,0.08202007221276797,0.15595960976019474,0.4592402185784948
+Age Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",467,0.03024640719846572,0.9045257664901578,0.9497520548146656
+Age Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",467,0.06540904206538631,0.4279683481745865,0.5617084569791448
+Age Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",467,-0.002071920680144501,0.8448577766345312,0.9337901741750082
+Age Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",467,-0.08941882160771453,0.14478457342779438,0.4592402185784948
+Age Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",467,-0.031487521042262046,0.23898443818053983,0.4592402185784948
+Exercise Up (score),context only,Within the 11 bp motif (read over the motif),shuffle the motif,693,-0.0033541487639893175,0.5016214985942595,0.8814022290458146
+Exercise Up (score),context only,Within the 11 bp motif (read over the motif),replace the motif,693,0.020077993488071266,0.6072957829810817,0.8814022290458146
+Exercise Up (score),context only,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,693,0.017586862368923428,0.5382799965971137,0.8814022290458146
+Exercise Up (score),context only,Within the 11 bp motif (read over the motif),replace the 7 bp core,693,0.003836787117066809,0.6714062305517814,0.8814022290458146
+Exercise Up (score),context only,Within the 11 bp motif (read over the motif),replace the 4 flank bases,693,-0.009340642378230901,0.3730197945070014,0.8814022290458146
+Exercise Up (score),context only,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,693,0.03249854763497284,0.7529335612589867,0.9300943992022778
+Exercise Up (score),context only,Within the 170 bp (read over the 170 bp),replace the 170 bp,693,-0.0027844906234952838,0.6715445554634778,0.8814022290458146
+Exercise Up (score),context only,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,693,0.03173355956068824,0.24336164549292172,0.8814022290458146
+Exercise Up (score),context only,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,693,-0.004916951958097826,0.6312382838319393,0.8814022290458146
+Exercise Up (score),context only,Whole peak (read over the peak),shuffle the peak,693,-0.048173385848390815,0.09002553363169455,0.8814022290458146
+Exercise Up (score),context only,Whole peak (read over the peak),replace the peak,693,-0.006577981627845952,0.9204503884671476,0.9542439812233292
+Exercise Up (score),context only,Whole peak (read over the peak),dinucleotide-shuffle the peak,693,0.019683686132600853,0.6220953241824536,0.8814022290458146
+Exercise Up (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,693,-0.012068773797344695,0.5661799685327855,0.8814022290458146
+Exercise Up (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,693,-0.0002571797643707019,0.520030121480897,0.8814022290458146
+Exercise Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",693,0.042401764230750094,0.9542439812233292,0.9542439812233292
+Exercise Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",693,0.016979175546132486,0.888597953619909,0.9542439812233292
+Exercise Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",693,-0.03868029942274931,0.37505871543946756,0.8814022290458146
+Exercise Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",693,-0.11294326389142162,0.23615781023123206,0.8814022290458146
+Exercise Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",693,-0.042084348418085504,0.6442423758402711,0.8814022290458146
+Exercise Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",693,-0.0674245604451933,0.3981507156414954,0.8814022290458146
+Exercise Up (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",693,0.00888068483423421,0.8095642924827773,0.9444916745632401
+Exercise Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),shuffle the motif,487,0.0372752291024816,0.6467452220511513,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the motif,487,0.041380434984867875,0.6467452220511513,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,487,0.033563757889334855,0.33623381506718863,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 7 bp core,487,0.07739376361065087,0.921550736889005,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 4 flank bases,487,0.003002210791277604,0.7551507300421412,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,487,0.07356471280860832,0.037703117177971125,0.3958827303686968
+Exercise Up (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 170 bp,487,0.028836470255101165,0.5587034976393939,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,487,0.10321037637999164,0.017836074996518774,0.37455757492689423
+Exercise Up (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,487,0.057701416904035685,0.14152721175224842,0.7956309477867478
+Exercise Up (score),context + absolute footprint score,Whole peak (read over the peak),shuffle the peak,487,0.004193905584261581,0.9057237132079793,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Whole peak (read over the peak),replace the peak,487,-0.014231052579213532,0.7883855124714694,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Whole peak (read over the peak),dinucleotide-shuffle the peak,487,0.0247616763784706,0.3622396534656167,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,487,0.0011034106885760842,0.6201618799330528,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,487,0.003877657234952099,0.4964851223734936,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",487,-0.014823742545412296,0.9704765107383515,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",487,0.03518455818810984,0.8012942545133873,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",487,-0.04536270774874307,0.3763100660533393,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",487,-0.11282437472196805,0.33172527066724633,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",487,-0.10538255400407581,0.15154875195938053,0.7956309477867478
+Exercise Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",487,-0.06004755519025329,0.7529503564830561,0.9704765107383515
+Exercise Up (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",487,-0.034912433016429656,0.9656015256740914,0.9704765107383515
+Exercise Down (score),context only,Within the 11 bp motif (read over the motif),shuffle the motif,687,-0.10719840139122516,0.018454657666433737,0.04844347637438856
+Exercise Down (score),context only,Within the 11 bp motif (read over the motif),replace the motif,687,-0.14499305386677896,0.004570717100332889,0.023996264776747666
+Exercise Down (score),context only,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,687,-0.05091589846961042,0.10033517082641766,0.19154896248679734
+Exercise Down (score),context only,Within the 11 bp motif (read over the motif),replace the 7 bp core,687,-0.12725852278725092,0.00017098486886918976,0.003590682246252985
+Exercise Down (score),context only,Within the 11 bp motif (read over the motif),replace the 4 flank bases,687,-0.05239842525910379,0.22691109021057654,0.39709440786850897
+Exercise Down (score),context only,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,687,0.019853115469631977,0.7641964752496815,0.8024062990121656
+Exercise Down (score),context only,Within the 170 bp (read over the 170 bp),replace the 170 bp,687,-0.012679635834750513,0.8504713319707029,0.8504713319707029
+Exercise Down (score),context only,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,687,0.04807867728302195,0.6395600024093744,0.7068821079261507
+Exercise Down (score),context only,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,687,0.001016328473414596,0.5436838613064432,0.6716094757314887
+Exercise Down (score),context only,Whole peak (read over the peak),shuffle the peak,687,-0.06508371560484649,0.043675653004746656,0.09171887130996798
+Exercise Down (score),context only,Whole peak (read over the peak),replace the peak,687,-0.052559314497975684,0.026751577369324916,0.06242034719509147
+Exercise Down (score),context only,Whole peak (read over the peak),dinucleotide-shuffle the peak,687,-0.07086948214154881,0.006958764075707913,0.024355674264977697
+Exercise Down (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,687,-0.006028587914615607,0.3191528238714806,0.4636135963732793
+Exercise Down (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,687,-0.009561256723453697,0.004106782902179924,0.023996264776747666
+Exercise Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",687,-0.1274070913590133,0.002673205018031483,0.023996264776747666
+Exercise Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",687,-0.12794389087702118,0.006077205072012623,0.024355674264977697
+Exercise Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",687,-0.11193439572198849,0.013412324146070834,0.040236972438212504
+Exercise Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",687,-0.0186334341853935,0.3785803716918287,0.4968867378455251
+Exercise Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",687,0.08236807660341139,0.33115256883805666,0.4636135963732793
+Exercise Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",687,-0.04442932374934383,0.25040821271212266,0.40450557438112117
+Exercise Down (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",687,-0.014811456763073494,0.6357175694293542,0.7068821079261507
+Exercise Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),shuffle the motif,505,-0.004722735306793235,0.4365740303016168,0.5660819134043943
+Exercise Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the motif,505,-0.0685053011759591,0.15626141651979378,0.41892973052250293
+Exercise Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,505,-0.0025380972941395075,0.31795762679085127,0.5136238586621443
+Exercise Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 7 bp core,505,-0.08914491060980917,0.006567440798781519,0.09597166995934167
+Exercise Down (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 4 flank bases,505,-0.05547418851022112,0.48547406385018044,0.5660819134043943
+Exercise Down (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,505,0.0708434789311756,0.1219388105472308,0.41892973052250293
+Exercise Down (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 170 bp,505,0.03617204937981844,0.23811459547785208,0.4545824095486267
+Exercise Down (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,505,0.07319462090142048,0.17081170675810398,0.41892973052250293
+Exercise Down (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,505,0.08386398271393669,0.04989018657707818,0.20953878362372835
+Exercise Down (score),context + absolute footprint score,Whole peak (read over the peak),shuffle the peak,505,-0.03162243127755526,0.5102095074501458,0.5660819134043943
+Exercise Down (score),context + absolute footprint score,Whole peak (read over the peak),replace the peak,505,-0.008447428279758529,0.5121693502230235,0.5660819134043943
+Exercise Down (score),context + absolute footprint score,Whole peak (read over the peak),dinucleotide-shuffle the peak,505,-0.030857317726148636,0.29154143848824776,0.5101975173544336
+Exercise Down (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,505,-0.0027522231549627005,0.39502887168131795,0.5660819134043943
+Exercise Down (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,505,-0.008187101013247898,0.0458061737695878,0.20953878362372835
+Exercise Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",505,-0.09623906309804847,0.03346926286182455,0.20953878362372835
+Exercise Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",505,0.005085513927215901,0.4803405946587731,0.5660819134043943
+Exercise Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",505,-0.08415992909498682,0.2340167098993654,0.4545824095486267
+Exercise Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",505,0.026811715347290106,0.84283404017931,0.84283404017931
+Exercise Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",505,0.17995360704958152,0.009140159043746826,0.09597166995934167
+Exercise Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",505,-0.03476602504717796,0.8034645614243023,0.84283404017931
+Exercise Down (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",505,0.1086512702808462,0.17954131308107268,0.41892973052250293
+Changing (score),context only,Within the 11 bp motif (read over the motif),shuffle the motif,1105,-0.03394699587712391,0.22481939071335033,0.3372290860700255
+Changing (score),context only,Within the 11 bp motif (read over the motif),replace the motif,1105,-0.04525916651864659,0.10258618168190801,0.29676286533750657
+Changing (score),context only,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,1105,0.0006802728369717029,0.8165527831467232,0.8165527831467232
+Changing (score),context only,Within the 11 bp motif (read over the motif),replace the 7 bp core,1105,-0.04747851351638821,0.13783149147242318,0.29676286533750657
+Changing (score),context only,Within the 11 bp motif (read over the motif),replace the 4 flank bases,1105,-0.07701098807530779,0.002815482844487094,0.059125139734228976
+Changing (score),context only,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,1105,-0.021118019286658907,0.13017472920571088,0.29676286533750657
+Changing (score),context only,Within the 170 bp (read over the 170 bp),replace the 170 bp,1105,-0.019236704385646952,0.6655604874234426,0.6988385117946148
+Changing (score),context only,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,1105,-0.026927132438668178,0.37185362243510844,0.4354798279551576
+Changing (score),context only,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,1105,-0.03486981066250061,0.4327279681801105,0.4782782806201221
+Changing (score),context only,Whole peak (read over the peak),shuffle the peak,1104,-0.04102506917176324,0.04010359329478699,0.2105438647976317
+Changing (score),context only,Whole peak (read over the peak),replace the peak,1104,-0.04814426297539953,0.029314375062029205,0.20520062543420445
+Changing (score),context only,Whole peak (read over the peak),dinucleotide-shuffle the peak,1104,-0.007863599013136768,0.2827601842156623,0.3958642579019272
+Changing (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,1104,-0.011228767151011149,0.18467759152202834,0.3372290860700255
+Changing (score),context only,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,1105,-0.0037728675297271997,0.34095198301141694,0.4354798279551576
+Changing (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",1105,-0.035051859070910796,0.1413156501607174,0.29676286533750657
+Changing (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",1105,-0.02575683201984935,0.3732684239615637,0.4354798279551576
+Changing (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",1105,-0.09712114750137868,0.007577233938725587,0.07956095635661867
+Changing (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",1105,-0.06437439772369635,0.12175833581440094,0.29676286533750657
+Changing (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",1105,-0.08191108421177073,0.1942645683773142,0.3372290860700255
+Changing (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",1104,-0.04738644712445095,0.22363315735675848,0.3372290860700255
+Changing (score),context only,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",1104,-0.02033844224936332,0.06160511694174387,0.25874149115532424
+Changing (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),shuffle the motif,743,-0.004289182624460097,0.5252329719709274,0.9597980187943728
+Changing (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the motif,743,0.016144906460623387,0.8480972273034709,0.9597980187943728
+Changing (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),dinucleotide-shuffle the motif,743,0.0027710407053634003,0.8244765718890951,0.9597980187943728
+Changing (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 7 bp core,743,-0.007802669382085625,0.6943164419519187,0.9597980187943728
+Changing (score),context + absolute footprint score,Within the 11 bp motif (read over the motif),replace the 4 flank bases,743,-0.056421693874041695,0.045661249432005474,0.3196287460240383
+Changing (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),shuffle the 170 bp,743,0.04781129884914259,0.17892443481813014,0.5367733044543904
+Changing (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 170 bp,743,0.0633822608387613,0.016732171993513543,0.3196287460240383
+Changing (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),dinucleotide-shuffle the 170 bp,743,0.054396493966220594,0.15012826946884622,0.5367733044543904
+Changing (score),context + absolute footprint score,Within the 170 bp (read over the 170 bp),replace the 159 bp around the motif,743,0.04627001529384378,0.08210232472901388,0.4310372048273229
+Changing (score),context + absolute footprint score,Whole peak (read over the peak),shuffle the peak,743,-0.009030064587330466,0.95761957129782,0.9597980187943728
+Changing (score),context + absolute footprint score,Whole peak (read over the peak),replace the peak,743,0.011303956997912756,0.6447907746791924,0.9597980187943728
+Changing (score),context + absolute footprint score,Whole peak (read over the peak),dinucleotide-shuffle the peak,743,-0.03868546381702931,0.5026485154577938,0.9597980187943728
+Changing (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±300 bp away,743,-0.014790404372016099,0.036978849977009585,0.3196287460240383
+Changing (score),context + absolute footprint score,Edits far from the motif (read over the motif),170 bp shuffle ±600 bp away,743,-0.0013820021104377009,0.8155755135471263,0.9597980187943728
+Changing (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 7 bp",743,-0.015766197802393855,0.9365346751625433,0.9597980187943728
+Changing (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 11 bp",743,-0.00513081041789909,0.7388549963247956,0.9597980187943728
+Changing (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 21 bp",743,-0.05316057160145271,0.31659625017425297,0.8310651567074141
+Changing (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 41 bp",743,-0.024416916462760452,0.76974945933448,0.9597980187943728
+Changing (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 85 bp",743,0.01057551099433951,0.4439716831770144,0.9597980187943728
+Changing (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 340 bp",743,0.10164333030725325,0.1546818050243613,0.5367733044543904
+Changing (score),context + absolute footprint score,Centred shuffles of increasing width (read over the motif),"centred shuffle, 680 bp",743,0.04515192878101848,0.9597980187943729,0.9597980187943728

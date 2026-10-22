@@ -1,0 +1,5 @@
+age_class,Age Down (score),Age Up (score),Unchanged
+Age Down,91,0,88
+Age Up,0,165,231
+Neither YS nor MAS (= MAE only),2,2,103
+Stable,643,569,1785

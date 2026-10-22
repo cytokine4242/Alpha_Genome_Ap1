@@ -14,6 +14,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 AN = ROOT / "Analysis"
 DY, DPR, ST = AN / "dynamic", AN / "dynamic_profiles", AN / "scan_titrate"
+PT, SCL = AN / "partners", AN / "score_classes"
 
 IMGS: dict[int, Path] = {}
 
@@ -71,6 +72,20 @@ dt = lambda rd, m: DT_[(DT_.readout == rd) & (DT_.comparison == "dynamic vs matc
 DYN, MST, HST = ds("170 bp", "Dynamic"), ds("170 bp", "Stable, context-matched"), ds("170 bp", "Stable, high accessibility")
 mm = PAT[(PAT.pattern == "MAS+MAE") & (PAT.fdr < 0.05)]
 fb = lambda mut: FBR[(FBR.track == "FB sites, Patski") & (FBR.mutation == mut) & (FBR.pattern == "MAS+MAE")].iloc[0]
+
+ptr = lambda n: pd.read_csv(PT / "tables" / n)
+scr = lambda n: pd.read_csv(SCL / "tables" / n)
+FAMI = ptr("a_tile_importance_by_family.csv").set_index("family")
+FAMB = ptr("b_base_importance_by_family.csv").set_index("family")
+FAMC = ptr("c_dynamic_vs_stable_by_family.csv").set_index("family")
+PCNT, PDET, PPOS = ptr("c_partner_counts_by_group.csv").set_index("group"), ptr("e_partner_count_vs_detection.csv"), ptr("f_partner_positions.csv").set_index("family")
+FREE = float((FAMI.median_adj_effect - FAMI.diff_vs_footprint_free).median())
+SAG, SVM, SBM = scr("a_agreement.csv").set_index("contrast"), scr("b_vs_measured_change.csv").set_index("contrast"), scr("b_measured_change_by_class.csv")
+SMU, SEM, SFM, SCO = scr("c_mutation_response_by_score_class.csv"), scr("e_matching_with_score.csv"), scr("f_motif_specificity.csv"), scr("g_core_sequence_by_score_class.csv").set_index("class")
+AGEUP = SMU[SMU.contrast == "Age Up (score)"].set_index("mutation")
+_ns = SEM.groupby(["contrast", "matching"]).fdr.apply(lambda v: int((v < 0.05).sum())).unstack()
+bm = lambda defn, cls, col: SBM[(SBM.definition == defn) & (SBM["class"] == cls)].iloc[0][col]
+
 
 # ---------------------------------------------------------------- sections
 SEC = []
@@ -157,6 +172,44 @@ sec("differs", "What does differ: context, and accessibility that changes with c
     + "</details>"
     + bio("Dynamic sites are genuinely condition-specific in the measured data, and a baseline sequence model cannot see it: it predicts one number per site, with no notion of condition. That is the gap a fine-tuned, condition-aware head would be built to fill."))
 
+sec("scoredef", "A second definition: change in binding score, not crossing the threshold", "mid",
+    "A parallel definition, reported alongside the threshold classes rather than replacing them; one of the five contrasts survives every control.",
+    U(f"The classes so far are threshold calls: a site is Age Up if its footprint is absent in young and called in aged. An alternative is the <b>size of the change in TOBIAS binding score</b>: age = MAS &minus; YS, exercise = MAE &minus; MAS, taking the top and bottom fifth of each.",
+      f"<b>The two definitions disagree a great deal.</b> Only {SAG.loc['age', 'threshold_Up_also_score_Up']:.0%} of threshold Age Up sites are also score Age Up, only {SAG.loc['age', 'score_Up_that_crossed_threshold']:.0%} of score Age Up sites ever crossed the threshold, and {SAG.loc['age', 'threshold_Stable_called_changing']:.0%} of threshold-Stable sites show a large score change.",
+      f"<b>The score-based definition tracks the measured data about twice as well.</b> Against the measured snATAC change between the same conditions, the score change gives Spearman {SVM.loc['age (MAS vs YS)', 'rho_score_change_vs_measured']:.2f} (age) and {SVM.loc['exercise (MAE vs MAS)', 'rho_score_change_vs_measured']:.2f} (exercise), against {SVM.loc['age (MAS vs YS)', 'rho_threshold_class_vs_measured']:.2f} and {SVM.loc['exercise (MAE vs MAS)', 'rho_threshold_class_vs_measured']:.2f} for the threshold classes. Both definitions point the right way: threshold Age Up sites gain {bm('threshold', 'Age Up', 'median_measured_log2'):+.2f} log2 of measured accessibility, score Age Up sites {bm('score', 'Age Up (score)', 'median_measured_log2'):+.2f}, on {int(bm('score', 'Age Up (score)', 'n'))} against {int(bm('threshold', 'Age Up', 'n'))} sites.",
+      f"<b>And it finds something the threshold definition misses.</b> Matched on predicted accessibility, peak width and TSS distance, <b>Age Up (score) sites are more sensitive to edits of the AP-1 motif itself</b>: shuffle the motif {AGEUP.loc['shuffle the motif', 'matched_diff']:+.2f} log2 (FDR {AGEUP.loc['shuffle the motif', 'fdr_matched']:.3f}), dinucleotide-shuffle the motif {AGEUP.loc['dinucleotide-shuffle the motif', 'matched_diff']:+.2f} (FDR {AGEUP.loc['dinucleotide-shuffle the motif', 'fdr_matched']:.3f}), centred 7 bp {AGEUP.loc['centred shuffle, 7 bp', 'matched_diff']:+.2f}, centred 21 bp {AGEUP.loc['centred shuffle, 21 bp', 'matched_diff']:+.2f}. The wide edits are flat ({AGEUP.loc['shuffle the 170 bp', 'matched_diff']:+.2f} for shuffling the 170 bp), so the difference is concentrated on the motif.",
+      f"<b>It survives the obvious artefact.</b> Binding score tracks accessibility, so a score change could just mean a strong footprint. Adding the site's absolute footprint score to the matching leaves Age Up intact ({int(_ns.loc['Age Up (score)', 'context + absolute footprint score'])} significant mutation types, against {int(_ns.loc['Age Up (score)', 'context only'])} without it) while every other contrast collapses to zero: Age Down {int(_ns.loc['Age Down (score)', 'context only'])}&rarr;{int(_ns.loc['Age Down (score)', 'context + absolute footprint score'])}, Exercise Down {int(_ns.loc['Exercise Down (score)', 'context only'])}&rarr;{int(_ns.loc['Exercise Down (score)', 'context + absolute footprint score'])}.",
+      f"<b>The sequence agrees.</b> Among the scanned sites, {SCO.loc['Age Up (score)', 'share_with_exact_core']:.0%} of Age Up (score) sites carry an exact TGA[C/G]TCA core against {SCO.loc['Age Up (score)', 'share_control']:.0%} of Unchanged sites (p = {SCO.loc['Age Up (score)', 'p_fisher']:.3f}, n = {int(SCO.loc['Age Up (score)', 'n'])} vs {int(SCO.loc['Age Up (score)', 'n_control'])}). No such difference for Age Down or either exercise class.",
+      f"Caveat: the far-from-motif controls also shift slightly for Age Up ({SFM[(SFM.contrast == 'Age Up (score)') & (SFM.measure == 'far control, ±300 bp')].paired_diff.iloc[0]:+.3f} at &plusmn;300 bp), so a small part is general sensitivity, roughly a tenth of the motif effect. The formal motif-share ratio does not reach significance (p = {SFM[(SFM.contrast == 'Age Up (score)') & (SFM.measure == 'motif share of the local dependence')].p.iloc[0]:.2f})."),
+    fig(SCL / "figures" / "q3_definitions_compared.png", "The two definitions compared",
+        "Matched difference per mutation type under the threshold definition (grey squares, Dynamic vs Stable, none significant) and under the score definition (Age Up vs Unchanged; orange = FDR &lt; 0.05). Negative = the responsive class loses more.")
+    + f"<details><summary>How the classes were built and how they compare with the measured change</summary>"
+      + fig(SCL / "figures" / "q1_score_classes.png", "Score change and measured accessibility change",
+            "Left: the distribution of score change for both contrasts, with the cut points. Right: the measured snATAC change for each class under both definitions, median with 95% bootstrap CI.")
+      + fig(SCL / "figures" / "q2_mutation_response_score_classes.png", "Mutation responses under the score definition",
+            "Changing (score) minus Steady (score) per mutation type, raw and matched. Defining Dynamic by score magnitude alone, with no direction, recovers the same null as the threshold definition.")
+      + "</details>"
+    + bio("Ageing does not just flip AP-1 sites on; it strengthens binding at sites that already have the best AP-1 motifs. Those sites are the ones whose predicted accessibility depends most on the motif, and they carry a perfect consensus core more often. The threshold definition cannot see this, because it throws away the size of the change and most of these sites never cross the line. Direction matters too: nothing equivalent holds for sites losing score with age, or for exercise in either direction."))
+
+sec("partners", "Which factors matter: every footprint of the full TOBIAS table", "mid",
+    f"{int(DTH.n_complete_sites.iloc[0])} scanned sites, {int(FAMI.n_sites.max())} of them carrying the commonest factor; the ranking is strong and consistent, the class comparison is underpowered.",
+    U("Every footprinted cardiomyocyte TFBS in the full TOBIAS table (2.49 million instances, 786 motifs) was mapped onto the tile scan. For each 10 bp tile: which factors are bound there, and how much does replacing it cost? Effects are adjusted for the site's overall sensitivity and for distance from the AP-1 motif, and compared with tiles holding no footprint at all.",
+      f"<b>MEF2 is the dominant partner, by a wide margin.</b> Replacing a tile over a MEF2 footprint costs {FAMI.loc['MEF2', 'median_adj_effect']:.2f} log2 (CI {FAMI.loc['MEF2', 'ci_lo']:.2f} to {FAMI.loc['MEF2', 'ci_hi']:.2f}; n = {int(FAMI.loc['MEF2', 'n_tiles'])} tiles over {int(FAMI.loc['MEF2', 'n_sites'])} sites) against about {FREE:.2f} for footprint-free tiles. Then GATA {FAMI.loc['GATA', 'median_adj_effect']:.2f}, TEAD {FAMI.loc['TEAD', 'median_adj_effect']:.2f}, CTCF {FAMI.loc['CTCF / cohesin', 'median_adj_effect']:.2f}.",
+      f"<b>The abundant factors are not the important ones.</b> KLF/SP sites are the most common by far ({int(FAMI.loc['KLF / SP', 'n_tiles']):,} tiles) yet cost only {FAMI.loc['KLF / SP', 'median_adj_effect']:.2f}. Even other AP-1 instances nearby cost just {FAMI.loc['AP-1 (Fos/Jun/Atf/Batf)', 'median_adj_effect']:.2f} &mdash; a MEF2 neighbour matters roughly eight times more than a second AP-1 site.",
+      f"The same ranking appears at base resolution: a single-base change inside a MEF2 footprint carries {FAMB.loc['MEF2', 'diff_vs_footprint_free']:+.2f} log2 more |effect| than a base with no footprint, ahead of CTCF {FAMB.loc['CTCF / cohesin', 'diff_vs_footprint_free']:+.2f}, TEAD {FAMB.loc['TEAD', 'diff_vs_footprint_free']:+.2f} and GATA {FAMB.loc['GATA', 'diff_vs_footprint_free']:+.2f}. The chr1:119,197,433 example was not a one-off.",
+      f"Partners are not immediately adjacent: the median MEF2 footprint sits {PPOS.loc['MEF2', 'median_abs_distance']:.0f} bp from the AP-1 motif, and only {PPOS.loc['MEF2', 'share_within_50bp']:.0%} are within 50 bp.",
+      f"<b>Do different factors matter to the two classes? Mostly no.</b> Of {len(FAMC)} families tested, only CTCF differs in importance after correction (Dynamic {FAMC.loc['CTCF / cohesin', 'median_adj_dynamic']:.2f} vs Stable {FAMC.loc['CTCF / cohesin', 'median_adj_stable']:.2f}, FDR {FAMC.loc['CTCF / cohesin', 'fdr_importance']:.3f}), on {int(FAMC.loc['CTCF / cohesin', 'n_tiles_dynamic'])} and {int(FAMC.loc['CTCF / cohesin', 'n_tiles_stable'])} tiles. MEF2 is present at fewer Dynamic sites ({FAMC.loc['MEF2', 'share_sites_dynamic']:.0%} vs {FAMC.loc['MEF2', 'share_sites_stable']:.0%}, FDR {FAMC.loc['MEF2', 'fdr_prevalence']:.2f}) but matters as much where it is present.",
+      f"<b>A tempting result that is an artefact:</b> Dynamic sites appear to have fewer partners ({PCNT.loc['Dynamic', 'median_families_per_site']:.0f} vs {PCNT.loc['Stable, context-matched', 'median_families_per_site']:.0f} families per site, p = 0.001). Footprint calling needs ATAC signal, and the number of families correlates with measured accessibility at rho {PDET.rho_families_vs_measured.iloc[0]:.2f}. Within each quartile of measured accessibility the difference disappears entirely (p = {PDET.p.iloc[1]:.2f}, {PDET.p.iloc[2]:.2f}, {PDET.p.iloc[3]:.2f}, {PDET.p.iloc[4]:.2f}). It is detection, not biology."),
+    fig(PT / "figures" / "p1_tile_importance_by_family.png", "Tile importance by TF family",
+        "Median effect of replacing a 10 bp tile overlapping each factor's footprint, with 95% bootstrap CI, adjusted for the site's overall sensitivity and for distance from the AP-1 motif. Dashed line: tiles with no footprint. Significance is against those footprint-free tiles (Mann&ndash;Whitney, BH).")
+    + f"<details><summary>Base resolution, prevalence, and the two classes</summary>"
+      + fig(PT / "figures" / "p3_base_and_prevalence.png", "Base-resolution importance and partner prevalence",
+            "Left: extra |effect| of a single-base change inside each factor's footprint, against bases with no footprint. Right: the share of sites carrying each factor within &plusmn;300 bp, by class.")
+      + fig(PT / "figures" / "p2_family_by_class.png", "Family importance by class",
+            "Median adjusted tile effect for Dynamic and context-matched Stable sites, by family. Dotted line: tiles with no footprint.")
+      + "</details>"
+    + bio("AlphaGenome has learned that a cardiomyocyte AP-1 site works with MEF2, and to a lesser extent GATA and TEAD &mdash; the core cardiac programme &mdash; and that the ubiquitous KLF/SP sites around it are largely decorative. This is an independent, motif-level confirmation that the model is doing cardiac biology rather than counting GC-rich sequence. The same partners matter in both classes, so partner identity does not explain why a site is responsive."))
+
 sec("tiles", "Tile scan: the site's own motif, or a neighbour?", "inc",
     f"{int(DTH.n_complete_sites.iloc[0])} of 1,470 sites finished; the one significant difference does not hold across readouts.",
     U(f"<b>Preliminary.</b> {int(DTH.n_complete_sites.iloc[0])} sites are done so far ({int(DYN.n_sites)} Dynamic, {int(MST.n_sites)} context-matched Stable, {int(HST.n_sites)} high-accessibility Stable). This section will be rerun when the scan finishes.",
@@ -179,7 +232,7 @@ sec("tiles", "Tile scan: the site's own motif, or a neighbour?", "inc",
 ANSWER = f"""<div class="box"><p><b>The question:</b> in the AlphaGenome mutation results, are Dynamic AP-1 sites more or less sensitive to particular kinds of mutation than Stable ones?</p>
 <p><b>The answer: no.</b> Raw, Dynamic sites look much less sensitive to broad edits ({PROF.loc['replace the 170 bp', 'dynamic_median']:.2f} vs {PROF.loc['replace the 170 bp', 'stable_median']:.2f} log2 for replacing the 170 bp). That difference is entirely explained by their weaker chromatin context. Matched on predicted accessibility, peak width and TSS distance, all {len(PROF)} mutation types agree within {(PROF.matched_dynamic_median - PROF.matched_stable_median).abs().max():.2f} log2, none significantly. Scaled to the same overall sensitivity, the mix of mutation types is the same, and a classifier on the full response profile is at chance (AUC {clf('shape only').auc:.2f}).</p>
 <p><b>What this leaves:</b> responsive and constitutive AP-1 sites are built the same way and differ in how much accessibility is at stake. What makes a site responsive is therefore unlikely to be its local sequence architecture, and more likely something a baseline sequence model cannot see &mdash; AP-1 activity, co-factors, chromatin state.</p>
-<p><b>Unexpected, and preliminary:</b> the tile scan finds that at about 70% of sites in both classes, a neighbouring element within &plusmn;300 bp matters more than the AP-1 motif itself. One such neighbour is a MEF2 motif 25 bp away.</p></div>"""
+<p><b>Two things the same data do show:</b> mapping all 2.49 million cardiomyocyte TOBIAS footprints onto the tile scan, <b>MEF2 is the partner AlphaGenome treats as most important</b> near an AP-1 site ({FAMI.loc['MEF2', 'median_adj_effect']:.2f} log2 per tile against {FREE:.2f} for footprint-free tiles), ahead of GATA and TEAD, and far ahead of a second AP-1 site. And defining the age classes by <b>change in binding score</b> instead of crossing the threshold reveals what the threshold definition hides: sites that gain AP-1 binding with age depend more on the AP-1 motif itself ({AGEUP.loc['shuffle the motif', 'matched_diff']:+.2f} log2, FDR {AGEUP.loc['shuffle the motif', 'fdr_matched']:.3f}) and carry a perfect consensus core more often ({SCO.loc['Age Up (score)', 'share_with_exact_core']:.0%} vs {SCO.loc['Age Up (score)', 'share_control']:.0%}).</p></div>"""
 
 LIMITS = U(
     "<b>A null result is not proof of no difference.</b> With 720 matched pairs, a true difference smaller than about 0.1 log2 in any single mutation type would likely be missed. What is excluded is a difference large enough to matter biologically, not any difference at all.",
@@ -187,7 +240,9 @@ LIMITS = U(
     "<b>The model predicts baseline accessibility, not response.</b> It has no notion of condition, so it cannot be asked directly why a site responds to ageing or exercise. This is a limit of the question, not of the analysis.",
     "<b>Classes are threshold calls.</b> A site just below the footprint threshold in one condition is labelled Dynamic. That is why the same DNA is often Stable in one cell type and Dynamic in another.",
     "<b>The tile scan is 14% complete</b> and its one significant difference is inconsistent between readouts. Treat every number in that section as provisional.",
-    "<b>Not yet done:</b> the motifs under the strong partner tiles have not been identified systematically. Scanning them against a motif database would turn the MEF2 observation from an anecdote into a result.")
+    "<b>The partner ranking uses TOBIAS footprints, not a motif scan.</b> A factor with no footprint call in cardiomyocytes cannot appear, and family labels come from gene-symbol patterns, so closely related motifs are pooled.",
+    f"<b>The score-based Age Up result rests on one contrast of five</b> and on a {SCO.loc['Age Up (score)', 'n']:.0f}-site sequence check. It should be repeated on the full scan and, ideally, in fibroblasts.",
+    "<b>Not yet done:</b> whether MEF2 partners sit preferentially near the AP-1 sites that gain binding with age, which would join the two new findings together.")
 
 METHODS = U(
     "Cardiomyocyte Fos sites from the TOBIAS footprint table; heart ATAC track; AlphaGenome mouse, 131,072 bp windows, <code>model_all_folds</code>.",
