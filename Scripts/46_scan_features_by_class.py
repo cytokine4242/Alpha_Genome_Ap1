@@ -177,6 +177,7 @@ Q = R.pivot_table(index="feature", columns="contrast", values="fdr").reindex(ind
 m = M.values
 lim = np.nanpercentile(np.abs(m), 97) if np.isfinite(m).any() else 1
 im = ax.imshow(m, cmap="PuOr_r", vmin=-lim, vmax=lim, aspect="auto")
+ax.grid(False)
 ax.set_xticks(range(len(cs)), [c.replace(" vs ", "\nvs ").replace(" (threshold)", "").replace(" (\u0394score)", "\n(\u0394score)") for c in cs], fontsize=7.5, rotation=30, ha="right")
 ax.set_yticks(range(len(labels)), labels, fontsize=8)
 for i in range(m.shape[0]):
@@ -185,7 +186,7 @@ for i in range(m.shape[0]):
             continue
         sig = Q.values[i, j] < 0.05
         ax.text(j, i, f"{m[i, j]:+.2f}" + ("*" if sig else ""), ha="center", va="center", fontsize=6.6,
-                fontweight="bold" if sig else "normal", color="white" if abs(m[i, j]) > 0.6 * lim else INK)
+                fontweight="bold" if sig else "normal", color="white" if abs(m[i, j]) > 0.42 * lim else INK)
         if sig:
             ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, edgecolor=INK, lw=1.3))
 ax.axvline(4.5, color=INK, lw=1.6)

@@ -86,17 +86,20 @@ for sid, lab, col, row in panels:
     w2 = M[(M.site_id == sid) & (M.family.isin(SHOW)) & (M.rs.abs() < 320)]
     lanes = []
     for r in w2.sort_values("rs").itertuples():
-        k = next((i for i, end in enumerate(lanes) if r.rs > end + 26), len(lanes))
+        k = next((i for i, end in enumerate(lanes) if r.rs > end + 48), len(lanes))
         if k == len(lanes):
             lanes.append(r.re)
         else:
             lanes[k] = r.re
         c = FCOL.get(r.family, GREY)
         key = r.family in ("MEF2", "GATA", "NFI (Nfia/b/c/x)", "TEAD", "SRF / MADS", "NKX / homeobox cardiac")
-        axf.add_patch(plt.Rectangle((r.rs, -k - 0.42), max(r.re - r.rs, 7), 0.62, color=c, alpha=0.95 if key else 0.45,
+        nm0 = r.family.split(" (")[0].split(" /")[0]
+        wmin = 7.5 * len(nm0) + 10                       # wide enough for the label, so chips never clip their own text
+        cx = (r.rs + r.re) / 2
+        wid = max(r.re - r.rs, wmin)
+        axf.add_patch(plt.Rectangle((cx - wid / 2, -k - 0.42), wid, 0.62, color=c, alpha=0.95 if key else 0.45,
                                     ec=INK if key else "none", lw=1.1 if key else 0))
-        nm = r.family.split(" (")[0].split(" /")[0]
-        axf.text((r.rs + r.re) / 2, -k - 0.11, nm, ha="center", va="center", fontsize=8.2 if key else 7.2,
+        axf.text(cx, -k - 0.11, nm0, ha="center", va="center", fontsize=8.2 if key else 7.2,
                  color="white" if key else INK, fontweight="bold" if key else "normal")
     axf.set_ylim(-max(len(lanes), 1) - 0.1, 0.35)
     axf.set_xlim(-305, 305)

@@ -232,6 +232,7 @@ Q = R.pivot_table(index="feature", columns="contrast", values="fdr").reindex(ind
 m = M.values
 lim = np.nanpercentile(np.abs(m), 97) if np.isfinite(m).any() else 1
 im = ax.imshow(m, cmap="PuOr_r", vmin=-lim, vmax=lim, aspect="auto")
+ax.grid(False)
 ax.set_xticks(range(len(cs)), [c.replace(" vs ", "\nvs ").replace(" (threshold)", "").replace(" (Δscore)", "\n(Δscore)") for c in cs], fontsize=7.5, rotation=30, ha="right")
 ax.set_yticks(range(len(labels)), labels, fontsize=8)
 for i in range(m.shape[0]):

@@ -28,7 +28,7 @@ pres.defineSlideMaster({
   title: "TITLE", background: { color: "FFFFFF" },
   objects: [
     { placeholder: { options: { name: "title", type: "title", x: 0.9, y: 2.3, w: 11.5, h: 1.5, fontSize: 40, bold: true, color: C.text1, align: "left", valign: "bottom" }, text: " " } },
-    { placeholder: { options: { name: "body", type: "body", x: 0.9, y: 3.95, w: 11.5, h: 1.5, fontSize: 17, color: C.text2, align: "left", valign: "top" }, text: " " } },
+    { placeholder: { options: { name: "body", type: "body", x: 0.9, y: 4.05, w: 11.5, h: 1.5, fontSize: 17, color: C.text2, align: "left", valign: "top" }, text: " " } },
   ],
 });
 
@@ -76,7 +76,7 @@ s.addText([
   { text: "In-silico mutagenesis of every cardiomyocyte AP-1 element with AlphaGenome", options: { breakLine: true } },
   { text: "3,678 sites · 364 mutations each · validated against snATAC, RNA and a fibroblast MPRA", options: { color: "595959", fontSize: 15 } },
 ], { placeholder: "body" });
-s.addShape(pres.ShapeType.line, { x: 0.9, y: 2.2, w: 2.4, h: 0, line: { color: "111111", width: 2.5 }, objectName: "rule" });
+s.addShape(pres.ShapeType.line, { x: 0.98, y: 3.82, w: 2.2, h: 0, line: { color: "111111", width: 2.5 }, objectName: "rule" });
 s.addNotes("Mouse cardiomyocytes, young sedentary / aged sedentary / aged exercise. Sites defined by TOBIAS footprints of Fos motifs.");
 
 // ================================================================== 2 design
@@ -89,14 +89,14 @@ s.addText([
   { text: "Δscore (graded)", options: { bold: true, fontSize: 19, breakLine: true } },
   { text: "The top fifth of the change in binding score, whether or not the call ever crossed the line. 736 sites each way.", options: { breakLine: true, paraSpaceAfter: 14 } },
   { text: "Only 22% of Δscore-Up sites ever cross the threshold, and 40% of threshold-Stable sites show a large score change.", options: { color: "595959" } },
-], { placeholder: "body", w: 6.2, h: 4.3 });
+], { isTextBox: true, x: 0.55, y: 1.35, w: 6.3, h: 4.0, fontSize: 17, color: "111111", margin: 0 });
 statRow(s, [
-  { v: "0.57", l: "Δscore vs measured\nsnATAC change (age)", c: "C2551C" },
-  { v: "0.31", l: "threshold class vs\nmeasured change", c: "1F6FB2" },
-], 5.5, 1.3);
+  { v: "0.57", l: "Δscore vs measured snATAC change (age)", c: "C2551C" },
+  { v: "0.31", l: "threshold class vs measured change", c: "1F6FB2" },
+], 5.55, 1.35);
 s.addText("Every comparison below matches each responsive site to a Stable site on predicted accessibility, peak width, TSS distance and measured accessibility.",
   { isTextBox: true, x: 7.1, y: 1.5, w: 5.65, h: 2.4, fontSize: 15, color: "111111", fill: { color: "F2F2F2" }, margin: 12, objectName: "matching-note" });
-s.addText("The Δscore definition tracks the measured data about twice as well.", { isTextBox: true, x: 7.1, y: 4.1, w: 5.65, h: 1.0, fontSize: 15, italic: true, color: "595959", margin: 0 });
+s.addText("The Δscore definition tracks the measured data about twice as well.", { isTextBox: true, x: 7.1, y: 4.25, w: 5.65, h: 0.9, fontSize: 15, italic: true, color: "595959", margin: 0 });
 s.addNotes("The two definitions pick out largely different sites. Report every result labelled by which definition it comes from.");
 
 // ================================================================== 3 the null
@@ -110,13 +110,13 @@ s.addNotes("Raw, Dynamic sites lose less to every wide edit. After matching on p
 // ================================================================== 4 partners
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("What these sites actually depend on is MEF2", { placeholder: "title" });
-FIG(s, "Analysis/partners/figures/p1_tile_importance_by_family.png", { x: 0.75, y: 1.15, w: 8.3, h: 5.05 });
+FIG(s, "Analysis/partners/figures/p1_tile_importance_by_family.png", { x: 0.55, y: 1.2, w: 8.2, h: 5.0 });
 s.addText([
   { text: "2.49 million", options: { bold: true, fontSize: 22, color: "C2551C", breakLine: true } },
   { text: "footprinted cardiomyocyte TFBS mapped onto the scan", options: { fontSize: 14, color: "595959", breakLine: true, paraSpaceAfter: 16 } },
   { text: "A MEF2 neighbour matters about eight times more than a second AP-1 site.", options: { fontSize: 15, breakLine: true, paraSpaceAfter: 12 } },
   { text: "The commonest factors — KLF/SP — matter least.", options: { fontSize: 15, color: "595959" } },
-], { isTextBox: true, x: 9.3, y: 1.6, w: 3.45, h: 3.6, margin: 0 });
+], { isTextBox: true, x: 9.05, y: 1.7, w: 3.7, h: 3.8, margin: 0 });
 takeaway(s, "the model rediscovered the cardiac programme — MEF2, GATA, NFI, TEAD — without being told any of it");
 s.addNotes("Importance is the loss from replacing a 10 bp tile over that factor's footprint, measured against the site's own footprint-free tiles. Holds under five different adjustments.");
 
@@ -144,13 +144,13 @@ s.addNotes("10 of 16 scan features separate Dynamic from matched Stable. Share o
 // ================================================================== 8 titration
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Motif strength is a switch; position is a dial", { placeholder: "title" });
-FIG(s, "Analysis/titration/figures/z1_titration_overview.png", { x: 0.55, y: 1.85, w: 12.2, h: 3.55 });
+FIG(s, "Analysis/titration/figures/z1_titration_overview.png", { x: 0.55, y: 1.35, w: 12.2, h: 3.55 });
 statRow(s, [
   { v: "−0.45", l: "cost of changing one core base" },
   { v: "−0.56", l: "cost of changing all seven" },
   { v: "+0.28", l: "net value of a second copy" },
   { v: "±40 bp", l: "where that copy helps most", c: "C2551C" },
-], 5.55, 1.15);
+], 5.15, 1.15);
 takeaway(s, "one wrong base costs nearly as much as destroying the motif; a half-site is worth nothing");
 s.addNotes("The dose-response slope tracks core quality measured independently from the genome sequence, rho 0.30. Orientation is irrelevant, as expected for a near-palindrome.");
 
@@ -163,24 +163,24 @@ s.addText([
   { text: "They benefit more when that copy is near  (FDR 0.003)", options: { bullet: true, breakLine: true } },
   { text: "They lose more from one damaged core base  (−0.60 vs −0.51, FDR 0.023)", options: { bullet: true, breakLine: true } },
   { text: "They carry a perfect consensus core more often  (84.5% vs 78.6%, p = 0.02)", options: { bullet: true, paraSpaceAfter: 16 } },
-], { placeholder: "body", w: 7.3, h: 3.9 });
+], { isTextBox: true, x: 0.55, y: 1.35, w: 7.35, h: 4.0, fontSize: 17, color: "111111", margin: 0 });
 s.addText([
   { text: "Mass action", options: { bold: true, fontSize: 19, color: "C2551C", breakLine: true } },
   { text: "If ageing raises AP-1 activity, occupancy rises first at the highest-affinity motifs. Those are exactly the sites that gain.", options: { fontSize: 15, breakLine: true, paraSpaceAfter: 12 } },
   { text: "Losing binding is not the reverse: age-lost sites show no sequence signature at all.", options: { fontSize: 15, color: "595959" } },
 ], { isTextBox: true, x: 8.2, y: 1.5, w: 4.55, h: 3.3, fill: { color: "F2F2F2" }, margin: 14, objectName: "massaction" });
 s.addText("Ageing gains AP-1 sites over losses 2.2 : 1. Exercise reverses it, 0.67 : 1.",
-  { isTextBox: true, x: 0.55, y: 5.6, w: 12.2, h: 0.6, fontSize: 16, italic: true, color: "111111", margin: 0 });
+  { isTextBox: true, x: 0.55, y: 5.55, w: 12.2, h: 0.6, fontSize: 16, italic: true, color: "111111", margin: 0 });
 s.addNotes("The titration experiment was designed before this hypothesis existed, so this is a prediction rather than a fit. Caveat: the motif-sensitivity result does not survive matching on measured accessibility; the core-quality result does.");
 
 // ================================================================== 10 MPRA
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("An independent reporter assay agrees", { placeholder: "title" });
-FIG(s, "Analysis/mpra_scan/figures/m1_mpra_vs_scan.png", { x: 0.55, y: 2.0, w: 12.2, h: 3.7 });
+FIG(s, "Analysis/mpra_scan/figures/m1_mpra_vs_scan.png", { x: 0.55, y: 2.6, w: 12.2, h: 3.7 });
 statRow(s, [
   { v: "7.5%", l: "AlphaGenome: the motif's share of local dependence", c: "1F6FB2" },
   { v: "9.3%", l: "fibroblast MPRA: the same quantity, measured in the lab", c: "C2551C" },
-], 1.2, 0.72);
+], 1.2, 1.15);
 takeaway(s, "two assays, different cell types and readouts, both put the AP-1 motif under a tenth of its 170 bp surroundings");
 s.addNotes("The comparable quantity is a ratio within each element, so assay scale cancels. The class direction disagrees: in the MPRA responsive elements depend MORE on their sequence, which separates intrinsic potential from what sets accessibility in the genome.");
 
