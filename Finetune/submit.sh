@@ -23,7 +23,7 @@ case "$1" in
     SEQ=${SEQ:-131072}; FOLD=${FOLD:-FOLD_3}
     CFG=configs/${1}_${KIND}_$(echo $FOLD | tr A-Z a-z)_$((SEQ / 1024))kb${PILOT:+_pilot}${RNA:+_rna}.yaml
     [ -f "$CFG" ] || { echo "$CFG not found: run scripts/make_configs.py first"; exit 1; }
-    if [ -n "$PILOT" ]; then W=${WALL:-03:00:00}; else case "$1" in probe) W=${WALL:-48:00:00} ;; *) W=${WALL:-72:00:00} ;; esac; fi
+    if [ -n "$PILOT" ]; then W=${WALL:-02:00:00}; else case "$1" in probe) W=${WALL:-48:00:00} ;; *) W=${WALL:-72:00:00} ;; esac; fi
     # adapters and full fine-tuning backpropagate through the trunk: on cards smaller than an H200 use batch 1 with 32-step accumulation unless BATCH/ACCUM are given
     if [ "$1" != probe ] && [ "$GPU" != H200 ] && [ -z "$BATCH" ]; then BATCH=1; ACCUM=${ACCUM:-32}; fi
     V="CONFIG=$CFG${BATCH:+,BATCH=$BATCH}${ACCUM:+,ACCUM=$ACCUM}"
