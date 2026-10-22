@@ -59,7 +59,7 @@ Two experiments on a fixed subset of 1,470 cardiomyocyte sites (`data/cm_subset_
 ```
 bash submit_all.sh dynamics_pilot      # 6 sites per experiment, 1 h walltime: do this first and check logs/ and results/pilot_*
 bash submit_all.sh scan                # 40-chunk array, about 37 sites per chunk, about 1 h per chunk at 0.25 s/pass
-bash submit_all.sh titrate             # 40-chunk array, about 20 min per chunk
+bash submit_all.sh titrate             # 40-chunk array, about 15 min per chunk on an A100, 2 h walltime so it can use any free GPU on the cluster
 bash submit_all.sh dynamics            # both
 ```
 Total about 42 GPU-hours for the scan and 13 for the titration; with the private account's ~13 concurrent tasks that is about 3 to 4 hours of wall time. Both are resumable (sites already in the output are skipped). `python scripts/15_scan_titrate.py --selftest` checks every edit on synthetic sequence without a GPU. Analysis (after copying `results/` back): `python Scripts/35_scan_titrate_analysis.py` writes `Analysis/scan_titrate/`.

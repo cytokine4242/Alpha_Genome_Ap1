@@ -29,6 +29,7 @@
 #   CONFIG=file   config to use (default: config_pilot.json for check/pilot, which adds CAGE; config.json for full)
 #   BATCH=N       sequences per GPU batch (config.json model.batch_size). Default: config value on H200/GH200,
 #                 4 on any other model or "any" (smaller cards have less memory)
+#   MEM=62gb      host RAM per GPU (default 62gb; see RES below)
 #   DRY=1         print the qsub commands instead of submitting
 # Examples:
 #   ACCOUNT=mwac_wonglab bash submit_all.sh check     # does my account have access? see logs/ for the queue + GPU
@@ -44,7 +45,8 @@ mkdir -p logs/pbs results
 
 if [ -n "$ACCOUNT" ]; then GPU=${GPU:-any}; else GPU=${GPU:-H200}; fi
 if [ "$GPU" = "any" ]; then GPU_SEL=""; else GPU_SEL=":gpu_model=$GPU"; fi
-RES="-l select=1:ncpus=6:mem=96gb:ngpus=1${GPU_SEL}"   # command-line resources override the #PBS lines in pbs/*.pbs
+RES="-l select=1:ncpus=6:mem=${MEM:-62gb}:ngpus=1${GPU_SEL}"   # command-line resources override the #PBS lines in pbs/*.pbs. 62gb per GPU keeps jobs off V100s (all below 62 GB/GPU)
+#   without dropping any A100/L40S/H200 node (96gb was rounded up to >=120 GB/GPU nodes); these jobs peak at about 5 GB
 if [ "$1" = context ] && [ -z "$BATCH" ]; then BATCH=2; fi
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
@@ -71,7 +73,7 @@ p2_fb()    { sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank
 p3_controls() { sub -J 0-39 -N ag_controls_cm "PREFIX=controls_,KINDS=offset:titrate,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
 p3_satmut()   { sub -J 0-39 -N ag_satmut_cm "PREFIX=sat_,KINDS=sat,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
 p4_scan()     { sub -J 0-39 -l walltime=05:00:00 -N ag_scan_cm "EXPERIMENT=scan,PREFIX=scan_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
-p4_titrate()  { sub -J 0-39 -N ag_titrate_cm "EXPERIMENT=titrate,PREFIX=titrate_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
+p4_titrate()  { sub -J 0-39 -l walltime=02:00:00 -N ag_titrate_cm "EXPERIMENT=titrate,PREFIX=titrate_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
 p4_pilot()    { for e in scan titrate; do sub -m ae -l walltime=01:00:00 -N ag_${e}_pilot "EXPERIMENT=$e,PREFIX=pilot_${e}_,NCHUNKS=1,LIMIT=6" pbs/15_scan_titrate.pbs; done; }
 p3_mpran()    { sub -J 0-7 -N ag_mpra_neutral "NCHUNKS=8" pbs/14_mpra_neutral.pbs; }
 p3_human()    { sub -J 0-4 -N ag_human_sens "PREFIX=human_,KINDS=shuffle,SITES=cm,NCHUNKS=5,LIMIT=100" pbs/11_perturb.pbs; }
