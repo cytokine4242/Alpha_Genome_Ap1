@@ -1,5 +1,6 @@
 #!/bin/bash
 # Submit fine-tuning jobs from the Finetune/ folder on Katana (private account by default; DRY=1 prints the qsub commands instead).
+#   bash submit.sh check_fragments          # array: checks the 8 merged fragment files copied from Gadi (finetune_data/fragments) before they become 1 bp targets
 #   bash submit.sh bigwigs                  # array: one task per (cell type, condition) of data/samples_manifest.tsv -> 1 bp insertion bigWigs  (needs MANIFEST, CHROM_SIZES, OUT_DIR)
 #   bash submit.sh probe|lora|lora_locon|full   # config chosen by KIND (10bp or 1bp, default 10bp), PILOT=1, RNA=1, SEQ (131072 default, or 1048576), FOLD (FOLD_3)
 # Options (environment variables): ACCOUNT (default mwac_wonglab), GPU (default any; e.g. H200), MEM (host RAM per GPU, default 62gb: above 45gb excludes every V100 node, above 62gb also
@@ -19,6 +20,8 @@ case "$1" in
     [ "$N" -gt 0 ] || { echo "$MANIFEST has no sample rows: add one row per library first"; exit 1; }
     if [ "$N" -gt 1 ]; then J="-J 0-$((N-1))"; else J=""; fi   # a one-track manifest runs as a plain job (index 0)
     run $O $J -N ft_bigwig -v "MANIFEST=$MANIFEST,CHROM_SIZES=$CHROM_SIZES,OUT_DIR=$OUT_DIR" pbs/make_bigwig.pbs ;;
+  check_fragments)   # one CPU task per merged fragment file: cell type, condition, purity, agreement with the 10 bp bigWig -> $FT/fragments/checks/
+    run $O -J 0-7 -N ft_check_frag pbs/check_fragments.pbs ;;
   probe|lora|lora_locon|full)
     KIND=${KIND:-10bp}
     SEQ=${SEQ:-131072}; FOLD=${FOLD:-FOLD_3}
@@ -29,5 +32,5 @@ case "$1" in
     if [ "$1" != probe ] && [ "$GPU" != H200 ] && [ -z "$BATCH" ]; then BATCH=1; ACCUM=${ACCUM:-32}; fi
     V="CONFIG=$CFG${BATCH:+,BATCH=$BATCH}${ACCUM:+,ACCUM=$ACCUM}"
     run $O -l select=1:ncpus=8:mem=${MEM:-62gb}:ngpus=1$SEL -l walltime=$W -N ft_${1}_${KIND}${PILOT:+_pilot} -v "$V" pbs/finetune.pbs ;;
-  *) echo "usage: bash submit.sh bigwigs|probe|lora|lora_locon|full"; exit 1 ;;
+  *) echo "usage: bash submit.sh check_fragments|bigwigs|probe|lora|lora_locon|full"; exit 1 ;;
 esac

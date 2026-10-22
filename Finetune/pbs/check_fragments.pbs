@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -N ft_check_frag
+#PBS -l select=1:ncpus=2:mem=32gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+# Array job, one task per merged fragment file (cell type x condition): qsub -J 0-7 pbs/check_fragments.pbs   (see submit.sh check_fragments)
+cd $PBS_O_WORKDIR
+source ../Katana/pbs/queue_wait.sh 2>/dev/null   # queue wait and run time -> /srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv
+source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
+FT=/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data
+I=${PBS_ARRAY_INDEX:-0}
+CELLS=(Cardiomyocyte Cardiomyocyte Cardiomyocyte Cardiomyocyte Fibroblast Fibroblast Fibroblast Fibroblast)
+CONDS=(YS MAS MAE YE YS MAS MAE YE)
+FILES=(CM_YS Cardiomyocyte_MAS Cardiomyocyte_MAE Cardiomyocyte_YE Fibroblast_YS Fibroblast_MAS Fibroblast_MAE Fibroblast_YE)
+C=${CELLS[$I]}; K=${CONDS[$I]}
+F=${FILES[$I]}_merged_fragments_bgz_sorted.tsv.gz
+( cd $FT/fragments && grep "  $F\$" md5s.txt | md5sum -c - ) || echo "WARNING: md5 of $F does not match the copy log"   # md5s.txt = checksums of the Gadi streams
+python scripts/check_fragments.py --fragments $FT/fragments/$F --cell $C --cond $K \
+    --cells $FT/fragments/Cell_barccodes.csv --bigwig $FT/bigwigs_10bp/${C}_${K}_merged.SeqDepthNorm.bw \
+    --sites ../Katana/data/measured_by_condition.csv --out $FT/fragments/checks/${C}_${K}
