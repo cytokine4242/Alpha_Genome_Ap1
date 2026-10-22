@@ -141,7 +141,7 @@ Cn.to_csv(OUT / "tables" / "c_non_responders.csv", index=False)
 
 # ============================================================ D. tile scan: own motif vs neighbouring element
 GROUPS = [("dynamic", "Dynamic", ORANGE), ("matched_stable", "Stable, context-matched", BLUE), ("high_stable", "Stable, high accessibility", AQUA)]
-fs = sorted(glob.glob(str(ROOT / "Katana/results/scan_cm_chunk*.csv")))
+fs = sorted(glob.glob(str(ROOT / "Katana/results/scan*_cm_chunk*.csv")))
 D = None
 if fs:
     sc = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)
@@ -170,7 +170,7 @@ if fs:
     D = DA[DA.readout == "170 bp"]
     rows = []
     for (rd, g), x in DA.groupby(["readout", "group"]):
-        rows.append({"readout": rd, "group": dict((a, b) for a, b, _ in GROUPS)[g], "n_sites": len(x), "share_partner_beyond_85bp": x.partner_beyond_85bp.mean(), "own_motif_tile_median": x.own_motif_tile.median(), "strongest_partner_median": x.strongest_partner_tile.median(),
+        rows.append({"readout": rd, "group": dict((a, b) for a, b, _ in GROUPS).get(g, g), "n_sites": len(x), "share_partner_beyond_85bp": x.partner_beyond_85bp.mean(), "own_motif_tile_median": x.own_motif_tile.median(), "strongest_partner_median": x.strongest_partner_tile.median(),
                      "share_partner_dominates": x.partner_dominates.mean(), "share_with_strong_partner": (x.n_strong_partner_tiles > 0).mean(),
                      "median_strong_partner_tiles": x.n_strong_partner_tiles.median()})
     Dsum = pd.DataFrame(rows)

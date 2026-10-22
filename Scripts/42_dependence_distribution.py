@@ -104,7 +104,7 @@ A["fdr_raw"] = A.groupby("comparison").p_raw.transform(lambda p: bh(p))
 A.to_csv(OUT / "tables" / "a_sequence_motif_counts_by_class.csv", index=False)
 
 # ---------------------------------------------------------------- B. how dependence is spread across the peak
-fs = sorted(glob.glob(str(ROOT / "Katana/results/scan_cm_chunk*.csv")))
+fs = sorted(glob.glob(str(ROOT / "Katana/results/scan*_cm_chunk*.csv")))
 B = D = None
 if fs:
     sc = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)

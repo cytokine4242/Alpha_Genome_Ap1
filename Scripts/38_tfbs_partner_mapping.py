@@ -4,7 +4,7 @@ Maps every footprinted cardiomyocyte TFBS of the FULL TOBIAS table onto the tile
  A  tile importance per TF / family, adjusted for the site's overall sensitivity and for distance from the AP-1 motif (two-way median adjustment)
  B  base-resolution check: |effect| of single-base changes inside vs outside each factor's footprint (+/-30 bp window)
  C  do different factors matter to Dynamic and to context-matched Stable sites? (importance and prevalence)
-TOBIAS is used here for the LOCATION of bound motifs only; footprint scores are not used.   Inputs: Data/derived/tobias_cm_all_motifs.csv.gz (made by this script if missing), Katana/results/scan_cm_chunk*.csv.
+TOBIAS is used here for the LOCATION of bound motifs only; footprint scores are not used.   Inputs: Data/derived/tobias_cm_all_motifs.csv.gz (made by this script if missing), Katana/results/scan*_cm_chunk*.csv.
 Outputs Analysis/partners/{tables,figures}.   python3 38_tfbs_partner_mapping.py"""
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ if not TOB.exists():
 tob = pd.read_csv(TOB, usecols=["seqnames", "start", "end", "in_MAE", "in_MAS", "in_YS", "name"], dtype={"name": "category"})
 tob["family"] = tob.name.map(family).astype("category")
 
-sc = pd.concat([pd.read_csv(f) for f in sorted(glob.glob(str(ROOT / "Katana/results/scan_cm_chunk*.csv")))], ignore_index=True)
+sc = pd.concat([pd.read_csv(f) for f in sorted(glob.glob(str(ROOT / "Katana/results/scan*_cm_chunk*.csv")))], ignore_index=True)
 sc = sc[sc.trackset == "CM"]
 n_pass = sc.groupby("site_id").size()
 sc = sc[sc.site_id.isin(n_pass.index[n_pass == n_pass.max()])]                    # complete sites only

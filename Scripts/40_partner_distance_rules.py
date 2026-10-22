@@ -178,7 +178,7 @@ PER.to_csv(OUT / "tables" / "c_periodicity.csv", index=False)
 
 # ---------------------------------------------------------------- D. does importance depend on spacing? (scanned sites)
 IMP = None
-fs = sorted(glob.glob(str(ROOT / "Katana/results/scan_cm_chunk*.csv")))
+fs = sorted(glob.glob(str(ROOT / "Katana/results/scan*_cm_chunk*.csv")))
 if fs:
     site_fam = pd.read_csv(ROOT / "Analysis/partners/tables/i_site_level_family_importance.csv")
     nearest = M[M.family.isin(KEY)].groupby(["site_id", "family"], observed=True, as_index=False).dist.min()

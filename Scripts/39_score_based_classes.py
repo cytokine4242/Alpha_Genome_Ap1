@@ -257,7 +257,7 @@ F.to_csv(OUT / "tables" / "f_motif_specificity.csv", index=False)
 import glob as _glob
 from scipy.stats import fisher_exact
 G = None
-_f = sorted(_glob.glob(str(ROOT / "Katana/results/scan_cm_chunk*.csv")))
+_f = sorted(_glob.glob(str(ROOT / "Katana/results/scan*_cm_chunk*.csv")))
 if _f:
     s_ = pd.concat([pd.read_csv(x, usecols=["site_id", "core_found", "trackset"]) for x in _f], ignore_index=True)
     s_ = s_[s_.trackset == "CM"].drop_duplicates("site_id").set_index("site_id").core_found

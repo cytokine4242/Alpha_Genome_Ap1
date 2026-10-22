@@ -82,9 +82,9 @@ else:
 
 
 def load(prefix):
-    fs = sorted(glob.glob(str(RES / f"{prefix}_chunk*.csv")))
+    fs = sorted(glob.glob(str(RES / f"{prefix}*_cm_chunk*.csv")))
     if not fs:
-        raise SystemExit(f"no {prefix}_chunk*.csv in {RES}")
+        raise SystemExit(f"no {prefix}*_cm_chunk*.csv in {RES}")
     d = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)
     d = d[d.trackset == "CM"]
     n = d.groupby("site_id").size()
@@ -121,7 +121,7 @@ def bh(p):
 
 
 # ============================================================ scan
-sc = load("scan_cm")
+sc = load("scan")
 RDS = {"motif": "atac_motif", "170 bp": "atac_170"}
 fig, axes = plt.subplots(1, 2, figsize=(13, 3.9), sharey=False)
 tile_rows = []
@@ -179,7 +179,7 @@ pd.DataFrame(rows).to_csv(OUT / "tables" / "motif_importance_share.csv", index=F
 ism.to_csv(OUT / "tables" / "saturation_importance_by_position.csv", index=False)
 
 # ============================================================ titrate
-tt_all = load("titrate_cm")
+tt_all = load("titrate")
 tt = tt_all[tt_all.core_found]                       # AP-1 titration only makes sense where the site has an AP-1 core
 tu = tt_all[~tt_all.core_found]                      # the upgrade to a perfect core is only made at sites without one
 print(f"titrate_cm: {tt.site_id.nunique()} sites with an exact core; upgrade read at the {tu.site_id.nunique()} without one")
