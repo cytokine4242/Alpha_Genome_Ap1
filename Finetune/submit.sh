@@ -12,6 +12,7 @@ GPU=${GPU:-any}
 mkdir -p logs
 if [ "$GPU" = "any" ]; then SEL=""; else SEL=":gpu_model=$GPU"; fi
 O="-o $PWD/logs/ ${ACCOUNT:+-A $ACCOUNT}"
+OC="-o $PWD/logs/"   # CPU jobs: mwac_wonglab has GPU queues only, so these go to the general CPU queues without an account
 run() { if [ -n "$DRY" ]; then echo qsub "$@"; else qsub "$@"; fi; }
 case "$1" in
   bigwigs)
@@ -19,9 +20,9 @@ case "$1" in
     N=$(python3 scripts/make_bigwig_from_manifest.py --manifest "$MANIFEST" --chrom-sizes "$CHROM_SIZES" --out-dir "$OUT_DIR" --list | wc -l)
     [ "$N" -gt 0 ] || { echo "$MANIFEST has no sample rows: add one row per library first"; exit 1; }
     if [ "$N" -gt 1 ]; then J="-J 0-$((N-1))"; else J=""; fi   # a one-track manifest runs as a plain job (index 0)
-    run $O $J -N ft_bigwig -v "MANIFEST=$MANIFEST,CHROM_SIZES=$CHROM_SIZES,OUT_DIR=$OUT_DIR" pbs/make_bigwig.pbs ;;
+    run $OC $J -N ft_bigwig -v "MANIFEST=$MANIFEST,CHROM_SIZES=$CHROM_SIZES,OUT_DIR=$OUT_DIR" pbs/make_bigwig.pbs ;;
   check_fragments)   # one CPU task per merged fragment file: cell type, condition, purity, agreement with the 10 bp bigWig -> $FT/fragments/checks/
-    run $O -J 0-7 -N ft_check_frag pbs/check_fragments.pbs ;;
+    run $OC -J 0-7 -N ft_check_frag pbs/check_fragments.pbs ;;
   probe|lora|lora_locon|full)
     KIND=${KIND:-10bp}
     SEQ=${SEQ:-131072}; FOLD=${FOLD:-FOLD_3}
