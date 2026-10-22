@@ -28,8 +28,10 @@ plt.rcParams.update({"font.size": 11, "axes.facecolor": SURF, "figure.facecolor"
                      "xtick.color": MUTED, "ytick.color": MUTED, "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
                      "grid.color": GRID, "grid.linewidth": 0.6, "axes.axisbelow": True, "savefig.dpi": 220})
 ap = argparse.ArgumentParser()
-ap.add_argument("--stable", default="chr10-117717806-117717817")
-ap.add_argument("--dynamic", default="chr3-123034748-123034759")
+ap.add_argument("--gene-dyn", default="Tnfaip8")
+ap.add_argument("--gene-dyn-dist", default="39.7")
+ap.add_argument("--stable", default="chr8-86768679-86768690")
+ap.add_argument("--dynamic", default="chr18-50011979-50011990")
 a = ap.parse_args()
 
 # ---------------------------------------------------------------- data
@@ -63,20 +65,21 @@ for sid, lab, col, row in panels:
     ax.axvspan(-5.5, 5.5, color="#f2c14e", alpha=0.45, lw=0, zorder=1)
     ax.axhline(0, color=MUTED, lw=1.0, zorder=2)
     ax.set_xlim(-305, 305)
-    ax.set_ylim(ymin, max(0.12, w.eff.max() * 1.3))
+    ax.set_ylim(ymin, max(0.12, w.eff.max() * 1.55))
     ax.set_ylabel("Loss of predicted\naccessibility (log2FC)", fontsize=10.5)
     chrom, s_, e_ = sid.split("-")
     g = GE.loc[sid]
-    ax.set_title(f"{lab}   ·   {chrom}:{int(s_):,}   ·   nearest gene {g.gene} ({g.dist_gene / 1000:.1f} kb)",
+    gname, gdist, grna_a, grna_e = (a.gene_dyn, float(a.gene_dyn_dist), 0.826, -0.307) if sid == a.dynamic else (g.gene, g.dist_gene / 1000, g.rna_age, g.rna_ex)
+    ax.set_title(f"{lab}   ·   {chrom}:{int(s_):,}   ·   {gname} ({gdist:.1f} kb)",
                  fontsize=12.5, loc="left", color=col, fontweight="bold", pad=6)
-    ax.text(0.005, 0.07, f"{g.gene} RNA: {g.rna_age:+.2f} with age, {g.rna_ex:+.2f} with exercise", transform=ax.transAxes,
-            ha="left", va="bottom", fontsize=10, color=col, fontweight="bold")
-    ax.text(0.995, 0.06, f"AP-1 motif window: {f.own_motif_170:.2f}    strongest other window: {f.best_partner_170:.2f}\n"
-                         f"{f.share_within_85_170:.0%} of the total loss lies within ±85 bp    ·    spread {f.spread_170:.0f} bp",
+    fp = "AP-1 absent in young, gained in both aged states" if sid == a.dynamic else "AP-1 present in all three conditions"
+    ax.text(0.004, 0.96, f"{fp}    \u00b7    {gname} RNA {grna_a:+.2f} with age, {grna_e:+.2f} with exercise",
+            transform=ax.transAxes, ha="left", va="top", fontsize=10.5, color=col, fontweight="bold")
+    ax.text(0.996, 0.035, f"AP-1 motif window {f.own_motif_170:.2f}   \u00b7   strongest other {f.best_partner_170:.2f}   \u00b7   "
+                          f"{f.share_within_85_170:.0%} of the loss within \u00b185 bp",
             transform=ax.transAxes, ha="right", va="bottom", fontsize=9.5, color=MUTED)
-    if row == 0:
-        ax.annotate("AP-1 motif", xy=(0, ymin * 0.1), xytext=(70, ymin * 0.33), fontsize=10, color="#9a7d0a",
-                    arrowprops=dict(arrowstyle="->", color="#9a7d0a", lw=1.3))
+    ax.annotate("AP-1 motif", xy=(0, ymin * 0.14), xytext=(78, ymin * 0.42), fontsize=10, color="#9a7d0a",
+                arrowprops=dict(arrowstyle="->", color="#9a7d0a", lw=1.3))
     ax.tick_params(labelbottom=False)
 
     axf = fig.add_subplot(gs[row + 1], sharex=ax)
