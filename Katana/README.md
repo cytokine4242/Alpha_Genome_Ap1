@@ -53,15 +53,15 @@ Two experiments on a fixed subset of 1,470 cardiomyocyte sites (`data/cm_subset_
 | mode | what it does | passes/site | output |
 |---|---|---|---|
 | `scan` | tile scan (every base of a 10 bp tile replaced; 60 tiles from -300 to +290 bp, 3 replicates) and saturation mutagenesis (3 alternatives at each of 61 positions, -30 to +30 bp) | 364 | `results/scan_cm_chunk*.csv` |
-| `titrate` | core weakening (1 to 7 of the 7 core bases changed), consensus upgrade (TGAGTCA), reverse complement, half-site only; the 11 bp motif duplicated or moved to offsets -150, -80, -40, -20, +20, +40, +80, +150 with composition-matched shuffled controls | 94 | `results/titrate_cm_chunk*.csv` |
+| `titrate` | core weakening (1 to 7 of the 7 core bases changed), consensus upgrade (TGAGTCA), reverse complement, half-site only; the 11 bp motif duplicated or moved to offsets -150, -80, -40, -20, +20, +40, +80, +150, each with its own shuffled control (one for duplicate, one for move) | 118 | `results/titrate_cm_chunk*.csv` |
 
 ```
 bash submit_all.sh dynamics_pilot      # 6 sites per experiment, 1 h walltime: do this first and check logs/ and results/pilot_*
 bash submit_all.sh scan                # 40-chunk array, about 37 sites per chunk, about 1 h per chunk at 0.25 s/pass
-bash submit_all.sh titrate             # 40-chunk array, about 15 min per chunk
+bash submit_all.sh titrate             # 40-chunk array, about 20 min per chunk
 bash submit_all.sh dynamics            # both
 ```
-Total about 42 GPU-hours for the scan and 10 for the titration; with the private account's ~13 concurrent tasks that is about 3 to 4 hours of wall time. Both are resumable (sites already in the output are skipped). `python scripts/15_scan_titrate.py --selftest` checks every edit on synthetic sequence without a GPU. Analysis (after copying `results/` back): `python Scripts/35_scan_titrate_analysis.py` writes `Analysis/scan_titrate/`.
+Total about 42 GPU-hours for the scan and 13 for the titration; with the private account's ~13 concurrent tasks that is about 3 to 4 hours of wall time. Both are resumable (sites already in the output are skipped). `python scripts/15_scan_titrate.py --selftest` checks every edit on synthetic sequence without a GPU. Analysis (after copying `results/` back): `python Scripts/35_scan_titrate_analysis.py` writes `Analysis/scan_titrate/`.
 Each output row has `group`, `condition`, `kind`, `pos` (offset in bp, or the number of core bases changed), `alt`, `rep`, the usual readouts and `atac_target` (mean ATAC over the 11 bp at the offset for duplicate/control/move). `native_core` and `core_found` record the site's core sequence and whether an exact TGA[C/G]TCA was present (otherwise the central 7 bp are used).
 
 ## Site labels (in every site table and output)

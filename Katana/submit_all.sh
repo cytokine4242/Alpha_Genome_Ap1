@@ -9,7 +9,7 @@
 #     satmut         saturation mutagenesis of the 11 bp motif (33 substitutions)           -> results/sat_*        (34 passes/site)
 #     mpra_neutral   MPRA elements inserted into neutral backgrounds                        -> results/mpra_neutral_* (22 passes/element)
 #     scan           tile scan (10 bp tiles, +-300 bp) + saturation mutagenesis (+-30 bp) on 1,470 CM sites (Dynamic, matched Stable, high-accessibility Stable) -> results/scan_cm_*     (364 passes/site)
-#     titrate        AP-1 core weakening 1-7 bases, consensus upgrade, reverse complement, half-site, and motif move/duplicate at 8 offsets with controls (same sites)     -> results/titrate_cm_*   (94 passes/site)
+#     titrate        AP-1 core weakening 1-7 bases, consensus upgrade, reverse complement, half-site, and motif move/duplicate at 8 offsets with controls (same sites)     -> results/titrate_cm_*   (118 passes/site)
 #     dynamics       scan + titrate together (cardiomyocyte tracks only, config_cm_only.json); test first with: bash submit_all.sh dynamics_pilot
 #     human_sens     shuffles with human output heads on 500 sites (config_validate.json)   -> results/human_*
 #     context        shuffles on 60 sites with 16 kb / 65 kb / 262 kb windows               -> results/ctx<window>_*
@@ -70,7 +70,7 @@ p2_fb()    { sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank
 
 p3_controls() { sub -J 0-39 -N ag_controls_cm "PREFIX=controls_,KINDS=offset:titrate,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
 p3_satmut()   { sub -J 0-39 -N ag_satmut_cm "PREFIX=sat_,KINDS=sat,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
-p4_scan()     { sub -J 0-39 -N ag_scan_cm "EXPERIMENT=scan,PREFIX=scan_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
+p4_scan()     { sub -J 0-39 -l walltime=05:00:00 -N ag_scan_cm "EXPERIMENT=scan,PREFIX=scan_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
 p4_titrate()  { sub -J 0-39 -N ag_titrate_cm "EXPERIMENT=titrate,PREFIX=titrate_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
 p4_pilot()    { for e in scan titrate; do sub -m ae -l walltime=01:00:00 -N ag_${e}_pilot "EXPERIMENT=$e,PREFIX=pilot_${e}_,NCHUNKS=1,LIMIT=6" pbs/15_scan_titrate.pbs; done; }
 p3_mpran()    { sub -J 0-7 -N ag_mpra_neutral "NCHUNKS=8" pbs/14_mpra_neutral.pbs; }

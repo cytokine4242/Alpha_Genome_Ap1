@@ -39,7 +39,7 @@ def simulate(folder):
     for g, _, _ in GROUPS:
         for i in range(40):
             sid, base = f"{g}-{i}", {"dynamic": 0.25, "matched_stable": 0.27, "high_stable": 1.4}[g] * np.exp(rng.normal(0, 0.3))
-            common = {"site_id": sid, "group": g, "binding_category": "x", "stable_dynamic": "Dynamic" if g == "dynamic" else "Stable", "native_170_pred": base, "native_core": "TGAGTCA", "core_found": True,
+            common = {"site_id": sid, "group": g, "binding_category": "x", "stable_dynamic": "Dynamic" if g == "dynamic" else "Stable", "native_170_pred": base, "native_core": "TGAGTCA", "core_found": bool(rng.random() > (0.3 if g == "dynamic" else 0.1)),
                       "trackset": "CM", "tss_dist": 1000, "atac_peak": base, "rna_mean50kb": 1, "rna_max50kb": 1, "rna_prox2kb": 1}
             scale = 0.5 if g == "dynamic" else 1.0
 
@@ -65,6 +65,7 @@ def simulate(folder):
                 for r in range(3):
                     rows_t.append(row(f"ctrl@{o:+d}", "ctrl", o, "", r, 0.99, base))
                     rows_t.append(row(f"move@{o:+d}", "move", o, "", r, 0.6, base * 1.2))
+                    rows_t.append(row(f"ctrlmove@{o:+d}", "ctrlmove", o, "", r, 0.55, base * 0.98))
     pd.DataFrame(rows_s).to_csv(folder / "scan_cm_chunk0.csv", index=False)
     pd.DataFrame(rows_t).to_csv(folder / "titrate_cm_chunk0.csv", index=False)
 
@@ -79,12 +80,24 @@ else:
 (OUT / "figures").mkdir(parents=True, exist_ok=True)
 
 
-def load(prefix):
+def load(prefix, require_core=False):
     fs = sorted(glob.glob(str(RES / f"{prefix}_chunk*.csv")))
     if not fs:
         raise SystemExit(f"no {prefix}_chunk*.csv in {RES}")
     d = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)
-    return d[d.trackset == "CM"]
+    d = d[d.trackset == "CM"]
+    n = d.groupby("site_id").size()
+    short = n[n < 0.9 * n.median()]
+    if len(short):
+        print(f"WARNING {prefix}: {len(short)} sites have fewer rows than expected (median {int(n.median())}); dropped as incomplete")
+        d = d[~d.site_id.isin(short.index)]
+    cf = d.drop_duplicates("site_id").groupby("group").core_found.mean()
+    print(f"{prefix}: sites per group {d.drop_duplicates('site_id').group.value_counts().to_dict()}; share with an exact TGA[C/G]TCA core: {cf.round(3).to_dict()}")
+    pd.DataFrame({"share_with_exact_core": cf}).to_csv(OUT / "tables" / f"{prefix}_core_found_by_group.csv")
+    if require_core:
+        d = d[d.core_found]
+        print(f"{prefix}: kept {d.site_id.nunique()} sites with an exact core")
+    return d
 
 
 def effects(d, col):
@@ -122,8 +135,8 @@ for ax, (rd, col) in zip(axes, RDS.items()):
         med, ps = x.median(), x.median().index.values
         lo = x.apply(lambda v: boot(v.values)[0]).values
         hi = x.apply(lambda v: boot(v.values)[1]).values
-        ax.plot(ps + 5, med.values, color=c, lw=1.8, label=lab)
-        ax.fill_between(ps + 5, lo, hi, color=c, alpha=0.15, lw=0)
+        ax.plot(ps + 4.5, med.values, color=c, lw=1.8, label=lab)
+        ax.fill_between(ps + 4.5, lo, hi, color=c, alpha=0.15, lw=0)
         tile_rows += [{"readout": rd, "group": g, "tile_centre": int(p_) + 5, "median_effect": m_} for p_, m_ in zip(ps, med.values)]
     ax.axvspan(-5.5, 5.5, color=GRID, alpha=0.6, lw=0)
     ax.set_xlabel("Centre of the replaced 10 bp tile, relative to the motif midpoint (bp)")
@@ -153,6 +166,8 @@ for k, (g, lab, c) in enumerate(GROUPS):
     v = conc[conc.group == g].motif_share.values
     ax.boxplot(v, positions=[k], widths=0.5, showfliers=False, patch_artist=True, boxprops={"facecolor": c, "alpha": 0.5}, medianprops={"color": INK})
 ax.set_xticks(range(3), [g[1] for g in GROUPS], rotation=15, fontsize=8)
+ax.axhline(11 / 61, color=MUTED, lw=0.9, ls=":")
+ax.text(2.45, 11 / 61 + 0.01, "no-structure level 11/61", fontsize=7.5, color=MUTED, ha="right")
 ax.set_ylabel("Share of the ±30 bp importance that lies in the 11 bp motif")
 ax.set_title("How concentrated is the importance?", fontsize=10, loc="left")
 fig.tight_layout()
@@ -166,7 +181,7 @@ pd.DataFrame(rows).to_csv(OUT / "tables" / "motif_importance_share.csv", index=F
 ism.to_csv(OUT / "tables" / "saturation_importance_by_position.csv", index=False)
 
 # ============================================================ titrate
-tt = load("titrate_cm")
+tt = load("titrate_cm", require_core=True)           # AP-1 titration only makes sense where the site has an AP-1 core
 fig, axes = plt.subplots(1, 3, figsize=(14.5, 4.1), gridspec_kw={"width_ratios": [1.1, 1, 1]})
 ax = axes[0]
 cols = {"motif": "atac_motif", "170 bp": "atac_170"}
@@ -205,23 +220,48 @@ for g, lab, c in GROUPS:
     xs, ys = [], []
     for o in (-150, -80, -40, -20, 20, 40, 80, 150):
         d = e170[e170.group == g]
-        for kind in ("dup", "move"):
+        for kind, ctrl in (("dup", "ctrl"), ("move", "ctrlmove")):
             a = d[d.condition == f"{kind}@{o:+d}"].set_index("site_id").eff
-            b = d[d.condition == f"ctrl@{o:+d}"].set_index("site_id").eff
+            b = d[d.condition == f"{ctrl}@{o:+d}"].set_index("site_id").eff
             net = (a - b).dropna()
             rel_rows.append({"group": g, "kind": kind, "offset": o, "n_sites": len(net), "median_net_effect_170": net.median()})
     r = pd.DataFrame(rel_rows)
     for kind, ls in (("dup", "-"), ("move", "--")):
         s = r[(r.group == g) & (r.kind == kind)].sort_values("offset")
-        ax.plot(s.offset, s.median_net_effect_170, ls, color=c, marker="o", ms=4, lw=1.5, label=f"{lab}: {'duplicate' if kind == 'dup' else 'move'}" if True else None)
+        ax.plot(s.offset, s.median_net_effect_170, ls, color=c, marker="o", ms=4, lw=1.5, label=f"{lab}: {'duplicate' if kind == 'dup' else 'move'}")
 ax.axhline(0, color=MUTED, lw=0.8)
 ax.set_xlabel("Offset of the inserted motif copy from the original (bp)")
-ax.set_ylabel("Net effect on the 170 bp readout, minus the shuffled control (log2FC)")
+ax.set_ylabel("Net effect on the 170 bp readout vs its shuffled control (log2FC)")
 ax.set_title("Moving or duplicating the motif", fontsize=10, loc="left")
 ax.legend(frameon=False, fontsize=7)
 fig.tight_layout()
 fig.savefig(OUT / "figures" / "t1_titration.png", bbox_inches="tight")
 plt.close(fig)
+# accessibility at the inserted copy itself (11 bp at the offset), dup vs ctrl and move vs ctrlmove; offsets beyond +-80 lie outside the 170 bp readout
+fig, axes = plt.subplots(1, 2, figsize=(11, 3.9), sharey=True)
+tg_rows = []
+natv = tt[tt.condition == "native"].set_index("site_id")["atac_170"]
+pct = 0.05 * natv.median()
+for ax, (kind, ctrl, ttl) in zip(axes, (("dup", "ctrl", "Duplicate the motif"), ("move", "ctrlmove", "Move the motif"))):
+    for g, lab, c in GROUPS:
+        ys, xs = [], []
+        for o in (-150, -80, -40, -20, 20, 40, 80, 150):
+            dd = tt[(tt.group == g)]
+            a = dd[dd.condition == f"{kind}@{o:+d}"].groupby("site_id").atac_target.mean()
+            b = dd[dd.condition == f"{ctrl}@{o:+d}"].groupby("site_id").atac_target.mean()
+            r = np.log2((a + pct) / (b + pct)).dropna()
+            xs.append(o); ys.append(r.median())
+            tg_rows.append({"group": g, "kind": kind, "offset": o, "n_sites": len(r), "median_log2_target_gain": r.median()})
+        ax.plot(xs, ys, color=c, marker="o", ms=4, lw=1.5, label=lab)
+    ax.axhline(0, color=MUTED, lw=0.8)
+    ax.set_xlabel("Offset of the inserted motif copy (bp)")
+    ax.set_title(ttl + ": accessibility at the copy vs a shuffled 11-mer", fontsize=9.5, loc="left")
+axes[0].set_ylabel("Median log2 gain over the 11 bp at the offset")
+axes[0].legend(frameon=False, fontsize=8)
+fig.tight_layout()
+fig.savefig(OUT / "figures" / "t2_target_accessibility.png", bbox_inches="tight")
+plt.close(fig)
+pd.DataFrame(tg_rows).to_csv(OUT / "tables" / "motif_copy_target_accessibility.csv", index=False)
 pd.DataFrame(dose_rows).to_csv(OUT / "tables" / "core_dose_response.csv", index=False)
 pd.DataFrame(rel_rows).drop_duplicates().to_csv(OUT / "tables" / "motif_relocation.csv", index=False)
 

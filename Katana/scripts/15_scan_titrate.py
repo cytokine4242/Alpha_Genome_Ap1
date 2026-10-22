@@ -7,13 +7,14 @@ Question: what is different about the sequence neighbourhood of Dynamic sites, a
       saturation mutagenesis: each of the 3 alternative bases at every position from -30 to +30 bp (61 x 3 = 183 passes)     -> 364 passes per site
 
   --experiment titrate   how does accessibility respond to AP-1 motif strength and position?  (7 bp core = TGA[C/G]TCA, or the central 7 bp if the 11 bp motif holds no exact core)
-      core_mm1..core_mm7  1 to 7 of the 7 core bases replaced (5 random draws each; 3 for 7)                  strength: weakening
+      core_mm1..core_mm7  1 to 7 of the 7 core bases replaced (5 random draws each; 3 for 7), redrawn until the core is no longer a perfect TGA[C/G]TCA   strength: weakening
       core_consensus      core set to the TRE consensus TGAGTCA                                              strength: upgrade to consensus (skipped if already identical)
       core_rc             core replaced by its reverse complement                                             orientation / strand symmetry
       core_halfsite       first half-site TGA[C/G] kept, last 3 core bases replaced (3 draws)                 half-site only
       dup@o               a second copy of the 11 bp motif written at offset o = -150,-80,-40,-20,+20,+40,+80,+150 (original kept)
-      ctrl@o              a composition-matched shuffled 11-mer written at the same offset (3 draws)        control for overwriting the local sequence
-      move@o              motif copied to offset o AND the original 11 bp replaced by a shuffled 11-mer (3 draws)   -> 95 passes per site
+      ctrl@o              a composition-matched shuffled 11-mer written at the same offset (3 draws)        control for dup: overwriting the local sequence
+      move@o              motif copied to offset o AND the original 11 bp replaced by a shuffled 11-mer (3 draws)
+      ctrlmove@o          shuffled 11-mers at BOTH the offset and the original position (3 draws)           control for move   -> 118 passes per site
 
 Readouts as in 11_perturb_sites.py (ATAC over the motif, the 170 bp and the peak; RNA) from one forward pass per edit, plus atac_target = mean ATAC over the 11 bp at the
 offset for dup/ctrl/move. Output is long format (site x condition x replicate x trackset); log2FC against the native row is computed afterwards.
@@ -48,11 +49,13 @@ def _mutate(codes, idx, rng):
     return out
 
 
-def _clean_shuffle(motif, rng, tries=100):
-    """A composition-matched permutation of the motif that differs from it and holds no AP-1 half-site."""
+def _clean_shuffle(motif, rng, left=None, right=None, tries=100):
+    """A composition-matched permutation of the motif that differs from it and holds no AP-1 half-site, also not across the junction with the 3 flanking bases each side."""
+    left = np.array([], dtype=np.uint8) if left is None else left
+    right = np.array([], dtype=np.uint8) if right is None else right
     for _ in range(tries):
         s = rng.permutation(motif)
-        txt = L.decode(s)
+        txt = L.decode(np.concatenate([left, s, right]))
         if (s != motif).any() and not any(h in txt for h in L.HALF_SITES):
             return s
     return rng.permutation(motif)
@@ -88,7 +91,11 @@ def titrate_conditions(codes, reg, rng):
     out = []
     for k in range(1, 8):
         for r in range(5 if k < 7 else 3):
-            out.append((f"core_mm{k}", "core_mm", k, "", r, _mutate(codes, c0 + rng.choice(7, size=k, replace=False), rng), None))
+            for _ in range(100):               # position 4 of the core is degenerate (C/G): redraw until the edited core is no longer a perfect TGA[C/G]TCA
+                e = _mutate(codes, c0 + rng.choice(7, size=k, replace=False), rng)
+                if not L.CORE_RE.search(L.decode(e[c0:c1])):
+                    break
+            out.append((f"core_mm{k}", "core_mm", k, "", r, e, None))
     cons = L.encode(CONSENSUS)
     if (codes[c0:c1] != cons).any():
         e = codes.copy()
@@ -109,15 +116,22 @@ def titrate_conditions(codes, reg, rng):
         e = codes.copy()
         e[t0:t1] = motif
         out.append((f"dup@{o:+d}", "dup", o, "", 0, e, (t0, t1)))
-        for r in range(3):
+        lt, rt = codes[max(t0 - 3, 0):t0], codes[t1:t1 + 3]
+        lm, rm = codes[m0 - 3:m0], codes[m1:m1 + 3]
+        for r in range(3):                       # control for dup: a shuffled 11-mer at the target, original motif kept
             e = codes.copy()
-            e[t0:t1] = _clean_shuffle(motif, rng)
+            e[t0:t1] = _clean_shuffle(motif, rng, lt, rt)
             out.append((f"ctrl@{o:+d}", "ctrl", o, "", r, e, (t0, t1)))
-        for r in range(3):
+        for r in range(3):                       # move: motif at the target, original replaced by a shuffled 11-mer
             e = codes.copy()
             e[t0:t1] = motif
-            e[m0:m1] = _clean_shuffle(motif, rng)
+            e[m0:m1] = _clean_shuffle(motif, rng, lm, rm)
             out.append((f"move@{o:+d}", "move", o, "", r, e, (t0, t1)))
+        for r in range(3):                       # control for move: shuffled 11-mers at BOTH the target and the original position
+            e = codes.copy()
+            e[t0:t1] = _clean_shuffle(motif, rng, lt, rt)
+            e[m0:m1] = _clean_shuffle(motif, rng, lm, rm)
+            out.append((f"ctrlmove@{o:+d}", "ctrlmove", o, "", r, e, (t0, t1)))
     return out, found
 
 
@@ -148,7 +162,7 @@ def selftest():
     for name, kind, pos, alt, rep, e, tgt in tt:
         d = np.flatnonzero(e != codes)
         if kind == "core_mm":
-            assert len(d) == pos and ((d >= c0) & (d < c1)).all(), name
+            assert len(d) == pos and ((d >= c0) & (d < c1)).all() and not L.CORE_RE.search(L.decode(e[c0:c1])), name
         elif kind == "core_halfsite":
             assert len(d) == 3 and ((d >= c0 + 4) & (d < c1)).all(), name
         elif kind == "core_rc":
@@ -156,16 +170,20 @@ def selftest():
         elif kind == "dup":
             t0, t1 = tgt
             assert (e[t0:t1] == codes[m0:m1]).all() and (e[m0:m1] == codes[m0:m1]).all() and set(d) <= set(range(t0, t1)), name
+        elif kind == "ctrlmove":
+            t0, t1 = tgt
+            assert sorted(e[t0:t1]) == sorted(codes[m0:m1]) and sorted(e[m0:m1]) == sorted(codes[m0:m1]) and (e[m0:m1] != codes[m0:m1]).any(), name
+            assert not any(h in L.decode(e[t0 - 3:t1 + 3]) for h in L.HALF_SITES) and not any(h in L.decode(e[m0 - 3:m1 + 3]) for h in L.HALF_SITES), name
         elif kind == "ctrl":
             t0, t1 = tgt
             assert sorted(e[t0:t1]) == sorted(codes[m0:m1]) and (e[m0:m1] == codes[m0:m1]).all() and set(d) <= set(range(t0, t1)), name
-            assert not any(h in L.decode(e[t0:t1]) for h in L.HALF_SITES), name
+            assert not any(h in L.decode(e[t0 - 3:t1 + 3]) for h in L.HALF_SITES), name
         elif kind == "move":
             t0, t1 = tgt
             assert (e[t0:t1] == codes[m0:m1]).all() and sorted(e[m0:m1]) == sorted(codes[m0:m1]) and (e[m0:m1] != codes[m0:m1]).any(), name
             assert set(d) <= set(range(m0, m1)) | set(range(t0, t1)), name
     assert "core_consensus" not in names                                # the planted core is already the consensus
-    assert sum(n.startswith("dup@") for n in names) == len(OFFSETS) and sum(n.startswith("move@") for n in names) == 3 * len(OFFSETS)
+    assert sum(n.startswith("dup@") for n in names) == len(OFFSETS) and sum(n.startswith("move@") for n in names) == 3 * len(OFFSETS) and sum(n.startswith("ctrlmove@") for n in names) == 3 * len(OFFSETS)
     # a site whose core is not the consensus gets an upgrade condition
     codes2 = codes.copy()
     codes2[c0:c1] = L.encode("TGACGCA")
