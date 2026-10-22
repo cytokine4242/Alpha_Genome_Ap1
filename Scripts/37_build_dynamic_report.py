@@ -14,7 +14,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 AN = ROOT / "Analysis"
 DY, DPR, ST = AN / "dynamic", AN / "dynamic_profiles", AN / "scan_titrate"
-SVC = AN / "stable_vs_changing"
+SVC, MH = AN / "stable_vs_changing", AN / "motif_heatmap"
 PT, SCL, DR, CX, DEP, HYP = AN / "partners", AN / "score_classes", AN / "distance_rules", AN / "class_context", AN / "dependence", AN / "hypotheses"
 
 IMGS: dict[int, Path] = {}
@@ -126,6 +126,17 @@ def register_table():
 
 
 SVCR = pd.read_csv(SVC / "tables" / "stable_vs_changing.csv")
+MHT = pd.read_csv(MH / "tables" / "top5_each_direction.csv")
+MHA = pd.read_csv(MH / "tables" / "importance_by_class.csv").set_index("family")
+
+
+def top5(contrast, direction, n=5):
+    w = MHT[(MHT.contrast == contrast) & (MHT.direction == direction)].head(n)
+    return ", ".join(f"<b>{r.family.split(' (')[0]}</b> ({r.difference:+.2f}, n = {int(r.n_first)}/{int(r.n_second)}{', p = %.3f' % r.p if r.p < 0.05 else ''})" for r in w.itertuples())
+
+
+TH_C, AU_C, AD_C = "Dynamic vs\nStable (thr.)", "Age Up vs\nUnchanged (\u0394)", "Age Down vs\nUnchanged (\u0394)"
+MORE, LESS = "more important in the first class", "more important in the second class"
 sv = lambda c, m: SVCR[(SVCR.contrast == c) & (SVCR.measure == m)].iloc[0]
 TH, CH, AU, AD = "Threshold: Dynamic vs Stable", "\u0394score: Changing vs Steady", "\u0394score: Age Up vs Unchanged", "\u0394score: Age Down vs Unchanged"
 nyes = lambda c: int((SVCR[SVCR.contrast == c].detects == "YES").sum())
@@ -280,6 +291,22 @@ sec("spacing", "Spacing: is there a rule, and is there helical phasing?", "mid",
             "Power spectrum of the detrended 1 bp distance histogram. Shaded: the 9.5&ndash;11.5 bp helical band. Dotted: the 95th percentile of nulls made by jittering each distance by up to &plusmn;7 bp.")
       + "</details>"
     + bio("The partners cluster just outside the AP-1 motif, with a mode around 13&ndash;16 bp between centres, and they lose influence as they move away. That is what cooperative binding on nearby DNA looks like. What is missing is the signature of a fixed protein-protein interface: no 10&ndash;11 bp repeat, so no evidence that AP-1 and MEF2 must sit on the same face of the helix. Read together, these AP-1 sites look like members of a compact cardiac enhancer module built by local co-occupancy rather than by a rigid composite element."))
+
+sec("motifmap", "Which motifs the shuffle screen marks as important, per class", "inc",
+    f"Exploratory: the top five each way are listed whether or not they reach significance, and most per-class cells hold {int(MHT.n_first.median())}&ndash;{int(MHT.n_second.median())} sites.",
+    U("The heatmap below has two halves. Left: how important each factor is within each class, measured against that site's own footprint-free tiles, so a class that loses less overall is not penalised. Right: the difference between classes, with the top five in each direction boxed.",
+      f"<b>The ranking itself is the same in every class.</b> MEF2, NFI, GATA, TEAD and CTCF head the list whether the sites are Dynamic, Stable, age-gained or age-lost. The class differences are rearrangements within that ranking, not a different cast of factors.",
+      f"<b>Dynamic vs Stable (threshold), more important at Dynamic sites:</b> {top5(TH_C, MORE)}.",
+      f"<b>&hellip; and more important at Stable sites:</b> {top5(TH_C, LESS)}.",
+      f"<b>Age Up (&Delta;score) vs Unchanged, more important at age-gained sites:</b> {top5(AU_C, MORE)}.",
+      f"<b>&hellip; and more important at Unchanged sites:</b> {top5(AU_C, LESS)}.",
+      f"<b>Age Down (&Delta;score) vs Unchanged, more important at age-lost sites:</b> {top5(AD_C, MORE)}.",
+      f"<b>&hellip; and more important at Unchanged sites:</b> {top5(AD_C, LESS)}.",
+      "<b>Two patterns are worth noticing, both unconfirmed.</b> CTCF is the largest single difference anywhere in the table and runs the same way in both Stable comparisons (&minus;0.49 and &minus;0.52), so architectural factors may matter more at Dynamic sites. And MEF2 moves in opposite directions for the two age classes (+0.27 at Age Up, &minus;0.11 at Age Down), the same split already seen in MEF2 presence, distance and motif strength.",
+      "Treat the individual cells as leads. Only CTCF against high-accessibility Stable survives correction; everything else here is a ranking, not a result."),
+    fig(MH / "figures" / "x1_motif_importance_heatmap.png", "Motif importance by class, and the top five each way",
+        "Left: median importance of each factor within each class (negative = replacing a tile over that factor's footprint closes the site). Right: the difference between classes, boxed where a family is in the top five in either direction. Blank cells have fewer than 8 sites.")
+    + bio("Whatever makes a site responsive, it is not a switch to a different set of partners. The same cardiac factors matter in every class and in the same order; what shifts is how much weight a few of them carry. The CTCF signal at Dynamic sites and the opposite MEF2 behaviour of the two age classes are the two leads worth following when the full scan finishes."))
 
 sec("answer", "The central question: does anything separate stable from changing?", "ok",
     f"One panel of 16 measures, four contrasts, identical matching on predicted accessibility, peak width, TSS distance and measured accessibility (balance within {SVCR.balance_sd.max():.3f} SD); BH-corrected within each contrast.",
