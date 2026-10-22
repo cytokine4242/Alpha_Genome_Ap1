@@ -1,0 +1,9 @@
+matching,mutation,n_pairs,mean_diff,p
+predicted context only (4 variables),shuffle motif,692,-0.10345207857700836,0.0032827144593402346
+predicted context only (4 variables),replace motif,692,-0.12851292123061855,0.004337649093643935
+predicted context only (4 variables),dinucleotide-shuffle motif,692,-0.09223046883885362,0.0024160745525766483
+predicted context only (4 variables),centred shuffle of 7 bp,692,-0.12028505404478726,0.0005035675517701606
++ measured accessibility (5 variables),shuffle motif,472,-0.05137153148297997,0.21842468736073228
++ measured accessibility (5 variables),replace motif,472,-0.05982697790413801,0.16485974543121396
++ measured accessibility (5 variables),dinucleotide-shuffle motif,472,-0.05809325581658752,0.1859003268138526
++ measured accessibility (5 variables),centred shuffle of 7 bp,472,-0.07530286300620055,0.10597027896904032

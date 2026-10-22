@@ -14,7 +14,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 AN = ROOT / "Analysis"
 DY, DPR, ST = AN / "dynamic", AN / "dynamic_profiles", AN / "scan_titrate"
-PT, SCL, DR, CX, DEP = AN / "partners", AN / "score_classes", AN / "distance_rules", AN / "class_context", AN / "dependence"
+PT, SCL, DR, CX, DEP, HYP = AN / "partners", AN / "score_classes", AN / "distance_rules", AN / "class_context", AN / "dependence", AN / "hypotheses"
 
 IMGS: dict[int, Path] = {}
 
@@ -44,7 +44,8 @@ def U(*items):
 
 
 def badge(kind):
-    lab = {"ok": "&#10003; High confidence", "mid": "~ Moderate confidence", "inc": "? Inconclusive"}[kind]
+    lab = {"ok": "&#10003; High confidence", "mid": "~ Moderate confidence", "inc": "? Inconclusive",
+           "yes": "&#10003; Supported", "no": "&ndash; Not supported", "bad": "&#10007; Contradicted", "ret": "&#10007; Retracted"}[kind]
     return f'<span class="badge {kind}">{lab}</span>'
 
 
@@ -107,6 +108,20 @@ SHP = pd.read_csv(DEP / "tables" / "b_dependence_shape_by_class.csv")
 cx = lambda c, m: CXA[(CXA.comparison == c) & (CXA.measure == m)].iloc[0]
 sq = lambda c, m: SEQ[(SEQ.comparison == c) & (SEQ.measure == m)].iloc[0]
 sh = lambda c, m: SHP[(SHP.comparison == c) & (SHP.measure == m)].iloc[0]
+
+
+HREG = pd.read_csv(HYP / "tables" / "hypothesis_register.csv").set_index("id")
+HCC = pd.read_csv(HYP / "tables" / "h4b_concordance_summary.csv").set_index("family")
+H8T = pd.read_csv(HYP / "tables" / "h8_measured_accessibility_matching.csv")
+VCOL = {"SUPPORTED": "yes", "NOT SUPPORTED": "no", "CONTRADICTED": "bad", "RETRACTED": "ret"}
+
+
+def register_table():
+    rows = []
+    for i, r in HREG.iterrows():
+        rows.append(f"<tr><td><b>{i}</b></td><td>{badge(VCOL.get(r.verdict, 'inc'))}</td><td>{html.escape(r.hypothesis)}</td>"
+                    f"<td>n = {int(r.n):,}</td><td>{html.escape(str(r.result))}</td></tr>")
+    return ("<table class='t reg'><tr><th>ID</th><th>Verdict</th><th>Hypothesis</th><th>n</th><th>Result</th></tr>" + "".join(rows) + "</table>")
 
 
 # ---------------------------------------------------------------- sections
@@ -256,6 +271,19 @@ sec("spacing", "Spacing: is there a rule, and is there helical phasing?", "mid",
       + "</details>"
     + bio("The partners cluster just outside the AP-1 motif, with a mode around 13&ndash;16 bp between centres, and they lose influence as they move away. That is what cooperative binding on nearby DNA looks like. What is missing is the signature of a fixed protein-protein interface: no 10&ndash;11 bp repeat, so no evidence that AP-1 and MEF2 must sit on the same face of the helix. Read together, these AP-1 sites look like members of a compact cardiac enhancer module built by local co-occupancy rather than by a rigid composite element."))
 
+sec("register", "Hypothesis register: everything tested, including what failed", "ok",
+    "Eleven stated hypotheses, each with a matched test and a verdict recorded whether or not it held; two were overturned by their own controls.",
+    U(f"{int((HREG.verdict == 'SUPPORTED').sum())} supported, {int((HREG.verdict == 'NOT SUPPORTED').sum())} not supported, 1 contradicted (the effect ran the other way) and 1 retracted after its control failed. Every comparison uses 1:1 matching on predicted accessibility at the motif and peak, peak width, TSS distance and measured accessibility unless stated.",
+    f"<b>The firmest result is sequence-based.</b> Age-gained sites carry an exact TGA[C/G]TCA core {HREG.loc['H1', 'result'].split('%')[0]}% of the time against {HREG.loc['H1', 'result'].split('vs ')[1].split('%')[0]}% for matched controls (H1) &mdash; now across all 3,679 sites rather than the 78 scanned ones, and it survives matching on measured accessibility. Age-lost sites show nothing (H1b), and the threshold classes show nothing (H2).",
+    "<b>Two hypotheses were killed by their own controls, and both had looked convincing.</b> AP-1 and a neighbouring MEF2 footprint appear strongly co-regulated across conditions (odds ratio 36) &mdash; but every other family in the peak agrees with AP-1 just as often, so it is peak-level signal, not co-regulation (H4 retracted by H4b). And the extra motif sensitivity of age-gained sites disappears once measured accessibility is matched as well as predicted (H8).",
+    "<b>A control worth having:</b> the model's motif dependence tracks core quality closely (H6), and the sites that shrug off losing their motif are largely those without a perfect core (H9) &mdash; 53% of imperfect-core sites are non-responders against 21% of perfect-core sites. That gives the earlier 29% non-responder figure a concrete sequence explanation."),
+    register_table()
+    + fig(HYP / "figures" / "v2_register_and_controls.png", "Hypothesis register and the two controls that changed a verdict",
+          "Left: every hypothesis and its verdict. Middle (H4b): how often each neighbouring family shares AP-1's three-condition binding pattern &mdash; MEF2 is not special. Right (H8): the Age Up motif effect with predicted context matched, and after matching measured accessibility too.")
+    + fig(HYP / "figures" / "v1_hypotheses.png", "Core quality by class, and what the model sees",
+          "Left: share with an exact core by class, against matched controls. Middle: the model's motif dependence by number of core mismatches. Right: whether core quality carries the Age Up effect.")
+    + bio("Core quality is the one sequence feature that separates a class, and only for sites GAINING AP-1 binding with age. Everything else tested here &mdash; worse cores at Dynamic sites, homotypic AP-1 clustering, MEF2 co-regulation, partner occupancy &mdash; either failed or turned out to be a property of the peak rather than of the site. The matching caveat cuts both ways: measured accessibility is partly a consequence of the binding change being studied, so H8 may be over-adjustment rather than refutation, which is why the sequence result (H1) carries the weight."))
+
 sec("context", "Is the neighbourhood of a Dynamic site different?", "mid",
     "Matched pairs on predicted context AND measured accessibility, 439 pairs, so footprint detection is matched by construction; the sequence scan is independent of detection altogether.",
     U("Earlier I reported that the partner deficit at Dynamic sites was a detection artefact. That test used 110 scanned sites split into accessibility quartiles, with as few as 12 sites per cell. <b>It was underpowered, and the conclusion was wrong.</b> Repeating it with 439 pairs matched on predicted accessibility, peak accessibility, peak width, TSS distance <i>and measured accessibility</i> (balance within 0.06 SD):",
@@ -340,7 +368,8 @@ div.bio{border-left:4px solid var(--green);background:var(--panel);padding:10px 
 div.bio strong:first-child{color:var(--green)}
 .conf{margin:6px 0 10px;font-size:.92rem;display:flex;gap:8px;align-items:baseline;max-width:80ch}.conf .badge{flex:none;margin-right:0}
 .badge{display:inline-block;font-size:.78rem;font-weight:600;border-radius:99px;padding:1px 9px;border:1.5px solid currentColor;white-space:nowrap;margin-right:6px}
-.ok{color:var(--green)}.mid{color:var(--amber)}.inc{color:var(--grey)}
+.ok,.yes{color:var(--green)}.mid{color:var(--amber)}.inc,.no{color:var(--grey)}.bad,.ret{color:#b3261e}
+table.t.reg td{white-space:normal;vertical-align:top;text-align:left}table.t.reg td:nth-child(3){min-width:240px}table.t.reg td:nth-child(5){min-width:320px}
 ul.pts{margin:6px 0 10px;padding-left:20px}ul.pts li{margin:5px 0}
 .toc{font-size:.92rem;margin:8px 0}.toc ul{margin:0;padding-left:18px}.toc a{text-decoration:none}
 details{margin:10px 0}summary{cursor:pointer;color:var(--ink2)}code{background:var(--panel);padding:1px 5px;border-radius:4px;font-size:.88em}"""
