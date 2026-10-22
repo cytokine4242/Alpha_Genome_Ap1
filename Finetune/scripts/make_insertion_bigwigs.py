@@ -9,7 +9,8 @@ insertions are the fragment ends themselves: start and end - 1 (0-based), i.e. -
 Both strands are summed.
 Several samples can be pooled (a fragment file plus a file of the cell barcodes to keep for that sample, one barcode per line), so replicates of a condition are merged
 and barcode collisions between samples cannot happen. BARCODES may be several files joined by commas (for example the _F and _M lists of one library);
-a 'CB:Z:' prefix (as in lists taken from BAM tags) is removed so they match the fragment file. Positions without an insertion are written as explicit zeros. Values are scaled so the genome-wide total equals --target-total (default 1e9) to make conditions comparable;
+a 'CB:Z:' prefix (as in lists taken from BAM tags) is removed so they match the fragment file. BARCODES = all keeps every fragment (for files already
+restricted to one cell type, e.g. the merged ArchR exports checked by check_fragments.py). Positions without an insertion are written as explicit zeros. Values are scaled so the genome-wide total equals --target-total (default 1e9) to make conditions comparable;
 the fine-tuning code divides by per-track means anyway, so any constant works as long as every track uses the same one.
 
   python make_insertion_bigwigs.py --chrom-sizes mm10.chrom.sizes --out Cardiomyocyte_YS.insertions.bw \\
@@ -42,11 +43,11 @@ def read_sizes(path, canonical_only=True):
 def collect_cuts(samples, sizes, offsets, chunksize):
     cuts, n_read, n_kept = defaultdict(list), 0, 0
     for frag, bc in samples:
-        barcodes = {b[5:] if b.startswith("CB:Z:") else b for f in bc.split(",") for b in Path(f).read_text().split()}
+        barcodes = None if bc == "all" else {b[5:] if b.startswith("CB:Z:") else b for f in bc.split(",") for b in Path(f).read_text().split()}
         reader = pd.read_csv(frag, sep="\t", header=None, comment="#", usecols=[0, 1, 2, 3], names=["chrom", "start", "end", "bc"], dtype={"chrom": str, "start": np.int64, "end": np.int64, "bc": str}, chunksize=chunksize)
         for ch in reader:
             n_read += len(ch)
-            ch = ch[ch.bc.isin(barcodes) & ch.chrom.isin(sizes)]
+            ch = ch[(ch.bc.isin(barcodes) if barcodes is not None else True) & ch.chrom.isin(sizes)]
             n_kept += len(ch)
             for chrom, g in ch.groupby("chrom"):
                 cuts[chrom].append((g.start.values + offsets[0]).astype(np.int64))

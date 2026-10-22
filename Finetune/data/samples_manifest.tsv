@@ -1,5 +1,12 @@
 cell	condition	fragments	barcodes
-# One row per library (sample) of a condition. fragments = that library's fragments.tsv.gz; barcodes = the barcode lists of that cell type in that library, joined by commas
-# (on Gadi each library has an _F and an _M list, e.g. cellID_Cardiomyocyte_YS1_4_F.txt,cellID_Cardiomyocyte_YS1_4_M.txt; 'CB:Z:' prefixes are removed automatically).
-# Rows with the same cell + condition are pooled. Example (remove the leading '# ' and fix the paths):
-# Cardiomyocyte	YS	/path/to/YS1_4/fragments.tsv.gz	/path/cellID_Cardiomyocyte_YS1_4_F.txt,/path/cellID_Cardiomyocyte_YS1_4_M.txt
+# One row per fragment file of a cell type and condition; rows with the same cell + condition are pooled. barcodes = comma-joined barcode lists, or 'all'.
+# These are the merged per-cell-type ArchR exports from Gadi (analysis/2025-02-13.ChromaFold), copied to Katana and checked with check_fragments.py on 2026-10-23:
+# every cell is labelled the right cell type in Cell_barccodes.csv, each file holds the two libraries of its condition, and per-peak signal matches the 10 bp bigWigs (rho 0.993-0.996).
+Cardiomyocyte	YS	/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/fragments/CM_YS_merged_fragments_bgz_sorted.tsv.gz	all
+Cardiomyocyte	MAS	/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/fragments/Cardiomyocyte_MAS_merged_fragments_bgz_sorted.tsv.gz	all
+Cardiomyocyte	MAE	/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/fragments/Cardiomyocyte_MAE_merged_fragments_bgz_sorted.tsv.gz	all
+Cardiomyocyte	YE	/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/fragments/Cardiomyocyte_YE_merged_fragments_bgz_sorted.tsv.gz	all
+Fibroblast	YS	/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/fragments/Fibroblast_YS_merged_fragments_bgz_sorted.tsv.gz	all
+Fibroblast	MAS	/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/fragments/Fibroblast_MAS_merged_fragments_bgz_sorted.tsv.gz	all
+Fibroblast	MAE	/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/fragments/Fibroblast_MAE_merged_fragments_bgz_sorted.tsv.gz	all
+Fibroblast	YE	/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/fragments/Fibroblast_YE_merged_fragments_bgz_sorted.tsv.gz	all

@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -N ft_check_tn5
+#PBS -l select=1:ncpus=2:mem=16gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+# Array job, one task per merged fragment file: are the fragment ends already Tn5-shifted? qsub -J 0-7 pbs/check_tn5_offset.pbs   (see submit.sh check_tn5)
+cd $PBS_O_WORKDIR
+source ../Katana/pbs/queue_wait.sh 2>/dev/null   # queue wait and run time -> /srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv
+source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
+FT=/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data
+I=${PBS_ARRAY_INDEX:-0}
+CELLS=(Cardiomyocyte Cardiomyocyte Cardiomyocyte Cardiomyocyte Fibroblast Fibroblast Fibroblast Fibroblast)
+CONDS=(YS MAS MAE YE YS MAS MAE YE)
+FILES=(CM_YS Cardiomyocyte_MAS Cardiomyocyte_MAE Cardiomyocyte_YE Fibroblast_YS Fibroblast_MAS Fibroblast_MAE Fibroblast_YE)
+SITES=(cm cm cm cm fb fb fb fb)
+python scripts/check_tn5_offset.py --fragments $FT/fragments/${FILES[$I]}_merged_fragments_bgz_sorted.tsv.gz \
+    --sites ../Katana/data/${SITES[$I]}_fos_sites.csv --out $FT/fragments/checks/${CELLS[$I]}_${CONDS[$I]}_tn5
