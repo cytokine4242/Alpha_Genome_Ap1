@@ -19,7 +19,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import fisher_exact, mannwhitneyu
+from scipy.stats import chi2, fisher_exact, mannwhitneyu
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
@@ -316,6 +316,83 @@ print("== H rank agreement between methods (Spearman)\n", corr.round(3).to_strin
 print("== distance profile: share of each family's tiles within 85 bp of the motif\n",
       TPs.groupby("family", observed=True).apply(lambda w: pd.Series({"n": len(w), "share_within_85bp": (w.dist <= 85).mean()})).round(3).sort_values("share_within_85bp", ascending=False).head(12).to_string(),
       "\nall tiles:", round((t.dist <= 85).mean(), 3), " footprint-free tiles:", round((t_free.dist <= 85).mean(), 3))
+
+# ---------------------------------------------------------------- I. class differences with the SITE as the unit (tiles within a site are not independent)
+sc_cls = pd.read_csv(ROOT / "Analysis/score_classes/tables/score_based_classes.csv").set_index("site_id")
+meta2 = meta.join(sc_cls[["age_score_class"]])
+site_fam = TP.groupby(["site_id", "family"], observed=True).adj.median().rename("site_med").reset_index()     # one value per site per family
+site_free = t_free.groupby("site_id").adj.median().rename("free_med")
+site_fam = site_fam.join(site_free, on="site_id").join(meta2[["group", "age_score_class"]], on="site_id")
+site_fam["vs_free"] = site_fam.site_med - site_fam.free_med                                                    # within-site contrast: this factor against that site's footprint-free tiles
+site_fam.to_csv(OUT / "tables" / "i_site_level_family_importance.csv", index=False)
+COMPARISONS = [("Dynamic vs context-matched Stable", "group", "dynamic", "matched_stable"),
+               ("Dynamic vs high-accessibility Stable", "group", "dynamic", "high_stable"),
+               ("Age Up (score) vs Unchanged", "age_score_class", "Age Up (score)", "Unchanged")]
+rows = []
+for lab, col, a_, b_ in COMPARISONS:
+    for fam_, w in site_fam.groupby("family", observed=True):
+        x, y = w[w[col] == a_].vs_free.dropna(), w[w[col] == b_].vs_free.dropna()
+        if min(len(x), len(y)) < 8:
+            continue
+        pooled = np.std(pd.concat([x, y]))
+        rows.append({"comparison": lab, "family": fam_, "n_sites_a": len(x), "n_sites_b": len(y), "median_a": x.median(), "median_b": y.median(),
+                     "difference": x.median() - y.median(), "p": mannwhitneyu(x, y).pvalue,
+                     "min_detectable_diff_80pct": 2.8 * pooled * np.sqrt(1 / len(x) + 1 / len(y))})
+I = pd.DataFrame(rows)
+I["fdr"] = I.groupby("comparison").p.transform(lambda v: bh(v))
+I = I.sort_values(["comparison", "p"])
+I.to_csv(OUT / "tables" / "i_class_differences_site_level.csv", index=False)
+
+# CTCF: what drives the tile-level result?
+ct = site_fam[site_fam.family == "CTCF / cohesin"]
+ctr = []
+for g, lab in (("dynamic", "Dynamic"), ("matched_stable", "Stable, context-matched"), ("high_stable", "Stable, high accessibility")):
+    w = ct[ct.group == g].vs_free.dropna()
+    if len(w):
+        ctr.append({"group": lab, "n_sites": len(w), "median_vs_free": w.median(), "q25": w.quantile(0.25), "q75": w.quantile(0.75),
+                    "share_sites_below_-0.3": (w < -0.3).mean()})
+CT = pd.DataFrame(ctr)
+CT.to_csv(OUT / "tables" / "i_ctcf_site_level.csv", index=False)
+
+# prevalence, stratified by measured accessibility (the same detection confound as the partner count)
+S2 = meta[meta.group.isin(G)].copy()
+S2["measured"] = meas.reindex(S2.index)
+S2["q"] = pd.qcut(S2.measured, 4, labels=["Q1", "Q2", "Q3", "Q4"])
+prv = []
+for fam_ in ("MEF2", "GATA", "TEAD", "NFI (Nfia/b/c/x)", "CTCF / cohesin", "AP-1 (Fos/Jun/Atf/Batf)", "MYC / MAX", "Nuclear receptor (Esrr/Nr/Ppar/Thr)"):
+    has = set(H[(H.family == fam_) & ~H.own_ap1].site_id)
+    S2["has"] = S2.index.isin(has)
+    a_, b_ = S2[S2.group == "dynamic"], S2[S2.group == "matched_stable"]
+    row = {"family": fam_, "share_dynamic": a_.has.mean(), "share_stable": b_.has.mean(),
+           "p_unstratified": fisher_exact([[a_.has.sum(), (~a_.has).sum()], [b_.has.sum(), (~b_.has).sum()]])[1]}
+    tabs = [np.array([[w[w.group == "dynamic"].has.sum(), (~w[w.group == "dynamic"].has).sum()],
+                      [w[w.group == "matched_stable"].has.sum(), (~w[w.group == "matched_stable"].has).sum()]]) for _, w in S2.groupby("q", observed=True)]
+    num = sum(tb[0, 0] * tb[1, 1] / tb.sum() for tb in tabs if tb.sum())          # Mantel-Haenszel, stratified by measured accessibility
+    den = sum(tb[0, 1] * tb[1, 0] / tb.sum() for tb in tabs if tb.sum())
+    row["odds_ratio_stratified"] = num / den if den else np.nan
+    # Mantel-Haenszel chi-square (continuity-corrected) and a site-bootstrap CI for the stratified odds ratio
+    obs = sum(tb[0, 0] for tb in tabs)
+    exp = sum(tb[0].sum() * tb[:, 0].sum() / tb.sum() for tb in tabs if tb.sum())
+    var = sum(tb[0].sum() * tb[1].sum() * tb[:, 0].sum() * tb[:, 1].sum() / (tb.sum() ** 2 * (tb.sum() - 1)) for tb in tabs if tb.sum() > 1)
+    row["p_mantel_haenszel"] = float(chi2.sf(max(abs(obs - exp) - 0.5, 0) ** 2 / var, 1)) if var > 0 else np.nan
+    bs = []
+    for k in range(400):
+        s_ = S2.sample(len(S2), replace=True, random_state=k)
+        tb_ = [np.array([[w[w.group == "dynamic"].has.sum(), (~w[w.group == "dynamic"].has).sum()],
+                         [w[w.group == "matched_stable"].has.sum(), (~w[w.group == "matched_stable"].has).sum()]]) for _, w in s_.groupby("q", observed=True)]
+        n_ = sum(tb[0, 0] * tb[1, 1] / tb.sum() for tb in tb_ if tb.sum())
+        d_ = sum(tb[0, 1] * tb[1, 0] / tb.sum() for tb in tb_ if tb.sum())
+        if d_:
+            bs.append(n_ / d_)
+    row["or_ci_lo"], row["or_ci_hi"] = np.percentile(bs, [2.5, 97.5]) if len(bs) > 50 else (np.nan, np.nan)
+    prv.append(row)
+PRV = pd.DataFrame(prv)
+PRV["fdr_unstratified"], PRV["fdr_stratified"] = bh(PRV.p_unstratified), bh(PRV.p_mantel_haenszel)
+PRV.to_csv(OUT / "tables" / "i_prevalence_stratified.csv", index=False)
+
+print("== I class differences, site as the unit\n", I.round(3).to_string())
+print("== I CTCF per site\n", CT.round(3).to_string())
+print("== I prevalence, stratified by measured accessibility (OR 1 = no difference)\n", PRV.round(3).to_string())
 
 # ---------------------------------------------------------------- figures
 top = A.head(14)
