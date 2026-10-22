@@ -273,6 +273,18 @@ if _f:
     G = pd.DataFrame(rows)
     G.to_csv(OUT / "tables" / "g_core_sequence_by_score_class.csv", index=False)
 
+# ---------------------------------------------------------------- H. why the contrasts behave differently: a site can only lose score if it had score to lose
+prof_rows = []
+for col in ("age_score_class", "ex_score_class"):
+    for g, w in d.groupby(col):
+        prof_rows.append({"contrast": "age" if col.startswith("age") else "exercise", "class": g, "n": len(w),
+                          "median_absolute_score": w.abs_score.median(), "median_start_score": w[("YS_score" if col.startswith("age") else "MAS_score")].median(),
+                          "median_end_score": w[("MAS_score" if col.startswith("age") else "MAE_score")].median(),
+                          "median_native_170": w.native_170.median(), "median_measured_change": w[("meas_age" if col.startswith("age") else "meas_ex")].median()})
+HS = pd.DataFrame(prof_rows)
+HS.to_csv(OUT / "tables" / "h_score_profile_by_class.csv", index=False)
+print("== H score profile by class (regression to the mean)\n", HS.round(3).to_string())
+
 # ---------------------------------------------------------------- figures
 fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.3), gridspec_kw={"width_ratios": [1, 1.15]})
 ax = axes[0]

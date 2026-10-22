@@ -47,10 +47,11 @@ def boot_med(v, n=400):
 
 
 # TF families: the name is the TOBIAS motif's gene symbol. Patterns are ordered, first match wins.
-FAM = [("AP-1 (Fos/Jun/Atf/Batf)", r"^(Fos|Jun|Batf|Atf3|Bach|Nfe2|Maf)"), ("MEF2", r"^Mef2"), ("GATA", r"^Gata|^Trps1"), ("TBX", r"^Tbx|^Tbr|^Eomes"),
-       ("NKX / homeobox cardiac", r"^Nkx|^Hand|^Msx|^Pitx|^Isl"), ("NFAT", r"^Nfat"), ("TEAD", r"^Tead"), ("SRF / MADS", r"^Srf"), ("ETS", r"^Ets|^Elk|^Erg|^Fli1|^Gabp|^Elf|^Ehf|^Spdef|^Etv"),
+# Borcs8 is grouped with MEF2: it is the BORCS8-MEF2B readthrough, so the motif is MEF2B's under a non-TF gene symbol.
+FAM = [("AP-1 (Fos/Jun/Atf/Batf)", r"^(Fos|Jun|Batf|Atf3|Bach|Nfe2|Maf)"), ("MEF2", r"^Mef2|^Borcs8"), ("GATA", r"^Gata|^Trps1"), ("TBX", r"^Tbx|^Tbr|^Eomes"),
+       ("NKX / homeobox cardiac", r"^Nkx|^Hand|^Msx|^Pitx|^Isl"), ("NFAT", r"^Nfat"), ("NFI (Nfia/b/c/x)", r"^Nfi[abcx]"), ("TALE homeodomain (Meis/Pknox/Tgif/Pbx)", r"^Meis|^Pknox|^Tgif|^Pbx"), ("TEAD", r"^Tead"), ("SRF / MADS", r"^Srf"), ("ETS", r"^Ets|^Elk|^Erg|^Fli1|^Gabp|^Elf|^Ehf|^Spdef|^Etv"),
        ("RUNX", r"^Runx"), ("KLF / SP", r"^Klf|^Sp[0-9]|^Patz|^Zfp(281|341|383|467|740)|^Wt1|^Egr"), ("CTCF / cohesin", r"^Ctcf|^Ctcfl"), ("E-box bHLH (Myod/Tcf/Neuro)", r"^Myod|^Myog|^Myf|^Tcf(3|4|12)|^Neuro|^Ascl|^Ptf1|^Bhlh"),
-       ("Nuclear receptor (Esrr/Nr/Ppar/Thr)", r"^Esrr|^Nr[0-9]|^Ppar|^Rxr|^Thr|^Vdr|^Ar$|^Nr3|^Esr|^Hnf4"), ("MYC / MAX", r"^Myc|^Max|^Mxd|^Mnt|^Usf|^Srebf|^Tfe|^Mitf"),
+       ("Nuclear receptor (Esrr/Nr/Ppar/Thr)", r"^Esrr|^Nr[0-9]|^Ppar|^Rxr|^Rar|^Thr|^Vdr|^Ar$|^Nr3|^Esr|^Hnf4"), ("MYC / MAX", r"^Myc|^Max|^Mxd|^Mnt|^Usf|^Srebf|^Tfe|^Mitf"),
        ("FOX", r"^Fox"), ("SOX", r"^Sox"), ("STAT / IRF", r"^Stat|^Irf"), ("NF-kB / Rel", r"^Rel|^Nfkb"), ("CEBP", r"^Cebp|^Ddit3"), ("Zinc finger, other", r"^Zfp|^Znf|^Zbtb|^Zic|^Zeb|^Snai"),
        ("Smad / Tgfb", r"^Smad"), ("RFX", r"^Rfx"), ("YY / Gli / Pax", r"^Yy[0-9]|^Gli|^Pax"), ("Heat shock / stress", r"^Hsf|^Xbp|^Creb|^Atf[0-9]")]
 
@@ -271,6 +272,50 @@ for fam_ in ("MEF2", "GATA", "TEAD", "CTCF / cohesin", "AP-1 (Fos/Jun/Atf/Batf)"
     c = (w.rel_start + w.rel_end) / 2
     pos_rows.append({"family": fam_, "n_instances": len(w), "median_abs_distance": c.abs().median(), "share_within_50bp": (c.abs() <= 50).mean(), "share_within_100bp": (c.abs() <= 100).mean()})
 pd.DataFrame(pos_rows).to_csv(OUT / "tables" / "f_partner_positions.csv", index=False)
+
+# ---------------------------------------------------------------- H. how much does the adjustment matter? four ways of asking the same question
+#   raw: no adjustment.  site: the site's own median removed.  site+distance (used above).
+#   distance-matched: each footprint tile against footprint-free tiles of the SAME site at a similar distance (no modelling, no pooling across sites).
+#   far only: tiles beyond +/-85 bp, where the AP-1 motif's own dependence has died away.
+free_by_site = {}
+for (sid), w in t_free.groupby("site_id"):
+    free_by_site[sid] = (w.pos.values + 5, w.eff.values)
+dm = []
+for r in TP.itertuples():
+    f = free_by_site.get(r.site_id)
+    if f is None:
+        continue
+    d_ = abs(r.pos + 5)
+    sel = np.abs(np.abs(f[0]) - d_) <= 25
+    if sel.sum() >= 3:
+        dm.append((r.family, r.eff - f[1][sel].mean()))
+DM = pd.DataFrame(dm, columns=["family", "d"])
+t["site_adj"] = t.eff - t.groupby("site_id").eff.transform("median")
+TPs = P.merge(t[["site_id", "pos", "eff", "site_adj", "adj", "dist"]], on=["site_id", "pos"])
+rows = []
+for fam_, w in TPs.groupby("family", observed=True):
+    if len(w) < 40:
+        continue
+    far = w[w.dist > 85]
+    d_ = DM[DM.family == fam_].d
+    rows.append({"family": fam_, "n_tiles": len(w), "raw": w.eff.median(), "site_adjusted": w.site_adj.median(), "site_and_distance_adjusted": w.adj.median(),
+                 "distance_matched_within_site": d_.median() if len(d_) >= 30 else np.nan, "n_matched": len(d_),
+                 "far_tiles_only_raw": far.eff.median() if len(far) >= 25 else np.nan, "n_far": len(far)})
+Hs = pd.DataFrame(rows).sort_values("site_and_distance_adjusted")
+base = {"raw": t.eff.median(), "site_adjusted": t_free.eff.median() - t.groupby("site_id").eff.transform("median").median(),
+        "site_and_distance_adjusted": t_free.adj.median(), "distance_matched_within_site": 0.0, "far_tiles_only_raw": t_free[t_free.dist > 85].eff.median()}
+for c in ("raw", "site_adjusted", "site_and_distance_adjusted", "far_tiles_only_raw"):
+    Hs[f"{c}_vs_free"] = Hs[c] - (t_free[c if c != "far_tiles_only_raw" else "eff"][t_free.dist > 85].median() if c == "far_tiles_only_raw" else t_free[c if c in t_free else "eff"].median())
+Hs.to_csv(OUT / "tables" / "h_adjustment_sensitivity.csv", index=False)
+METH = ["raw", "site_adjusted", "site_and_distance_adjusted", "distance_matched_within_site", "far_tiles_only_raw"]
+rk = Hs[METH].rank()
+corr = rk.corr(method="spearman")
+corr.to_csv(OUT / "tables" / "h_rank_agreement.csv")
+print("== H sensitivity of the family ranking to the adjustment\n", Hs[["family", "n_tiles"] + METH + ["n_matched", "n_far"]].round(3).to_string())
+print("== H rank agreement between methods (Spearman)\n", corr.round(3).to_string())
+print("== distance profile: share of each family's tiles within 85 bp of the motif\n",
+      TPs.groupby("family", observed=True).apply(lambda w: pd.Series({"n": len(w), "share_within_85bp": (w.dist <= 85).mean()})).round(3).sort_values("share_within_85bp", ascending=False).head(12).to_string(),
+      "\nall tiles:", round((t.dist <= 85).mean(), 3), " footprint-free tiles:", round((t_free.dist <= 85).mean(), 3))
 
 # ---------------------------------------------------------------- figures
 top = A.head(14)
