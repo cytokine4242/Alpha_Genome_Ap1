@@ -6,6 +6,7 @@
 # mem stays at or below 124gb per GPU: the private A100 nodes have ~127 GB per GPU and Katana routes larger requests to nodes we cannot use
 # qsub -v CONFIG=configs/probe_10bp.yaml[,BATCH=1,ACCUM=32] pbs/finetune.pbs   (see submit.sh). Uses the alphagenome-pytorch fine-tuning script and environment that Minh's runs used.
 cd $PBS_O_WORKDIR
+source ../Katana/pbs/queue_wait.sh 2>/dev/null   # queue wait and run time -> /srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv
 source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
 export WANDB_MODE=offline
 echo "job $PBS_JOBID on $(hostname) | GPU: $(nvidia-smi -L 2>/dev/null | head -1) | config $CONFIG"

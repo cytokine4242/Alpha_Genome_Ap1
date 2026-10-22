@@ -12,6 +12,7 @@ output tables) was tested locally with a mock model. Do the check step first.
 | `scripts/` | `ag_lib.py` (shared), `00_check_env.py`, `11_perturb_sites.py`, `12_insertion.py`, `13_mpra.py` |
 | `pbs/` | PBS job files (Katana H200 header as in the demo script); `common.sh` activates the conda env |
 | `submit_all.sh` | `check`, `pilot`, `full` |
+| `/srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv` | one `start` row (submitted, started, minutes waited, queue, resources, GPU, how busy the queue was) and one `end` row (exit status, minutes run) per PBS job, written by `pbs/queue_wait.sh` (sourced by `common.sh` and the Finetune PBS files). PBS itself forgets finished jobs after about a day. |
 | `results/`, `logs/` | outputs (copy `results/` back for replotting). Readable logs are named `logs/<date>_<jobname>[_chunkNNofMM]_<GPU>_<jobid>.log` (e.g. `20261021-1152_ag_pilot_cm_L40S_9578160.log`); PBS's raw `<jobid>.<server>.OU` files go to `logs/pbs/`. `bash submit_all.sh logs` lists the newest. |
 
 ## Run order

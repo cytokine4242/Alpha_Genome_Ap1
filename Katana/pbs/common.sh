@@ -7,6 +7,7 @@ if [ -f "$ROOT/.env_prefix" ]; then conda activate "$(cat "$ROOT/.env_prefix")";
 cd "$ROOT/scripts"
 mkdir -p "$ROOT/results" "$ROOT/logs"
 source "$ROOT/pbs/logname.sh"
+source "$ROOT/pbs/queue_wait.sh"   # queue wait and run time -> /srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv
 echo "job $PBS_JOBID | $(qstat -f $PBS_JOBID 2>/dev/null | egrep -i 'queue =|Account_Name|project =' | tr -s ' \n' ' ')"
 echo "host: $(hostname) | GPU: $(nvidia-smi -L 2>/dev/null | head -1) | batch override: ${AG_BATCH_SIZE:-none}"
 echo "python: $(which python)"
