@@ -90,23 +90,23 @@ def paired_num(frame, P, v):
 P = make_pairs(S, "age_score_class", "Age Up (score)", "Unchanged")
 ca, cb, p1, n1 = paired_binary(S, P, "exact_core")
 mm_a, mm_b, p1b, _, mm_mean = paired_num(S, P, "core_mismatches")
-record("H1", "Sites that GAIN AP-1 binding score with age carry better AP-1 cores.",
+record("H1", "Age Up (delta score): sites in the top fifth of the CHANGE in AP-1 binding score with age carry better AP-1 cores.",
        "Exact TGA[C/G]TCA core, matched pairs, genome-wide scan of mm10", n1,
-       f"{ca:.1%} of Age Up sites vs {cb:.1%} of matched Unchanged have an exact core (McNemar p = {p1:.2g}); mean difference in mismatch count {mm_mean:+.3f} (p = {p1b:.2g}).",
+       f"{ca:.1%} of Age Up (delta score) sites vs {cb:.1%} of matched Unchanged have an exact core (McNemar p = {p1:.2g}); mean difference in mismatch count {mm_mean:+.3f} (p = {p1b:.2g}).",
        "SUPPORTED" if p1 < 0.05 and ca > cb else ("NOT SUPPORTED" if p1 >= 0.05 else "CONTRADICTED"),
        "Earlier evidence was 78 scanned sites (90% vs 77%); this is the whole set.")
 
 Pd = make_pairs(S, "age_score_class", "Age Down (score)", "Unchanged")
 da, db, p1c, n1c = paired_binary(S, Pd, "exact_core")
-record("H1b", "The same holds for sites that LOSE binding score with age (i.e. it is about change, not direction).",
+record("H1b", "Age Down (delta score): the same holds for sites LOSING binding score, i.e. it is about change, not direction.",
        "Exact core, matched pairs", n1c,
-       f"{da:.1%} of Age Down sites vs {db:.1%} of matched Unchanged (McNemar p = {p1c:.2g}).",
+       f"{da:.1%} of Age Down (delta score) sites vs {db:.1%} of matched Unchanged (McNemar p = {p1c:.2g}).",
        "NOT SUPPORTED" if p1c >= 0.05 else "SUPPORTED", "If this were significant too, the H1 result would be about lability, not gain.")
 
 # ================================================================ H2. do Dynamic sites carry worse cores?
 P2 = make_pairs(S, "stable_dynamic", "Dynamic", "Stable")
 ea, eb, p2, n2 = paired_binary(S, P2, "exact_core")
-record("H2", "Dynamic sites carry worse AP-1 cores than context-matched Stable sites.",
+record("H2", "Dynamic (threshold): sites whose binding CALL changes in any condition carry worse AP-1 cores than context-matched Stable sites.",
        "Exact core, matched pairs", n2,
        f"{ea:.1%} vs {eb:.1%} have an exact core (McNemar p = {p2:.2g}).",
        "SUPPORTED" if p2 < 0.05 and ea < eb else "NOT SUPPORTED",
@@ -159,7 +159,7 @@ orv, p4 = fisher_exact(tab)
 null = [np.mean(CO.ap1.values == rng.permutation(CO.mef2.values)) for _ in range(500)]
 p4b = (np.sum(np.array(null) >= CO.same_pattern.mean()) + 1) / 501
 CO.to_csv(OUT / "tables" / "h4_ap1_mef2_cooccupancy.csv", index=False)
-record("H4", "A Dynamic AP-1 site sits beside a MEF2 footprint that is itself condition-variable, i.e. they are co-regulated.",
+record("H4", "A condition-variable (threshold) AP-1 site sits beside a MEF2 footprint that is itself condition-variable, i.e. they are co-regulated.",
        "Among AP-1 sites with a MEF2 footprint within 100 bp: is MEF2 condition-variable more often when AP-1 is? (Fisher); and do the two share the exact YS/MAS/MAE pattern more than chance (permutation)?", len(CO),
        f"MEF2 is condition-variable at {obs:.1%} of condition-variable AP-1 sites vs {exp:.1%} of constitutive ones (OR {orv:.2f}, p = {p4:.2g}); identical three-condition pattern in {CO.same_pattern.mean():.1%} of loci vs {np.mean(null):.1%} expected (p = {p4b:.3f}).",
        "SUPPORTED" if (p4 < 0.05 and orv > 1) or p4b < 0.05 else "NOT SUPPORTED",
@@ -167,7 +167,7 @@ record("H4", "A Dynamic AP-1 site sits beside a MEF2 footprint that is itself co
 
 # ================================================================ H5. homotypic AP-1 clustering
 a5, b5, p5, n5, mean5 = paired_num(S, P2, AP1_MOTIF)
-record("H5", "Dynamic sites sit among more AP-1 motifs, so no single one is essential.",
+record("H5", "Dynamic (threshold) sites sit among more AP-1 motifs, so no single one is essential.",
        "Consensus TGA[C/G]TCA matches within 100 bp (sequence), matched pairs", n5,
        f"median {a5:.1f} vs {b5:.1f} matches, mean difference {mean5:+.2f} (paired Wilcoxon p = {p5:.2g}).",
        "SUPPORTED" if p5 < 0.05 and mean5 > 0 else ("CONTRADICTED" if p5 < 0.05 else "NOT SUPPORTED"),
@@ -196,7 +196,7 @@ for lab, cols in (("context only", MCOLS), ("context + core quality", MCOLS + ["
 H7 = pd.DataFrame(rows)
 H7.to_csv(OUT / "tables" / "h7_core_mediation.csv", index=False)
 n_sig = {k: int((w.p < 0.05).sum()) for k, w in H7.groupby("matching")}
-record("H7", "The extra motif sensitivity of age-gained sites is explained by their better cores (core quality is the mechanism, not a correlate).",
+record("H7", "The extra motif sensitivity of Age Up (delta score) sites is explained by their better cores (core quality is the mechanism, not a correlate).",
        "Repeat the Age Up vs Unchanged matched comparison on the four motif-level edits, with and without core mismatch count added to the matching", int(H7.n_pairs.max()),
        f"significant motif edits: {n_sig.get('context only', 0)} of {len(TYPES)} matching on context only, {n_sig.get('context + core quality', 0)} of {len(TYPES)} after also matching on core quality.",
        "SUPPORTED" if n_sig.get("context + core quality", 0) < n_sig.get("context only", 0) else "NOT SUPPORTED",
@@ -260,7 +260,7 @@ for lab, cols in (("predicted context only (4 variables)", ["l_170", "l_peak", "
 H8 = pd.DataFrame(rows)
 H8.to_csv(OUT / "tables" / "h8_measured_accessibility_matching.csv", index=False)
 n8 = {k: int((w.p < 0.05).sum()) for k, w in H8.groupby("matching")}
-record("H8", "The extra motif sensitivity of age-gained sites is robust to matching on MEASURED accessibility, not only predicted.",
+record("H8", "The extra motif sensitivity of Age Up (delta score) sites is robust to matching on MEASURED accessibility, not only predicted.",
        "Age Up vs Unchanged on four motif-level edits, matched on 4 predicted-context variables vs the same plus measured accessibility", int(H8.n_pairs.max()),
        f"significant motif edits: {n8.get('predicted context only (4 variables)', 0)} of {len(TYPES)} with predicted context only, "
        f"{n8.get('+ measured accessibility (5 variables)', 0)} of {len(TYPES)} once measured accessibility is matched too.",
@@ -291,7 +291,7 @@ R.to_csv(OUT / "tables" / "hypothesis_register.csv", index=False)
 # ---------------------------------------------------------------- figures
 fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.0))
 ax = axes[0]
-groups = [("Age Up (score)", ca, cb, p1), ("Age Down (score)", da, db, p1c), ("Dynamic", ea, eb, p2)]
+groups = [("Age Up\n(\u0394score)", ca, cb, p1), ("Age Down\n(\u0394score)", da, db, p1c), ("Dynamic\n(threshold)", ea, eb, p2)]
 for k, (lab, a_, b_, p_) in enumerate(groups):
     ax.bar(k - 0.19, a_, width=0.36, color=ORANGE, alpha=0.9)
     ax.bar(k + 0.19, b_, width=0.36, color=BLUE, alpha=0.9)
@@ -299,7 +299,7 @@ for k, (lab, a_, b_, p_) in enumerate(groups):
 ax.set_xticks(range(3), [g[0] for g in groups], fontsize=8.5)
 ax.set_ylim(0, 1)
 ax.set_ylabel("Share with an exact TGA[C/G]TCA core")
-ax.set_title("H1, H1b, H2: core quality by class", fontsize=10, loc="left")
+ax.set_title("H1, H1b, H2: core quality by class definition", fontsize=10, loc="left")
 ax.bar(0, 0, color=ORANGE, label="class")
 ax.bar(0, 0, color=BLUE, label="matched control")
 ax.legend(frameon=False, fontsize=8, loc="lower right")
@@ -324,8 +324,8 @@ for y_, a_, b_ in zip(ys, w["context only"], w["context + core quality"]):
     ax.plot([a_, b_], [y_, y_], color=GREY, lw=1.1, zorder=2)
 ax.axvline(0, color=MUTED, lw=0.9)
 ax.set_yticks(ys, [i.split(",")[0] for i in w.index], fontsize=8)
-ax.set_xlabel("Age Up minus Unchanged (log2FC)")
-ax.set_title("H7: is core quality the mechanism?", fontsize=10, loc="left")
+ax.set_xlabel("Age Up (\u0394score) minus Unchanged (log2FC)")
+ax.set_title("H7: core quality as the mechanism (\u0394score classes)", fontsize=10, loc="left")
 ax.legend(frameon=False, fontsize=8, loc="lower left")
 fig.tight_layout()
 fig.savefig(OUT / "figures" / "v1_hypotheses.png", bbox_inches="tight")
@@ -363,8 +363,8 @@ for y_, a_, b_ in zip(ys, w[c4], w[c5]):
     ax.plot([a_, b_], [y_, y_], color=GREY, lw=1.1, zorder=2)
 ax.axvline(0, color=MUTED, lw=0.9)
 ax.set_yticks(ys, [i for i in w.index], fontsize=8)
-ax.set_xlabel("Age Up minus Unchanged (log2FC)")
-ax.set_title("H8: how robust is the Age Up effect?", fontsize=10, loc="left")
+ax.set_xlabel("Age Up (\u0394score) minus Unchanged (log2FC)")
+ax.set_title("H8: robustness of the Age Up (\u0394score) effect", fontsize=10, loc="left")
 ax.legend(frameon=False, fontsize=8, loc="upper left")
 ax.set_ylim(-0.6, len(w) - 0.2)
 fig.tight_layout()
