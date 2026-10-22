@@ -1,3 +1,3 @@
 group,n_sites,median_footprints_per_site,median_families_per_site,median_tfs_per_site,p_families_vs_dynamic
-Dynamic,137,32.0,8.0,31.0,
-"Stable, context-matched",134,48.5,10.0,46.5,3.0590790437753855e-05
+Dynamic,500,29.0,7.0,28.0,
+"Stable, context-matched",470,49.5,10.0,47.0,4.052493278015906e-28

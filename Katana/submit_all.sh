@@ -51,7 +51,7 @@ if [ "$1" = context ] && [ -z "$BATCH" ]; then BATCH=2; fi
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
 O="-o $PWD/logs/pbs/${ACCOUNT:+ -A $ACCOUNT}"
-case "$1" in scan|titrate|dynamics*) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+case "$1" in scan*|titrate*|dynamics*) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
 [ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
 BATCH_VAR="${BATCH_VAR},AG_CONFIG=$PWD/$CFG"
 
@@ -73,6 +73,9 @@ p2_fb()    { sub -J 0-39 -N ag_mut_fb "PREFIX=mut_,KINDS=random:dinuc:core:flank
 p3_controls() { sub -J 0-39 -N ag_controls_cm "PREFIX=controls_,KINDS=offset:titrate,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
 p3_satmut()   { sub -J 0-39 -N ag_satmut_cm "PREFIX=sat_,KINDS=sat,SITES=cm,NCHUNKS=40" pbs/11_perturb.pbs; }
 p4_scan()     { sub -J 0-39 -l walltime=05:00:00 -N ag_scan_cm "EXPERIMENT=scan,PREFIX=scan_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
+# the remaining 2,209 cardiomyocyte sites, so the scan covers every CM AP-1 element rather than the balanced 1,470 subset (about 76 s/site, 70 min per chunk)
+p4_scan_rest()    { sub -J 0-39 -l walltime=04:00:00 -N ag_scan_rest "EXPERIMENT=scan,PREFIX=scan_rest_,NCHUNKS=40,SITES_FILE=../data/cm_subset_rest.csv" pbs/15_scan_titrate.pbs; }
+p4_titrate_rest() { sub -J 0-39 -l walltime=02:00:00 -N ag_titrate_rest "EXPERIMENT=titrate,PREFIX=titrate_rest_,NCHUNKS=40,SITES_FILE=../data/cm_subset_rest.csv" pbs/15_scan_titrate.pbs; }
 p4_titrate()  { sub -J 0-39 -l walltime=02:00:00 -N ag_titrate_cm "EXPERIMENT=titrate,PREFIX=titrate_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
 p4_pilot()    { for e in scan titrate; do sub -m ae -l walltime=01:00:00 -N ag_${e}_pilot "EXPERIMENT=$e,PREFIX=pilot_${e}_,NCHUNKS=1,LIMIT=6" pbs/15_scan_titrate.pbs; done; }
 p3_mpran()    { sub -J 0-7 -N ag_mpra_neutral "NCHUNKS=8" pbs/14_mpra_neutral.pbs; }
@@ -102,6 +105,9 @@ case "$1" in
   scan)          p4_scan ;;
   titrate)       p4_titrate ;;
   dynamics)      p4_scan; p4_titrate ;;
+  scan_rest)     p4_scan_rest ;;
+  titrate_rest)  p4_titrate_rest ;;
+  dynamics_rest) p4_scan_rest; p4_titrate_rest ;;
   dynamics_pilot) p4_pilot ;;
   controls)      p3_controls ;;
   satmut)        p3_satmut ;;
@@ -115,5 +121,5 @@ case "$1" in
   phase2)        p2_cm; p2_fb ;;
   phase2_cm)     p2_cm ;;
   phase2_fb)     p2_fb ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|controls|satmut|scan|titrate|dynamics|dynamics_pilot|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|controls|satmut|scan|titrate|dynamics|dynamics_pilot|scan_rest|titrate_rest|dynamics_rest|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
 esac

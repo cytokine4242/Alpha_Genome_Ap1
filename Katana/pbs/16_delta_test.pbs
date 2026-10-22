@@ -1,0 +1,8 @@
+#!/bin/bash
+#PBS -N ag_delta_test
+#PBS -l select=1:ncpus=4:mem=64gb:ngpus=1:gpu_model=H200
+#PBS -l walltime=00:20:00
+#PBS -j oe
+# Smoke test: native vs edited delta on a few sites. qsub -v SITES=cm,N=5 pbs/16_delta_test.pbs   (from Katana/)
+source "$PBS_O_WORKDIR/pbs/common.sh"
+python 16_delta_test.py --sites ../data/${SITES:-cm}_fos_sites.csv --n ${N:-5}
