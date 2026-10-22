@@ -14,7 +14,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 AN = ROOT / "Analysis"
 DY, DPR, ST = AN / "dynamic", AN / "dynamic_profiles", AN / "scan_titrate"
-SVC, MH, SF, TI = AN / "stable_vs_changing", AN / "motif_heatmap", AN / "scan_features", AN / "titration"
+SVC, MH, SF, TI, MS = AN / "stable_vs_changing", AN / "motif_heatmap", AN / "scan_features", AN / "titration", AN / "mpra_scan"
 PT, SCL, DR, CX, DEP, HYP = AN / "partners", AN / "score_classes", AN / "distance_rules", AN / "class_context", AN / "dependence", AN / "hypotheses"
 
 IMGS: dict[int, Path] = {}
@@ -126,6 +126,10 @@ def register_table():
 
 
 SVCR = pd.read_csv(SVC / "tables" / "stable_vs_changing.csv")
+MSA = pd.read_csv(MS / "tables" / "motif_share_both_assays.csv").set_index("dataset")
+MSB = pd.read_csv(MS / "tables" / "class_direction_both_assays.csv")
+msb = lambda a, m: MSB[(MSB.assay.str.startswith(a)) & (MSB.measure == m)].iloc[0]
+AGD, MPD = "AlphaGenome (CM, genomic context)", "MPRA (fibroblast, episomal)"
 SFR = pd.read_csv(SF / "tables" / "scan_features_by_class.csv")
 TIR = pd.read_csv(TI / "tables" / "titration_by_class.csv")
 TIO = pd.read_csv(TI / "tables" / "titration_overall.csv").set_index("feature")
@@ -314,6 +318,18 @@ sec("scanfeat", "What the mutation scan sees, across every class", "ok",
     fig(SF / "figures" / "y1_scan_features_by_class.png", "Scan features by class",
         "Standardised difference from the reference class for each scan-derived feature; * and a box mark FDR &lt; 0.05 within that contrast. Threshold classes left of the line, &Delta;score classes right.")
     + bio("Responsive sites are not built around a strong, tightly-defined core with a sharp dependence peak. Their dependence is spread thinly across the neighbourhood, no single base is worth much, and the AP-1 motif is one contributor among many. That is the same conclusion the partner work reached from the other direction, and it is why these sites sit near the occupancy threshold: there is no single anchor holding them open."))
+
+sec("mpracheck", "Does the fibroblast MPRA agree with the scan?", "mid",
+    "A ratio within each element, so assay scale and dynamic range cancel; but the MPRA is fibroblast and episomal while the scan is cardiomyocyte and genomic, and the MPRA's absolute effects are small.",
+    U("The scan says the AP-1 motif is one contributor among many and no single base is worth much. The MPRA tests the same question in the wet lab, on 170 bp fragments outside the genome. The comparable quantity is the <b>share of an element's sequence dependence that the AP-1 motif accounts for</b>: in the MPRA (Endo &minus; MotifShuff) / (Endo &minus; FullShuff), in the model (replace the 170 bp &minus; replace the surroundings with the motif kept) / replace the 170 bp.",
+      f"<b>The two agree closely.</b> AlphaGenome assigns the motif {MSA.loc[AGD, 'median_share']:.0%} of the local dependence (CI {MSA.loc[AGD, 'ci_lo']:.0%}&ndash;{MSA.loc[AGD, 'ci_hi']:.0%}, n = {int(MSA.loc[AGD, 'n']):,}); the MPRA assigns it {MSA.loc[MPD, 'median_share']:.0%} (CI {MSA.loc[MPD, 'ci_lo']:.0%}&ndash;{MSA.loc[MPD, 'ci_hi']:.0%}, n = {int(MSA.loc[MPD, 'n'])}). Two independent assays, different cell types, different readouts, and both put the AP-1 motif at under a tenth of what the surrounding 170 bp does.",
+      "That is a real external check on the scan. The 'flat neighbourhood' result is not a quirk of the model: scrambling the AP-1 motif in a reporter barely changes its activity either.",
+      f"<b>But the class direction disagrees, and sharply.</b> In the MPRA, elements in the responsive groups lose MORE activity when the whole element is scrambled than Stable ones ({msb('MPRA', 'whole element shuffled').dynamic:+.3f} vs {msb('MPRA', 'whole element shuffled').stable:+.3f} log2, p = {msb('MPRA', 'whole element shuffled').p:.4f}; Kruskal across all five groups p = {msb('MPRA', 'whole element shuffled').kruskal_5_groups_mpra:.4f}), with no difference in baseline activity (p = {msb('MPRA', 'baseline activity').p:.2f}). In the model, Dynamic sites lose LESS ({msb('AlphaGenome', 'whole element shuffled').dynamic:.2f} vs {msb('AlphaGenome', 'whole element shuffled').stable:.2f}).",
+      "Those are not necessarily in conflict: the MPRA strips the element out of the genome, so it measures what the sequence can do on its own, while the model measures accessibility where chromatin already decides most of the outcome. A responsive element can be intrinsically informative as a fragment and still have its genomic accessibility set by trans factors rather than by its own sequence. The model's raw gap, after all, turned out to be chromatin context.",
+      f"<b>Caveats.</b> The MPRA's absolute effects are small &mdash; destroying the entire 170 bp costs a median {MSA.loc[MPD, 'whole_element_effect']:.2f} log2 of activity, and the motif-only effect is {MSA.loc[MPD, 'motif_only_effect']:.3f}. The group comparison uses the MPRA's own classification in fibroblasts, not the cardiomyocyte TOBIAS classes, and the cross-map showed the two element sets only partly overlap."),
+    fig(MS / "figures" / "m1_mpra_vs_scan.png", "MPRA against the mutation scan",
+        "Left: the motif's share of each element's sequence dependence, measured independently by the model and by the reporter assay. Middle: the MPRA class direction. Right: the MPRA share by group against the model's estimate (dashed).")
+    + bio("The most useful thing the MPRA does here is confirm the uncomfortable part of the scan. An AP-1 site contributes under a tenth of what its surrounding 170 bp contributes, in a model of chromatin and in a reporter assay alike. Where the two part company is on which elements are more sequence-driven, and that gap is informative in itself: it separates what a sequence can do in isolation from what decides its accessibility in the genome."))
 
 sec("titration", "AP-1 affinity titration: does strength behave the way a binding site should?", "ok",
     f"All 3,678 elements; {int(TIO.loc[TIO.index[TIO.index.str.startswith('effect of changing 1')][0], 'n']):,} with an exact core carry the dose series, {int(TIO.loc[TIO.index[TIO.index.str.startswith('gain from upgrading')][0], 'n']):,} without one carry the upgrade. Each class contrast matched as above.",
