@@ -27,6 +27,6 @@ case "$1" in
     # adapters and full fine-tuning backpropagate through the trunk: on cards smaller than an H200 use batch 1 with 32-step accumulation unless BATCH/ACCUM are given
     if [ "$1" != probe ] && [ "$GPU" != H200 ] && [ -z "$BATCH" ]; then BATCH=1; ACCUM=${ACCUM:-32}; fi
     V="CONFIG=$CFG${BATCH:+,BATCH=$BATCH}${ACCUM:+,ACCUM=$ACCUM}"
-    run $O -l select=1:ncpus=8:mem=128gb:ngpus=1$SEL -l walltime=$W -N ft_${1}_${KIND}${PILOT:+_pilot} -v "$V" pbs/finetune.pbs ;;
+    run $O -l select=1:ncpus=8:mem=120gb:ngpus=1$SEL -l walltime=$W -N ft_${1}_${KIND}${PILOT:+_pilot} -v "$V" pbs/finetune.pbs ;;
   *) echo "usage: bash submit.sh bigwigs|probe|lora|lora_locon|full"; exit 1 ;;
 esac

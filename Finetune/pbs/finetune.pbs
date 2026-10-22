@@ -1,8 +1,9 @@
 #!/bin/bash
 #PBS -N ag_finetune
-#PBS -l select=1:ncpus=8:mem=128gb:ngpus=1
+#PBS -l select=1:ncpus=8:mem=120gb:ngpus=1
 #PBS -l walltime=24:00:00
 #PBS -j oe
+# mem stays at or below 124gb per GPU: the private A100 nodes have ~127 GB per GPU and Katana routes larger requests to nodes we cannot use
 # qsub -v CONFIG=configs/probe_10bp.yaml[,BATCH=1,ACCUM=32] pbs/finetune.pbs   (see submit.sh). Uses the alphagenome-pytorch fine-tuning script and environment that Minh's runs used.
 cd $PBS_O_WORKDIR
 source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
