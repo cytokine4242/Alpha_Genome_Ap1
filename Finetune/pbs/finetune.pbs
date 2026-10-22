@@ -1,0 +1,12 @@
+#!/bin/bash
+#PBS -N ag_finetune
+#PBS -l select=1:ncpus=8:mem=128gb:ngpus=1
+#PBS -l walltime=24:00:00
+#PBS -j oe
+# qsub -v CONFIG=configs/probe_10bp.yaml[,BATCH=1,ACCUM=32] pbs/finetune.pbs   (see submit.sh). Uses the alphagenome-pytorch fine-tuning script and environment that Minh's runs used.
+cd $PBS_O_WORKDIR
+source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
+export WANDB_MODE=offline
+echo "job $PBS_JOBID on $(hostname) | GPU: $(nvidia-smi -L 2>/dev/null | head -1) | config $CONFIG"
+python ${FT_SCRIPT:-/srv/scratch/wonglab/minh/alphagenome-pytorch/scripts/finetune.py} --config $CONFIG ${BATCH:+--batch-size $BATCH} ${ACCUM:+--gradient-accumulation-steps $ACCUM}
+echo "fine-tuning finished"

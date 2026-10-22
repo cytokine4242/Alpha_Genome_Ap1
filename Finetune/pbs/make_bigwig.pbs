@@ -1,0 +1,9 @@
+#!/bin/bash
+#PBS -N ft_bigwig
+#PBS -l select=1:ncpus=4:mem=96gb
+#PBS -l walltime=06:00:00
+#PBS -j oe
+# Array job, one task per (cell type, condition) of the manifest: qsub -J 0-N-1 -v MANIFEST=...,CHROM_SIZES=...,OUT_DIR=... pbs/make_bigwig.pbs   (see submit.sh)
+cd $PBS_O_WORKDIR
+source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
+python scripts/make_bigwig_from_manifest.py --manifest $MANIFEST --chrom-sizes $CHROM_SIZES --out-dir $OUT_DIR --index ${PBS_ARRAY_INDEX:-0}

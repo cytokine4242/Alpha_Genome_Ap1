@@ -1,0 +1,5 @@
+cell	condition	fragments	barcodes
+# One row per sample (library) of a condition. fragments = that sample's fragments.tsv.gz (tabix-indexed or not); barcodes = the barcodes of that cell type in that sample, one per line
+# (e.g. the cellID_<cell type>_<sample>.txt lists on Gadi). Rows with the same cell + condition are pooled. Example rows (edit the paths, delete these comment lines' leading #):
+# Cardiomyocyte	YS	/srv/scratch/.../YS1_4/fragments.tsv.gz	/srv/scratch/.../cellID_Cardiomyocyte_YS1_4.txt
+# Cardiomyocyte	YS	/srv/scratch/.../YS3_2/fragments.tsv.gz	/srv/scratch/.../cellID_Cardiomyocyte_YS3_2.txt
