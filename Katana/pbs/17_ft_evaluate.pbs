@@ -1,0 +1,9 @@
+#!/bin/bash
+#PBS -N ag_ft_eval
+#PBS -l select=1:ncpus=6:mem=62gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+# Array job: native predictions of the fine-tuned head at every CM and FB site + equivalence check (see submit_all.sh ft_eval). Needs a config_ft*.json.
+source "$PBS_O_WORKDIR/pbs/common.sh"
+CHUNK=${PBS_ARRAY_INDEX:-0}
+python 17_ft_evaluate.py --out ../${RESULTS_DIR:-results_ft}/${PREFIX}eval --chunk $CHUNK --n-chunks ${NCHUNKS:-1} ${LIMIT:+--limit $LIMIT}

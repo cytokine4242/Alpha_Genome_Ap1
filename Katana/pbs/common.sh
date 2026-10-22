@@ -5,7 +5,7 @@ export ROOT=${PBS_O_WORKDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 # env path written by setup_env.sh; falls back to a named conda env
 if [ -f "$ROOT/.env_prefix" ]; then conda activate "$(cat "$ROOT/.env_prefix")"; else conda activate alphagenome2; fi
 cd "$ROOT/scripts"
-mkdir -p "$ROOT/results" "$ROOT/logs"
+mkdir -p "$ROOT/${RESULTS_DIR:-results}" "$ROOT/logs"   # RESULTS_DIR=results_ft for the fine-tuned head runs (FT=1 bash submit_all.sh ...)
 source "$ROOT/pbs/logname.sh"
 source "$ROOT/pbs/queue_wait.sh"   # queue wait and run time -> /srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv
 echo "job $PBS_JOBID | $(qstat -f $PBS_JOBID 2>/dev/null | egrep -i 'queue =|Account_Name|project =' | tr -s ' \n' ' ')"

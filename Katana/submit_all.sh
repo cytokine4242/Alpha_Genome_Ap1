@@ -4,6 +4,10 @@
 #   bash submit_all.sh benchmark        # times batch size / 1bp decoder / heads on one GPU (GPU=L40S|A100|H100 to choose); read the log
 #   bash submit_all.sh pilot            # 30 CM sites, 30 FB sites, tiny insertion, 150 MPRA elements, with CAGE (pilot_* outputs)
 #   bash submit_all.sh validate         # native predictions only (1 pass/site) for 1000 CM + 1000 FB sites, mouse AND human tracksets -> results/validate_*
+#   FT=1 bash submit_all.sh <mode>   the same experiment read with the fine-tuned 1 bp ATAC head: config_ft.json (config_ft_cm_only.json for scan/titrate),
+#                                    outputs in results_ft/ with the same file names, job names prefixed ft_. AG_FT_CHECKPOINT=<.delta.pth> overrides the head.
+#   FT=1 bash submit_all.sh ft_eval  native predictions of the fine-tuned head at every CM and FB site + equivalence check -> results_ft/eval_*  (do this first)
+#   bash submit_all.sh rerun_all     every experiment the analyses read: rerun_sites (phase1 + phase2 + controls + mpra_neutral) then rerun_dynamics (scan/titrate + rest); use with FT=1
 #   Extra experiments (cardiomyocyte sites unless noted; all resumable):
 #     controls       offset (matched-control) shuffles + width titration of the shuffle     -> results/controls_*   (61 passes/site)
 #     satmut         saturation mutagenesis of the 11 bp motif (33 substitutions)           -> results/sat_*        (34 passes/site)
@@ -51,7 +55,12 @@ if [ "$1" = context ] && [ -z "$BATCH" ]; then BATCH=2; fi
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
 O="-o $PWD/logs/pbs/${ACCOUNT:+ -A $ACCOUNT}"
-case "$1" in scan*|titrate*|dynamics*) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+case "$1" in scan*|titrate*|dynamics*|rerun_dynamics) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context|rerun_sites|rerun_all) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+case "$1" in ft_eval*) FT=1 ;; esac
+if [ -n "$FT" ]; then
+  case "$1" in scan*|titrate*|dynamics*|rerun_dynamics) CFG=${CONFIG:-config_ft_cm_only.json} ;; *) CFG=${CONFIG:-config_ft.json} ;; esac
+  BATCH_VAR="${BATCH_VAR},RESULTS_DIR=results_ft${AG_FT_CHECKPOINT:+,AG_FT_CHECKPOINT=$AG_FT_CHECKPOINT}"
+fi
 [ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
 BATCH_VAR="${BATCH_VAR},AG_CONFIG=$PWD/$CFG"
 
@@ -59,6 +68,7 @@ BATCH_VAR="${BATCH_VAR},AG_CONFIG=$PWD/$CFG"
 sub() {
   local vars="${@: -2:1}" file="${@: -1}"
   local args=("${@:1:$#-2}")
+  if [ -n "$FT" ]; then for i in "${!args[@]}"; do [ "${args[$i]}" = "-N" ] && args[$((i+1))]="ft_${args[$((i+1))]#ag_}"; done; fi   # ft_ job names
   local v="${vars}${BATCH_VAR}"; v="${v#,}"
   local cmd=(qsub $O $RES "${args[@]}" ${v:+-v "$v"} "$file")
   if [ -n "$DRY" ]; then echo "${cmd[@]}"; else "${cmd[@]}"; fi
@@ -102,6 +112,11 @@ case "$1" in
     W="-m ae -l walltime=02:00:00"
     sub $W -N ag_validate_cm "PREFIX=validate_,KINDS=native,SITES=cm,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs
     sub $W -N ag_validate_fb "PREFIX=validate_,KINDS=native,SITES=fb,NCHUNKS=1,LIMIT=1000" pbs/11_perturb.pbs ;;
+  ft_eval)       sub -J 0-3 -N ag_eval "NCHUNKS=4" pbs/17_ft_evaluate.pbs ;;
+  ft_eval_pilot) sub -l walltime=01:00:00 -N ag_eval_pilot "PREFIX=pilot_,NCHUNKS=1,LIMIT=24" pbs/17_ft_evaluate.pbs ;;
+  rerun_all)     bash "$0" rerun_sites && bash "$0" rerun_dynamics ;;   # two calls so each half gets its own config
+  rerun_sites)   p1_cm; p1_fb; p1_other; p2_cm; p2_fb; p3_controls; p3_mpran ;;
+  rerun_dynamics) p4_scan; p4_titrate; p4_scan_rest; p4_titrate_rest ;;
   scan)          p4_scan ;;
   titrate)       p4_titrate ;;
   dynamics)      p4_scan; p4_titrate ;;
@@ -121,5 +136,5 @@ case "$1" in
   phase2)        p2_cm; p2_fb ;;
   phase2_cm)     p2_cm ;;
   phase2_fb)     p2_fb ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|controls|satmut|scan|titrate|dynamics|dynamics_pilot|scan_rest|titrate_rest|dynamics_rest|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|ft_eval|ft_eval_pilot|rerun_all|rerun_sites|rerun_dynamics|controls|satmut|scan|titrate|dynamics|dynamics_pilot|scan_rest|titrate_rest|dynamics_rest|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
 esac

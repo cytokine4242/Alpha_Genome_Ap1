@@ -330,6 +330,7 @@ def load_model(cfg):
 
 
 ACC_HEADS = {"atac": "atac", "dnase": "dnase"}     # accessibility, read at 1 bp; columns <prefix>_motif/_170/_peak
+FT_HEAD = "ft_atac"   # fine-tuned ATAC head (config "finetuned"), returned under "atac" so readouts and columns stay the same; its 1 bp output if it has one
 EXPR_HEADS = {"rna_seq": "rna", "cage": "cage"}      # expression, read at 128 bp; columns <prefix>_prox2kb/_mean50kb/_max50kb
 TRACK_FIELDS = ("biosample_name", "ontology_curie", "track_name", "assay_title", "biosample_life_stage", "strand", "biosample_type")
 
@@ -368,7 +369,14 @@ class AG:
     atac / dnase / rna_seq / cage. The regex (case-insensitive) is searched in
     "biosample_name | ontology_curie | track_name | assay_title | life_stage | strand | biosample_type" of that organism's catalog.
     A trackset with organism 0 runs the human output heads on the mouse sequence (an extra forward pass per sequence).
-    Only the heads used by the tracksets are computed. strict=False reports unmatched tracksets instead of exiting."""
+    Only the heads used by the tracksets are computed. strict=False reports unmatched tracksets instead of exiting.
+
+    Fine-tuned head: with config "finetuned": {"checkpoint": <delta .pth>, "label_regex": "_(YS|MAS|MAE|YE)_"} and paths.weights = the base
+    weights it was trained on, a trackset may use "ft_atac": regex over the fine-tuned track names (averaged, returned as "atac") and
+    "ft_split": true to also return every matched track as "atac@<label>" (columns atac_motif_<label>, ...). The new head runs on the
+    embeddings of the same forward pass as the built-in heads, so it costs no extra trunk pass. A head with a 1 bp output (trained on 1 bp
+    insertion tracks) is read at 1 bp like the built-in ATAC. A 128 bp-only head (e.g. trained on binned coverage) is refused unless
+    finetuned.allow_128bp is true, because its motif and 170 bp readouts would just be the one or two 128 bp bins they overlap."""
 
     def __init__(self, cfg, strict=True):
         import torch
@@ -379,11 +387,39 @@ class AG:
         self.bs = cfg["model"]["batch_size"]
         self.model, self.device = load_model(cfg)
         self._cats, self._cat_org = {}, None
+        self.ft_split = {}                                # trackset -> [(fine-tuned track index, label)] for ft_split
+        self.ft_head = self._load_finetuned(cfg.get("finetuned"))
         self.tracksets, self.org_of = self._resolve_tracks(strict)
-        self.heads = {}  # organism -> sorted heads to compute
+        self.heads = {}  # organism -> sorted built-in heads to compute
         for ts, spec in self.tracksets.items():
-            self.heads.setdefault(self.org_of[ts], set()).update(spec)
+            self.heads.setdefault(self.org_of[ts], set()).update(h for h in spec if h != FT_HEAD)
         self.heads = {o: sorted(h) for o, h in self.heads.items() if h}
+        self.need_ft = any(FT_HEAD in spec for spec in self.tracksets.values())
+
+    def _load_finetuned(self, spec):
+        """The fine-tuned head module (on the GPU) from a delta checkpoint, after checking it was trained on these base weights."""
+        if not spec:
+            return None
+        from alphagenome_pytorch.extensions.finetuning.checkpointing import compute_base_model_weights_hash_from_file, load_finetuned_model
+        base = self.cfg["paths"]["weights"]
+        spec["checkpoint"] = os.environ.get("AG_FT_CHECKPOINT") or spec["checkpoint"]   # e.g. a pilot checkpoint for a smoke test
+        ft, meta = load_finetuned_model(spec["checkpoint"], base, device="cpu")
+        want = meta.get("base_model_weights_hash")
+        have = compute_base_model_weights_hash_from_file(base)
+        if want and want != have:
+            raise SystemExit(f"{spec['checkpoint']} was trained on other base weights than {base} ({want} vs {have}); set paths.weights to its base model")
+        modality = spec.get("modality", "atac")
+        self._ft_names = list(meta["track_names"][modality])
+        self._ft_res = tuple(meta["resolutions"][modality])
+        if 1 not in self._ft_res and not spec.get("allow_128bp"):
+            raise SystemExit(f"fine-tuned head resolutions {self._ft_res}: no 1 bp output, so motif-level readouts would be 128 bp bins; "
+                             "use a head trained on 1 bp targets (or set finetuned.allow_128bp to accept that)")
+        self._ft_label = re.compile(spec.get("label_regex", "_([^_]+)_"))
+        head = ft.heads[modality].to(self.device).eval()
+        del ft
+        print(f"fine-tuned head {spec['checkpoint']}: epoch {meta.get('epoch')}, val_loss {meta.get('val_loss')}, base weights hash matches, "
+              f"{len(self._ft_names)} tracks at {self._ft_res} bp: {self._ft_names}", flush=True)
+        return head
 
     def _set_catalog(self, org):
         from alphagenome_pytorch.named_outputs import TrackMetadataCatalog
@@ -401,8 +437,29 @@ class AG:
             return self.model.predict(x, organism_index=org, named_outputs=True, **kw)
 
     def forward_all(self, x):
-        """One forward pass per organism used by the tracksets (only the heads needed). Returns {organism: named outputs}."""
-        return {org: self._named(x, org, heads) for org, heads in self.heads.items()}
+        """One forward pass per organism used by the tracksets (only the heads needed). Returns ({organism: named outputs}, fine-tuned
+        head output at 1 bp (B, L, tracks) or None). The fine-tuned head reads the embeddings of the default organism's pass."""
+        if not self.need_ft:
+            return {org: self._named(x, org, heads) for org, heads in self.heads.items()}, None
+        torch = self.torch
+        named = {org: self._named(x, org, heads) for org, heads in self.heads.items() if org != self.default_org}
+        org = self.default_org
+        heads = self.heads.get(org)
+        self._set_catalog(org)
+        oi = self.model._normalize_organism_index(org, x)
+        with torch.no_grad():
+            kw = {"heads": tuple(heads)} if heads else {"embeddings_only": True}
+            raw = self.model.predict(x, organism_index=org, named_outputs=False, return_embeddings=True, resolutions=(1, 128), **kw)
+            emb = {}
+            for res in self._ft_res:
+                e, n = raw[f"embeddings_{res}bp"], x.shape[1] // res
+                emb[res] = (e.transpose(1, 2) if e.shape[1] == n else e).float().contiguous()   # the head wants (B, C, L/res)
+            out = self.ft_head(emb, oi, return_scaled=False, channels_last=True)
+            ft = out[1].float() if 1 in out else torch.repeat_interleave(out[128].float(), 128, dim=1)   # (B, L, tracks) at 1 bp
+            if heads:
+                raw = {k: v for k, v in raw.items() if not k.startswith("embeddings")}
+                named[org] = self.model.named_outputs(raw, organism=oi, strict_metadata=False, channels_last=True, include_padding=False)
+        return named, ft
 
     def track_table(self, organism=None):
         """All tracks of an organism's catalog (CPU only)."""
@@ -414,12 +471,31 @@ class AG:
             org = spec.get("organism", self.default_org)
             org_of[name] = org
             rows = cache.setdefault(org, catalog_tracks(org))
-            out[name] = {}
+            if FT_HEAD in spec:
+                if "atac" in spec:
+                    raise SystemExit(f"trackset {name}: use atac or {FT_HEAD}, not both (both write the atac columns)")
+                if self.ft_head is None:
+                    raise SystemExit(f"trackset {name} uses {FT_HEAD} but the config has no 'finetuned' checkpoint")
+                if org != self.default_org:
+                    raise SystemExit(f"trackset {name}: {FT_HEAD} runs on the model's default organism only")
+                rx = re.compile(spec[FT_HEAD], re.I)
+                idx = [i for i, t in enumerate(self._ft_names) if rx.search(t)]
+                print(f"trackset {name} (fine-tuned) /{spec[FT_HEAD]}/: {len(idx)} tracks: {[self._ft_names[i] for i in idx]}", flush=True)
+                if not idx:
+                    raise SystemExit(f"trackset {name}: {FT_HEAD} pattern matches none of {self._ft_names}")
+                out[name] = {FT_HEAD: idx}
+                if spec.get("ft_split"):
+                    labels = [(m.group(1) if (m := self._ft_label.search(self._ft_names[i])) else str(i)) for i in idx]
+                    if len(set(labels)) != len(labels):
+                        raise SystemExit(f"trackset {name}: label_regex gives duplicate labels {labels}")
+                    self.ft_split[name] = list(zip(idx, labels))
+            else:
+                out[name] = {}
             for head, pat in spec.items():
-                if head == "organism":
+                if head in ("organism", FT_HEAD, "ft_split"):
                     continue
                 if head not in ACC_HEADS and head not in EXPR_HEADS:
-                    raise SystemExit(f"trackset {name}: unsupported head '{head}' (use atac, dnase, rna_seq, cage)")
+                    raise SystemExit(f"trackset {name}: unsupported head '{head}' (use atac, dnase, rna_seq, cage, {FT_HEAD})")
                 rx = re.compile(pat, re.I)
                 hit = [r for r in rows if r["head"] == head and rx.search(track_text(r))]
                 print(f"trackset {name} ({ORG_NAME[org]}) {head} /{pat}/: {len(hit)} tracks", flush=True)
@@ -441,13 +517,17 @@ class AG:
         res = []
         for i in range(0, len(seqs), self.bs):
             x = torch.from_numpy(np.stack([onehot(s) for s in seqs[i:i + self.bs]])).to(self.device)
-            named_by_org = self.forward_all(x)
+            named_by_org, ft = self.forward_all(x)
             per = {}
             for ts, spec in self.tracksets.items():
-                named = named_by_org[self.org_of[ts]]
                 per[ts] = {}
                 for head, idx in spec.items():
-                    tens = getattr(named, head)[1 if head in ACC_HEADS else 128].tensor
+                    if head == FT_HEAD:
+                        per[ts]["atac"] = ft[..., idx].mean(-1).cpu().numpy()
+                        for j, lab in self.ft_split.get(ts, []):
+                            per[ts][f"atac@{lab}"] = ft[..., j].cpu().numpy()
+                        continue
+                    tens = getattr(named_by_org[self.org_of[ts]], head)[1 if head in ACC_HEADS else 128].tensor
                     per[ts][head] = tens[..., idx].mean(-1).float().cpu().numpy()
             for b in range(x.shape[0]):
                 res.append({ts: {h: arr[b] for h, arr in per[ts].items()} for ts in per})
@@ -459,10 +539,11 @@ def readout(pred, regions, tss_rel, cfg):
     p = cfg["perturb"]
     out = {}
     for head, arr in pred.items():
-        if head in ACC_HEADS:
+        base, _, label = head.partition("@")            # "atac@YS": one fine-tuned track -> atac_motif_YS, ...
+        if base in ACC_HEADS:
             for suffix, key in (("motif", "motif"), ("170", "w170"), ("peak", "peak")):
                 a, b = regions[key]
-                out[f"{ACC_HEADS[head]}_{suffix}"] = float(arr[a:b].mean()) if b > a else np.nan
+                out[f"{ACC_HEADS[base]}_{suffix}{'_' + label if label else ''}"] = float(arr[a:b].mean()) if b > a else np.nan
         else:
             pre, n = EXPR_HEADS[head], len(arr)
             mid, loc = regions["mid"], p["local_bp"]

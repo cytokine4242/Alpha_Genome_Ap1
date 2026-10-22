@@ -5,4 +5,4 @@
 #PBS -j oe
 # Array job over MPRA element chunks (see submit_all.sh): MPRA elements inserted into neutral backgrounds.
 source "$PBS_O_WORKDIR/pbs/common.sh"
-python 14_mpra_neutral.py --out ../results/${PREFIX}mpra_neutral --chunk ${PBS_ARRAY_INDEX:-0} --n-chunks ${NCHUNKS:-1} ${LIMIT:+--limit $LIMIT}
+python 14_mpra_neutral.py --out ../${RESULTS_DIR:-results}/${PREFIX}mpra_neutral --chunk ${PBS_ARRAY_INDEX:-0} --n-chunks ${NCHUNKS:-1} ${LIMIT:+--limit $LIMIT}

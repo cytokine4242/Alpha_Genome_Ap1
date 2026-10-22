@@ -6,5 +6,5 @@
 # Array job: qsub -J 0-N-1 -v SITES=cm,NCHUNKS=N (see submit_all.sh). SITES = cm or fb.
 source "$PBS_O_WORKDIR/pbs/common.sh"
 CHUNK=${PBS_ARRAY_INDEX:-0}
-python 11_perturb_sites.py --sites ../data/${SITES}_fos_sites.csv --out ../results/${PREFIX}${SITES} \
+python 11_perturb_sites.py --sites ../data/${SITES}_fos_sites.csv --out ../${RESULTS_DIR:-results}/${PREFIX}${SITES} \
     --chunk $CHUNK --n-chunks ${NCHUNKS:-1} ${KINDS:+--kinds $KINDS} ${LIMIT:+--limit $LIMIT}

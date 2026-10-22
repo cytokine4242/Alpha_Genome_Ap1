@@ -1,0 +1,81 @@
+{
+ "_notes": [
+  "Fine-tuned run: same perturbations as config.json, read with the 1 bp fine-tuned ATAC head (linear probe on 1 bp Tn5 insertion tracks, 4 conditions x cardiomyocyte/fibroblast).",
+  "paths.weights must be the base the head was trained on (fold 3); ag_lib checks the weights hash stored in the checkpoint.",
+  "CM / FB: fine-tuned ATAC averaged over YS, MAS, MAE, YE (columns atac_*), each condition also as atac_*_<cond> (ft_split), plus the built-in RNA of the same fold-3 model.",
+  "CM_builtin / FB_builtin: the built-in heart / Patski ATAC heads of the same forward pass, for a like-for-like comparison.",
+  "finetuned.checkpoint: frozen copy of the chosen epoch in finetune_data/heads/ (copy it there before a run; 17_ft_evaluate.py --checkpoint overrides it)."
+ ],
+ "paths": {
+  "genome": "/srv/scratch/wonglab/useful/genomes/mm10.fa",
+  "gtf": "/srv/scratch/wonglab/useful/genomes/mm10.ncbiRefSeq.gtf.gz",
+  "weights": "/srv/scratch/wonglab/minh/alphagenome/weights/model_fold_3.safetensors"
+ },
+ "model": {
+  "window": 131072,
+  "organism_index": 1,
+  "batch_size": 8,
+  "device": "cuda"
+ },
+ "tracksets": {
+  "CM": {
+   "ft_atac": "^Cardiomyocyte_",
+   "ft_split": true,
+   "rna_seq": "heart.*polyA.*adult"
+  },
+  "FB": {
+   "ft_atac": "^Fibroblast_",
+   "ft_split": true,
+   "rna_seq": "embryonic fibroblast"
+  },
+  "CM_builtin": {
+   "atac": "^heart [|]"
+  },
+  "FB_builtin": {
+   "atac": "^Patski [|]"
+  }
+ },
+ "perturb": {
+  "seed": 1,
+  "reps": {
+   "shuffle": 10,
+   "random": 5,
+   "dinuc": 5,
+   "flank": 5,
+   "core": 3,
+   "offset": 5,
+   "titrate": 5
+  },
+  "motif_len": 11,
+  "w170": 170,
+  "max_peak_width": 6000,
+  "tss_prox_bp": 2000,
+  "local_bp": 50000,
+  "reps_width": {}
+ },
+ "insertion": {
+  "seed": 1,
+  "trackset": "CM",
+  "n_recipients": 4,
+  "recipient_pool": 200,
+  "recipient_quantiles": [
+   0.1,
+   0.4,
+   0.7,
+   0.95
+  ],
+  "n_donors_stable": 50,
+  "n_donors_dynamic": 25,
+  "n_backgrounds": 50,
+  "insert_motif": "TGAGTCA"
+ },
+ "mpra": {
+  "seed": 1,
+  "reps_motif_shuffle": 10,
+  "reps_full_shuffle": 10
+ },
+ "finetuned": {
+  "checkpoint": "/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/heads/probe_1bp_fold3.delta.pth",
+  "label_regex": "_(YS|MAS|MAE|YE)(?:[._]|$)"
+ }
+}
