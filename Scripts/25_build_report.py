@@ -827,6 +827,8 @@ CONF = {
  "C7": ("mid", "Weak native-level correlation; the scramble null does not rank models, as MPRA effects are tiny."),
  "D4": ("mid", "A clean null, but only 2 neutral backgrounds and tiny MPRA effects."),
 "DS": ("mid", "Large raw differences, none after matching on predicted context; matching uses 720 of 772 Dynamic sites."),
+ "DSH": ("mid", "Matched pairs, paired tests and a permutation-checked classifier; a null result, so small shape differences could be missed."),
+ "DT": ("inc", "199 of 1,470 sites so far; the one significant difference does not hold across readouts."),
  "DP": ("inc", "126 comparisons; the one pattern that stood out (MAS+MAE) does not replicate in fibroblast sites."),
  "DF": ("mid", "Cross-validated; the matched sample has 1,440 sites, so small differences could be missed."),
  "DC": ("mid", "Small effects but consistent across all six patterns; one pooled measurement per condition."),
@@ -862,8 +864,10 @@ CH = [
  ("deep", "Are Dynamic sites more or less sensitive to particular mutations?",
   U("Question: in the AlphaGenome mutation results, do the binding classes differ in sensitivity to particular types of edit?",
     f"Raw: Dynamic sites lose less to every wide edit (for example replace the 170 bp {Y_prof.loc['replace the 170 bp', 'stable_median']:.2f} Stable vs {Y_prof.loc['replace the 170 bp', 'dynamic_median']:.2f} Dynamic) and about 0.1 less to motif-level edits, and the same to far-away edits. Matched on predicted accessibility, peak width and TSS distance, every difference is within {Y_prof[['matched_stable_median', 'matched_dynamic_median']].diff(axis=1).iloc[:, 1].abs().max():.2f} log2 and none is significant.",
-    "So Dynamic sites are less sensitive across the board in proportion to their weaker context; no mutation type stands out, and no binding pattern is robustly different."),
-  [("DS", "Sensitivity profile: Dynamic vs Stable, for every type of mutation"), ("DP", "Do the individual binding patterns differ?"), ("DF", "Anything else in the model outputs?"), ("DC", "Condition-specific accessibility: real but modest"),
+    "Scaled to the same overall sensitivity, the mix of mutation types is the same in both classes, and a classifier on the profile is at chance.",
+    "So Dynamic sites are less sensitive across the board in proportion to their weaker context; no mutation type stands out, and no binding pattern is robustly different.",
+    "New (preliminary tile scan): most sites in both classes have a neighbouring element that matters as much as the AP-1 motif; whether Dynamic sites differ in their partners awaits the full scan."),
+  [("DS", "Sensitivity profile: Dynamic vs Stable, for every type of mutation"), ("DSH", "Same shape: the mix of mutation types, at equal overall sensitivity"), ("DT", "Tile scan: own motif or a neighbouring element? (preliminary)"), ("DP", "Do the individual binding patterns differ?"), ("DF", "Anything else in the model outputs?"), ("DC", "Condition-specific accessibility: real but modest"),
    ("DM", "Matched pairs, same-peak pairs and position"), ("DX", "Is the class a property of the sequence?"), ("DEXP", "Experiments that would explore this further")]),
  ("robust", "Robustness: only sites where prediction matches measurement",
   U("Test: keep sites whose predicted accessibility agrees with measured, chosen from the native prediction and measurement only, and repeat the main analyses.",
@@ -1098,6 +1102,8 @@ BIO_SEC = {
  "G2": "The well-predicted Dynamic sites are those whose accessibility is sequence-driven; the filtered result describes them, not all dynamic sites.",
  "C7": "Accessibility and reporter activity are different properties: a model that ranks open sequences does not predict how much activity a scramble removes, which is the manuscript's own reason for training a probe on the MPRA.",
  "D4": "The mismatch is not caused by the model using the surrounding genome; MPRA effects are small and accessibility is not enhancer activity.",
+"DSH": "Dynamic and Stable sites depend on the same parts of their sequence in the same proportions; they differ in how much accessibility is at stake, not in how it is built.",
+ "DT": "AlphaGenome often ranks a neighbouring element (one example is a MEF2 site) above the AP-1 motif itself, in both classes. Whether Dynamic sites lean on fewer or more distant partners is an open question for the full scan.",
 "DS": "Dynamic sites are less sensitive to broad sequence removal because they sit in weaker chromatin, not because they depend on a different part of the sequence: the profile across mutation types has the same shape.",
  "DP": "No binding pattern shows a robust, specific vulnerability or resistance once context is accounted for.",
  "DF": "Nothing in the model's outputs (effects of any edit, or RNA predictions) marks a Dynamic site once context is matched.",
@@ -1170,7 +1176,35 @@ FT = U("<strong>Essential: base-resolution accessibility per cell type and condi
        "<strong>Held out for testing:</strong> the fibroblast MPRA, to check whether the fibroblast head predicts scramble effects better than the Patski track does.",
        "<strong>Design:</strong> per-condition output tracks so condition-specific differences are learnable; start with a probe on the frozen backbone (cheap, thousands of windows; Minh's trial-19 probe code is the starting point) before unfreezing the last blocks; train multi-task with the original heart and Patski tracks to avoid forgetting.",
        "<strong>Evaluate</strong> on held-out chromosomes (signal and peak correlation), on differential accessibility (MAS minus YS), against the built-in heart and Patski heads, and by whether the perturbation results in this report change.")
-SPECIAL.update({"DS": DS, "DP": DP, "DF": DF, "DC": DC, "DM": DM, "DX": DX, "DEXP": DEXP, "FT": FT})
+DPR = AN / "dynamic_profiles"
+pr_ = lambda n: pd.read_csv(DPR / "tables" / n)
+Z_A, Z_C, Z_B, Z_N = pr_("a_response_shape_by_mutation_type.csv"), pr_("a_classifier_matched_pairs.csv").set_index("features"), pr_("b_ratios_matched_pairs.csv"), pr_("c_non_responders.csv").iloc[0]
+Z_Ds, Z_Dt = pr_("d_tile_scan_summary.csv"), pr_("d_tile_scan_tests.csv")
+pimg = lambda n, alt: img(DPR / "figures" / f"{n}.png", alt)
+_za = Z_A[Z_A.fdr < 0.05]
+_zc = lambda k: Z_C.loc[[i for i in Z_C.index if i.startswith(k)][0]]
+DSH = U("Question: if every site is scaled to the same overall sensitivity, is the mix of mutation types different? (Each site's 21 effects are divided by their overall size, so a Dynamic site that loses less to everything has the same shape as a Stable site that loses more.)",
+        f"Matched pairs ({int(Z_A.n_pairs.iloc[0])}): {len(_za)} of {len(Z_A)} mutation types differ at FDR &lt; 0.05, all four of them edits of the 170 bp, which take a slightly smaller share at Dynamic sites ({_za.paired_median_diff.min():+.3f} to {_za.paired_median_diff.max():+.3f} on shares of about {_za.share_stable.mean():.2f}, i.e. about 5% smaller): far too small to matter biologically.",
+        f"A classifier given the whole profile cannot tell matched Dynamic from Stable sites: shape only AUC {_zc('shape only').auc:.2f}, raw effects {_zc('size and shape').auc:.2f}, overall size {_zc('overall size').auc:.2f} (shuffled-label 95th percentile about {Z_C.null_auc_95th.mean():.2f}).",
+        "Ratios with a plain meaning, at sites that respond (matched pairs, none significant): " + "; ".join(f"{r.ratio.split(':')[0]} {r.median_stable:.2f} Stable vs {r.median_dynamic:.2f} Dynamic" for r in Z_B.itertuples()) + ".",
+        f"Non-responders (replacing the motif changes accessibility by less than 10%): {Z_N.share_dynamic_matched:.0%} of Dynamic vs {Z_N.share_stable_matched:.0%} of matched Stable sites (McNemar p = {Z_N.p_mcnemar_matched:.2f}); about the same in all sites ({Z_N.share_dynamic_all:.0%} vs {Z_N.share_stable_all:.0%}). So Dynamic sites are not a mix of AP-1-dependent and AP-1-independent sites in different proportions.") + \
+      f"<figure>{pimg('z1_response_shape', 'Response shape by mutation type')}<figcaption>Paired difference (Dynamic minus matched Stable) in the share of each site's response taken by each mutation type, median with 95% bootstrap CI; orange = FDR &lt; 0.05 (paired Wilcoxon, BH).</figcaption></figure>" + \
+      f"<details><summary>Classifier on the response profile</summary><figure>{pimg('z2_classifier', 'Classifier on response profiles')}<figcaption>Cross-validated AUC in the matched sample (folds by peak, 5 random fold assignments); dotted line = 95th percentile of 100 label permutations.</figcaption></figure>{table(Z_B[['ratio', 'n_pairs_both_responding', 'median_stable', 'median_dynamic', 'paired_median_diff', 'p_wilcoxon', 'fdr']])}</details>"
+_t = lambda rd, cmp, m: Z_Dt[(Z_Dt.readout == rd) & (Z_Dt.comparison == cmp) & (Z_Dt.measure == m)].iloc[0]
+_s = lambda rd, g: Z_Ds[(Z_Ds.readout == rd) & (Z_Ds.group == g)].iloc[0]
+_om = _t("170 bp", "dynamic vs matched_stable", "own_motif_tile")
+_om2 = _t("motif", "dynamic vs matched_stable", "own_motif_tile")
+_np = _t("170 bp", "dynamic vs matched_stable", "n_strong_partner_tiles")
+_dy, _ms = _s("170 bp", "Dynamic"), _s("170 bp", "Stable, context-matched")
+DT = U(f"PRELIMINARY: {int(Z_Ds.n_sites.sum() / 2)} of 1,470 sites are finished ({int(_dy.n_sites)} Dynamic, {int(_ms.n_sites)} context-matched Stable, {int(_s('170 bp', 'Stable, high accessibility').n_sites)} high-accessibility Stable); rerun when the scan completes.",
+       "Each 10 bp tile from &minus;300 to +300 bp is replaced by random bases (3 replicates; replicate SD about 0.05 log2). For each site: the effect of the tiles covering the AP-1 motif, and of the strongest other tile (a 'partner').",
+       f"Neighbouring elements are common in both classes: at {_dy.share_partner_dominates:.0%} of Dynamic and {_ms.share_partner_dominates:.0%} of matched Stable sites some other 10 bp tile matters more than either motif tile (read over 170 bp). Caveat: this compares the strongest of about 58 tiles with the stronger of 2.",
+       "Example (chr1:119,197,433): single-base changes at &minus;30 to &minus;23 bp cut accessibility about 6-fold except A&harr;T swaps at &minus;28 to &minus;25; the bases read TA[TTAA]TA, a MEF2 motif, whose (A/T)4 centre tolerates exactly those swaps. AlphaGenome treats a cardiac partner site 25 bp away as more important than the AP-1 motif itself.",
+       f"Read over 170 bp, the AP-1 motif tile matters less at Dynamic sites ({_om.median_a:.2f} vs {_om.median_b:.2f}, FDR {_om.fdr:.2f}), but not read over the motif itself ({_om2.median_a:.2f} vs {_om2.median_b:.2f}, FDR {_om2.fdr:.2f}): inconsistent between readouts, so not a finding yet.",
+       f"Dynamic sites have slightly fewer strong partner tiles (median {_np.median_a:.0f} vs {_np.median_b:.0f}, p = {_np.p_mannwhitney:.3f}, FDR {_np.fdr:.2f}), and their strongest partner lies beyond &plusmn;85 bp more often ({_dy.share_partner_beyond_85bp:.0%} vs {_ms.share_partner_beyond_85bp:.0%}): hints only.") + \
+     f"<figure>{pimg('z3_own_motif_vs_partner', 'Own motif vs neighbouring element')}<figcaption>Left: per site, effect of replacing the AP-1 motif tile against the strongest other 10 bp tile within &plusmn;300 bp (read over 170 bp); below the dashed line a neighbour matters more. Right: share of sites where a neighbour dominates, with 95% bootstrap CI.</figcaption></figure>" + \
+     f"<details><summary>Average tile profile and saturation mutagenesis</summary><figure>{img(AN / 'scan_titrate/figures/s1_tile_profile.png', 'Tile profile')}<figcaption>Median effect of each tile by position (95% bootstrap CI), read over the motif (left) and 170 bp (right).</figcaption></figure><figure>{img(AN / 'scan_titrate/figures/s2_saturation_mutagenesis.png', 'Saturation mutagenesis')}<figcaption>Median |effect| of single-base changes from &minus;30 to +30 bp, and the share of that importance inside the 11 bp motif.</figcaption></figure></details>"
+SPECIAL.update({"DSH": DSH, "DT": DT, "DS": DS, "DP": DP, "DF": DF, "DC": DC, "DM": DM, "DX": DX, "DEXP": DEXP, "FT": FT})
 
 # ---------------- summary
 GLOSS = U("<strong>Site</strong> = one Fos (AP-1) motif footprint called by TOBIAS in a cell type. <strong>Stable</strong> = bound in all three conditions; <strong>Dynamic</strong> = any other pattern.",

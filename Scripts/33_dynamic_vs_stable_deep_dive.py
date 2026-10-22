@@ -143,6 +143,7 @@ for d_id in rng.permutation(dyn_ids):
     if dist[j] < 0.5:
         pairs.append((d_id, cand[j])); avail.discard(cand[j])
 P = pd.DataFrame(pairs, columns=["dyn", "stable"])
+P.to_csv(OUT / "tables" / "matched_pair_ids.csv", index=False)
 bal = []
 for c in MCOLS:
     bal.append({"covariate": c, "std_diff_before": (m_[m_.dyn == 1][c].mean() - m_[m_.dyn == 0][c].mean()) / m_[c].std(), "std_diff_after": (m_.loc[P.dyn, c].mean() - m_.loc[P.stable, c].mean()) / m_[c].std()})
