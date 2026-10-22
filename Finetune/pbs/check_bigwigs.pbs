@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -N ft_check_bw
+#PBS -l select=1:ncpus=1:mem=8gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+# Array job, one task per 1 bp insertion bigWig: agreement with the fragment-level checks. qsub -J 0-7 pbs/check_bigwigs.pbs   (see submit.sh check_bigwigs)
+cd $PBS_O_WORKDIR
+source ../Katana/pbs/queue_wait.sh 2>/dev/null   # queue wait and run time -> /srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv
+source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
+FT=/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data
+I=${PBS_ARRAY_INDEX:-0}
+CELLS=(Cardiomyocyte Cardiomyocyte Cardiomyocyte Cardiomyocyte Fibroblast Fibroblast Fibroblast Fibroblast)
+CONDS=(YS MAS MAE YE YS MAS MAE YE)
+SITES=(cm cm cm cm fb fb fb fb)
+C=${CELLS[$I]}; K=${CONDS[$I]}
+python scripts/check_insertion_bigwigs.py --bigwig $FT/bigwigs_1bp/${C}_${K}.insertions.bw --checks $FT/fragments/checks --cell $C --cond $K \
+    --sites ../Katana/data/${SITES[$I]}_fos_sites.csv --out $FT/fragments/checks/${C}_${K}_bigwig
