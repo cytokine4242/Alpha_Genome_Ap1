@@ -9,7 +9,7 @@
 #     satmut         saturation mutagenesis of the 11 bp motif (33 substitutions)           -> results/sat_*        (34 passes/site)
 #     mpra_neutral   MPRA elements inserted into neutral backgrounds                        -> results/mpra_neutral_* (22 passes/element)
 #     scan           tile scan (10 bp tiles, +-300 bp) + saturation mutagenesis (+-30 bp) on 1,470 CM sites (Dynamic, matched Stable, high-accessibility Stable) -> results/scan_cm_*     (364 passes/site)
-#     titrate        AP-1 core weakening 1-7 bases, consensus upgrade, reverse complement, half-site, and motif move/duplicate at 8 offsets with controls (same sites)     -> results/titrate_cm_*   (118 passes/site)
+#     titrate        AP-1 core weakening 1-7 bases, upgrade to a perfect core, 11 bp motif reverse complement, half-site, and motif move/duplicate at 8 offsets with controls (same sites)     -> results/titrate_cm_*   (118 passes/site)
 #     dynamics       scan + titrate together (cardiomyocyte tracks only, config_cm_only.json); test first with: bash submit_all.sh dynamics_pilot
 #     human_sens     shuffles with human output heads on 500 sites (config_validate.json)   -> results/human_*
 #     context        shuffles on 60 sites with 16 kb / 65 kb / 262 kb windows               -> results/ctx<window>_*

@@ -3,7 +3,7 @@
 Groups (from 34_make_dynamics_subsets.py): dynamic, matched_stable (matched on predicted accessibility, peak width, TSS distance), high_stable (top-quartile predicted accessibility).
 Effect = per-site mean over replicates of log2((edit + pc) / (native + pc)), pc = 5% of the median native value of the readout.
   scan:     tile profile (effect on the motif and 170 bp readouts by tile position), saturation-mutagenesis importance by position, share of the importance that sits in the 11 bp motif
-  titrate:  dose-response in the number of core bases changed, consensus upgrade, reverse complement, half-site, and the net effect of duplicating / moving the motif (minus the shuffled control)
+  titrate:  dose-response in the number of core bases changed, upgrade to a perfect core (sites without one), reverse complement of the 11 bp motif, half-site, and the net effect of duplicating / moving the motif (minus the shuffled control)
 Outputs Analysis/scan_titrate/{tables,figures}.   python3 35_scan_titrate_analysis.py            (--simulate makes fake results in a temp folder and runs on them to test the code)"""
 from __future__ import annotations
 
@@ -56,8 +56,9 @@ def simulate(folder):
             for k in range(1, 8):
                 for r in range(5 if k < 7 else 3):
                     rows_t.append(row(f"core_mm{k}", "core_mm", k, "", r, 1 - scale * 0.07 * k + rng.normal(0, 0.03)))
-            rows_t.append(row("core_consensus", "core_consensus", 0, "", 0, 1 + 0.2 * (1 if g == "dynamic" else 0.1)))
-            rows_t.append(row("core_rc", "core_rc", 0, "", 0, 1.0 + rng.normal(0, 0.02)))
+            if not common["core_found"]:
+                rows_t.append(row("core_upgrade", "core_upgrade", 1, "", 0, 1 + 0.2 * (1 if g == "dynamic" else 0.1)))
+            rows_t.append(row("motif_rc", "motif_rc", 0, "", 0, 1.0 + rng.normal(0, 0.02)))
             for r in range(3):
                 rows_t.append(row("core_halfsite", "core_halfsite", 0, "", r, 0.8))
             for o in (-150, -80, -40, -20, 20, 40, 80, 150):
@@ -80,7 +81,7 @@ else:
 (OUT / "figures").mkdir(parents=True, exist_ok=True)
 
 
-def load(prefix, require_core=False):
+def load(prefix):
     fs = sorted(glob.glob(str(RES / f"{prefix}_chunk*.csv")))
     if not fs:
         raise SystemExit(f"no {prefix}_chunk*.csv in {RES}")
@@ -94,9 +95,6 @@ def load(prefix, require_core=False):
     cf = d.drop_duplicates("site_id").groupby("group").core_found.mean()
     print(f"{prefix}: sites per group {d.drop_duplicates('site_id').group.value_counts().to_dict()}; share with an exact TGA[C/G]TCA core: {cf.round(3).to_dict()}")
     pd.DataFrame({"share_with_exact_core": cf}).to_csv(OUT / "tables" / f"{prefix}_core_found_by_group.csv")
-    if require_core:
-        d = d[d.core_found]
-        print(f"{prefix}: kept {d.site_id.nunique()} sites with an exact core")
     return d
 
 
@@ -181,7 +179,10 @@ pd.DataFrame(rows).to_csv(OUT / "tables" / "motif_importance_share.csv", index=F
 ism.to_csv(OUT / "tables" / "saturation_importance_by_position.csv", index=False)
 
 # ============================================================ titrate
-tt = load("titrate_cm", require_core=True)           # AP-1 titration only makes sense where the site has an AP-1 core
+tt_all = load("titrate_cm")
+tt = tt_all[tt_all.core_found]                       # AP-1 titration only makes sense where the site has an AP-1 core
+tu = tt_all[~tt_all.core_found]                      # the upgrade to a perfect core is only made at sites without one
+print(f"titrate_cm: {tt.site_id.nunique()} sites with an exact core; upgrade read at the {tu.site_id.nunique()} without one")
 fig, axes = plt.subplots(1, 3, figsize=(14.5, 4.1), gridspec_kw={"width_ratios": [1.1, 1, 1]})
 ax = axes[0]
 cols = {"motif": "atac_motif", "170 bp": "atac_170"}
@@ -198,14 +199,17 @@ ax.legend(frameon=False, fontsize=7.5)
 ax.set_title("Weakening the motif: dose-response", fontsize=10, loc="left")
 ax = axes[1]
 e170, emot = effects(tt, "atac_170"), effects(tt, "atac_motif")
-single = [("core_consensus", "upgrade to\nTGAGTCA"), ("core_rc", "reverse\ncomplement"), ("core_halfsite", "half-site\nonly")]
+eu170, eumot = (effects(tu, "atac_170"), effects(tu, "atac_motif")) if len(tu) else (e170.iloc[:0], emot.iloc[:0])
+single = [("core_upgrade", "upgrade to a\nperfect core\n(sites without one)", eu170), ("motif_rc", "11 bp motif\nreverse\ncomplement", e170), ("core_halfsite", "half-site\nonly", e170)]
 stat_rows = []
-for j, (cond, lab) in enumerate(single):
+for j, (cond, lab, src) in enumerate(single):
     for i, (g, glab, c) in enumerate(GROUPS):
-        v = e170[(e170.condition == cond) & (e170.group == g)].eff
+        sub = src[(src.condition == cond) & (src.group == g)]
+        v = sub.eff
         lo, hi = boot(v.values)
         ax.errorbar(j + (i - 1) * 0.22, v.median(), yerr=[[v.median() - lo], [hi - v.median()]], fmt="o", color=c, ms=6, lw=1.4, capsize=0, label=glab if j == 0 else None)
-        stat_rows.append({"condition": cond, "group": g, "n_sites": len(v), "median_effect_170": v.median(), "ci_lo": lo, "ci_hi": hi})
+        stat_rows.append({"condition": cond, "group": g, "n_sites": len(v), "median_bases_changed": sub.pos.median() if cond == "core_upgrade" else np.nan,
+                          "median_effect_170": v.median(), "ci_lo": lo, "ci_hi": hi})
 ax.axhline(0, color=MUTED, lw=0.8)
 ax.set_xticks(range(len(single)), [s[1] for s in single])
 ax.set_ylabel("Median effect on the 170 bp readout (log2FC)")
@@ -267,8 +271,8 @@ pd.DataFrame(rel_rows).drop_duplicates().to_csv(OUT / "tables" / "motif_relocati
 
 # group comparisons (Dynamic vs context-matched Stable) for the headline quantities
 rows = []
-for nm, d, cond in (("dose: 3 core bases changed, 170 bp readout", e170, "core_mm3"), ("dose: 7 core bases changed, 170 bp readout", e170, "core_mm7"), ("consensus upgrade, 170 bp readout", e170, "core_consensus"),
-                    ("reverse complement, 170 bp readout", e170, "core_rc"), ("half-site only, 170 bp readout", e170, "core_halfsite"), ("dose: 3 core bases changed, motif readout", emot, "core_mm3"), ("consensus upgrade, motif readout", emot, "core_consensus")):
+for nm, d, cond in (("dose: 3 core bases changed, 170 bp readout", e170, "core_mm3"), ("dose: 7 core bases changed, 170 bp readout", e170, "core_mm7"), ("upgrade to a perfect core (sites without one), 170 bp readout", eu170, "core_upgrade"),
+                    ("11 bp motif reverse complement, 170 bp readout", e170, "motif_rc"), ("half-site only, 170 bp readout", e170, "core_halfsite"), ("dose: 3 core bases changed, motif readout", emot, "core_mm3"), ("upgrade to a perfect core (sites without one), motif readout", eumot, "core_upgrade")):
     x = d[(d.condition == cond) & (d.group == "dynamic")].eff
     y = d[(d.condition == cond) & (d.group == "matched_stable")].eff
     if len(x) > 5 and len(y) > 5:

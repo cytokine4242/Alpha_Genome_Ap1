@@ -53,7 +53,7 @@ Two experiments on a fixed subset of 1,470 cardiomyocyte sites (`data/cm_subset_
 | mode | what it does | passes/site | output |
 |---|---|---|---|
 | `scan` | tile scan (every base of a 10 bp tile replaced; 60 tiles from -300 to +290 bp, 3 replicates) and saturation mutagenesis (3 alternatives at each of 61 positions, -30 to +30 bp) | 364 | `results/scan_cm_chunk*.csv` |
-| `titrate` | core weakening (1 to 7 of the 7 core bases changed), consensus upgrade (TGAGTCA), reverse complement, half-site only; the 11 bp motif duplicated or moved to offsets -150, -80, -40, -20, +20, +40, +80, +150, each with its own shuffled control (one for duplicate, one for move) | 118 | `results/titrate_cm_chunk*.csv` |
+| `titrate` | core weakening (1 to 7 of the 7 core bases changed), upgrade to a perfect TGA[C/G]TCA core with the fewest changes (only at sites without one), reverse complement of the whole 11 bp motif (the core itself is a palindrome), half-site only; the 11 bp motif duplicated or moved to offsets -150, -80, -40, -20, +20, +40, +80, +150, each with its own shuffled control (one for duplicate, one for move) | 118 | `results/titrate_cm_chunk*.csv` |
 
 ```
 bash submit_all.sh dynamics_pilot      # 6 sites per experiment, 1 h walltime: do this first and check logs/ and results/pilot_*

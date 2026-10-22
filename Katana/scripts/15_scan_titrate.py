@@ -8,8 +8,10 @@ Question: what is different about the sequence neighbourhood of Dynamic sites, a
 
   --experiment titrate   how does accessibility respond to AP-1 motif strength and position?  (7 bp core = TGA[C/G]TCA, or the central 7 bp if the 11 bp motif holds no exact core)
       core_mm1..core_mm7  1 to 7 of the 7 core bases replaced (5 random draws each; 3 for 7), redrawn until the core is no longer a perfect TGA[C/G]TCA   strength: weakening
-      core_consensus      core set to the TRE consensus TGAGTCA                                              strength: upgrade to consensus (skipped if already identical)
-      core_rc             core replaced by its reverse complement                                             orientation / strand symmetry
+      core_upgrade        only at sites WITHOUT an exact core: the 7 bp window of the motif closest to TGA[C/G]TCA made perfect with the fewest changes (pos = bases changed)   strength: upgrade
+                          (an exact core is already perfect: TGACTCA and TGAGTCA are each other's reverse complement, so there is nothing to upgrade)
+      motif_rc            the whole 11 bp motif replaced by its reverse complement                            orientation of the motif relative to its surroundings (the 7 bp core is a palindrome,
+                                                                                                              so reversing only the core would just swap its centre C/G)
       core_halfsite       first half-site TGA[C/G] kept, last 3 core bases replaced (3 draws)                 half-site only
       dup@o               a second copy of the 11 bp motif written at offset o = -150,-80,-40,-20,+20,+40,+80,+150 (original kept)
       ctrl@o              a composition-matched shuffled 11-mer written at the same offset (3 draws)        control for dup: overwriting the local sequence
@@ -38,7 +40,24 @@ import ag_lib as L
 
 TILE, TILE_HALF, ISM_HALF = 10, 300, 30
 OFFSETS = (-150, -80, -40, -20, 20, 40, 80, 150)
-CONSENSUS = "TGAGTCA"
+CORE_LEN = 7
+
+
+def _best_core(codes, motif):
+    """(start, end, mismatches, perfect core) for the 7 bp window of the motif with the fewest mismatches to TGA[C/G]TCA, ties broken towards the motif centre.
+    The perfect core keeps the window's centre base if it is C or G (the degenerate position), else uses G, so the upgrade changes as few bases as possible."""
+    m0, m1 = motif
+    centre = (m0 + m1 - CORE_LEN) / 2
+    best = None
+    for a in range(m0, m1 - CORE_LEN + 1):
+        w = L.decode(codes[a:a + CORE_LEN])
+        perfect = "TGA" + (w[3] if w[3] in "CG" else "G") + "TCA"
+        mm = sum(x != y for x, y in zip(w, perfect))
+        key = (mm, abs(a - centre))
+        if best is None or key < best[0]:
+            best = (key, a, perfect)
+    (mm, _), a, perfect = best
+    return a, a + CORE_LEN, mm, perfect
 
 
 def _mutate(codes, idx, rng):
@@ -96,16 +115,16 @@ def titrate_conditions(codes, reg, rng):
                 if not L.CORE_RE.search(L.decode(e[c0:c1])):
                     break
             out.append((f"core_mm{k}", "core_mm", k, "", r, e, None))
-    cons = L.encode(CONSENSUS)
-    if (codes[c0:c1] != cons).any():
+    if not found:                                # upgrade only where there is something to upgrade
+        u0, u1, mm, perfect = _best_core(codes, reg["motif"])
         e = codes.copy()
-        e[c0:c1] = cons
-        out.append(("core_consensus", "core_consensus", 0, "", 0, e, None))
-    rc = L.COMPLEMENT[codes[c0:c1]][::-1]
-    if (codes[c0:c1] != rc).any():
+        e[u0:u1] = L.encode(perfect)
+        out.append(("core_upgrade", "core_upgrade", mm, "", 0, e, None))
+    rc = L.COMPLEMENT[motif][::-1]
+    if (motif != rc).any():
         e = codes.copy()
-        e[c0:c1] = rc
-        out.append(("core_rc", "core_rc", 0, "", 0, e, None))
+        e[m0:m1] = rc
+        out.append(("motif_rc", "motif_rc", 0, "", 0, e, None))
     for r in range(3):
         out.append(("core_halfsite", "core_halfsite", 0, "", r, _mutate(codes, np.arange(c0 + 4, c1), rng), None))
     for o in OFFSETS:
@@ -165,8 +184,9 @@ def selftest():
             assert len(d) == pos and ((d >= c0) & (d < c1)).all() and not L.CORE_RE.search(L.decode(e[c0:c1])), name
         elif kind == "core_halfsite":
             assert len(d) == 3 and ((d >= c0 + 4) & (d < c1)).all(), name
-        elif kind == "core_rc":
-            assert (e[c0:c1] == L.COMPLEMENT[codes[c0:c1]][::-1]).all() and len(d) <= 7, name
+        elif kind == "motif_rc":
+            assert (e[m0:m1] == L.COMPLEMENT[codes[m0:m1]][::-1]).all() and set(d) <= set(range(m0, m1)), name
+            assert L.CORE_RE.search(L.decode(e[m0:m1])), name             # a perfect core stays perfect when the motif is reversed
         elif kind == "dup":
             t0, t1 = tgt
             assert (e[t0:t1] == codes[m0:m1]).all() and (e[m0:m1] == codes[m0:m1]).all() and set(d) <= set(range(t0, t1)), name
@@ -182,14 +202,20 @@ def selftest():
             t0, t1 = tgt
             assert (e[t0:t1] == codes[m0:m1]).all() and sorted(e[m0:m1]) == sorted(codes[m0:m1]) and (e[m0:m1] != codes[m0:m1]).any(), name
             assert set(d) <= set(range(m0, m1)) | set(range(t0, t1)), name
-    assert "core_consensus" not in names                                # the planted core is already the consensus
+    assert "core_upgrade" not in names and "motif_rc" in names         # the planted core is already perfect
     assert sum(n.startswith("dup@") for n in names) == len(OFFSETS) and sum(n.startswith("move@") for n in names) == 3 * len(OFFSETS) and sum(n.startswith("ctrlmove@") for n in names) == 3 * len(OFFSETS)
-    # a site whose core is not the consensus gets an upgrade condition
+    # a site without an exact core gets an upgrade with the fewest changes (centre C kept, the one wrong base fixed)
     codes2 = codes.copy()
     codes2[c0:c1] = L.encode("TGACGCA")
-    tt2, _ = titrate_conditions(codes2, reg, rng)
-    up = [c for c in tt2 if c[0] == "core_consensus"]
-    assert len(up) == 1 and L.decode(up[0][5][c0:c1]) == CONSENSUS
+    tt2, found2 = titrate_conditions(codes2, reg, rng)
+    up = [c for c in tt2 if c[0] == "core_upgrade"]
+    assert not found2 and len(up) == 1 and up[0][2] == 1 and L.decode(up[0][5][c0:c1]) == "TGACTCA", up[0][:3]
+    assert (np.flatnonzero(up[0][5] != codes2) == [c0 + 4]).all()
+    # TGAATCA (wrong centre base): G is used, one change
+    codes3 = codes.copy()
+    codes3[c0:c1] = L.encode("TGAATCA")
+    up3 = [c for c in titrate_conditions(codes3, reg, rng)[0] if c[0] == "core_upgrade"]
+    assert len(up3) == 1 and up3[0][2] == 1 and L.decode(up3[0][5][c0:c1]) == "TGAGTCA"
     print(f"selftest OK: scan {len(sc)} conditions ({n_tile} tile, {n_ism} saturation), titrate {len(tt)} conditions, {len(tt) + len(sc) + 2} passes for both incl. natives")
 
 
