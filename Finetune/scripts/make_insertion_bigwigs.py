@@ -4,9 +4,12 @@
 Why not use the existing SeqDepthNorm bigWigs? They come from `bamCoverage --binSize 10 --normalizeUsing CPM`: read coverage in 10 bp bins, which blurs the base-pair
 footprints and motif-level structure that the perturbation analyses rely on. Insertion sites at 1 bp keep that structure (and can be pooled to 128 bp by the model).
 
-Each fragment [start, end) gives two insertions: start + 4 and end - 5 (0-based; the +4/-5 Tn5 offsets, ArchR / ChromBPNet convention). Both strands are summed.
+Each fragment [start, end) gives two insertions. Fragment files from Cell Ranger ATAC, sinto or ArchR are already corrected for the Tn5 9 bp duplication, so by default the
+insertions are the fragment ends themselves: start and end - 1 (0-based), i.e. --offsets 0 -1. Only for fragments built from raw read ends without correction use --offsets 4 -5.
+Both strands are summed.
 Several samples can be pooled (a fragment file plus a file of the cell barcodes to keep for that sample, one barcode per line), so replicates of a condition are merged
-and barcode collisions between samples cannot happen. Positions without an insertion are written as explicit zeros. Values are scaled so the genome-wide total equals --target-total (default 1e9) to make conditions comparable;
+and barcode collisions between samples cannot happen. BARCODES may be several files joined by commas (for example the _F and _M lists of one library);
+a 'CB:Z:' prefix (as in lists taken from BAM tags) is removed so they match the fragment file. Positions without an insertion are written as explicit zeros. Values are scaled so the genome-wide total equals --target-total (default 1e9) to make conditions comparable;
 the fine-tuning code divides by per-track means anyway, so any constant works as long as every track uses the same one.
 
   python make_insertion_bigwigs.py --chrom-sizes mm10.chrom.sizes --out Cardiomyocyte_YS.insertions.bw \\
@@ -39,7 +42,7 @@ def read_sizes(path, canonical_only=True):
 def collect_cuts(samples, sizes, offsets, chunksize):
     cuts, n_read, n_kept = defaultdict(list), 0, 0
     for frag, bc in samples:
-        barcodes = set(Path(bc).read_text().split())
+        barcodes = {b[5:] if b.startswith("CB:Z:") else b for f in bc.split(",") for b in Path(f).read_text().split()}
         reader = pd.read_csv(frag, sep="\t", header=None, comment="#", usecols=[0, 1, 2, 3], names=["chrom", "start", "end", "bc"], dtype={"chrom": str, "start": np.int64, "end": np.int64, "bc": str}, chunksize=chunksize)
         for ch in reader:
             n_read += len(ch)
@@ -92,7 +95,7 @@ def main():
     ap.add_argument("--sample", nargs=2, action="append", metavar=("FRAGMENTS", "BARCODES"), required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--target-total", type=float, default=1e9)
-    ap.add_argument("--offsets", type=int, nargs=2, default=[4, -5], help="insertion offsets from fragment start and end (default +4 -5)")
+    ap.add_argument("--offsets", type=int, nargs=2, default=[0, -1], help="insertion offsets from fragment start and end (default 0 -1: fragments already Tn5-corrected; use 4 -5 for uncorrected)")
     ap.add_argument("--chunksize", type=int, default=5_000_000)
     ap.add_argument("--all-chroms", action="store_true", help="keep every chromosome of the sizes file (default chr1-19, X, Y)")
     args = ap.parse_args()

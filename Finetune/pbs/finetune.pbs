@@ -8,5 +8,5 @@ cd $PBS_O_WORKDIR
 source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
 export WANDB_MODE=offline
 echo "job $PBS_JOBID on $(hostname) | GPU: $(nvidia-smi -L 2>/dev/null | head -1) | config $CONFIG"
-python ${FT_SCRIPT:-/srv/scratch/wonglab/minh/alphagenome-pytorch/scripts/finetune.py} --config $CONFIG ${BATCH:+--batch-size $BATCH} ${ACCUM:+--gradient-accumulation-steps $ACCUM}
+python ${FT_SCRIPT:-/srv/scratch/wonglab/minh/alphagenome-pytorch/scripts/finetune.py} --config $CONFIG --track-means-samples ${TM_SAMPLES:-2000} ${BATCH:+--batch-size $BATCH} ${ACCUM:+--gradient-accumulation-steps $ACCUM}
 echo "fine-tuning finished"
