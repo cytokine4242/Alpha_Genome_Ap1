@@ -29,6 +29,7 @@ The 10 bp read-coverage tracks blur the base-pair footprints that the motif-leve
    - `--with-rna --rna-dir ...` adds the merged RNA tracks.
 4. **Pilot, then probe, then LoRA:** `PILOT=1 bash submit.sh probe`, then `bash submit.sh probe`, then `bash submit.sh lora` (`DRY=1` prints the qsub command first).
    - Walltimes: pilot 2 h, probe 48 h, LoRA / full 72 h (`WALL=` to change). The probe and LoRA values are placeholders: reset them to about 1.5-2x the time the pilot implies, since shorter requests queue faster. Minh's 15-epoch probe at 1 Mb took about 40 h on an H200; read the pilot's step time and set `WALL` from it.
+   - Probe pilot (22 Oct 2026, L40S): 3.3 batches/s at batch 4, 19 GB host RAM, 10 GB GPU memory. Full probe = 37,171 train + 5,611 valid windows, about 55 min per epoch on an L40S, so 15 epochs about 14 h: submitted with `WALL=24:00:00` and the default `MEM=62gb` (keeps jobs off V100s, see `submit.sh`).
    - Batch: probe uses the YAML (4 x 8). LoRA / full default to `BATCH=1 ACCUM=32` unless `GPU=H200`, since batch 4 has only been run on H200s.
    - Track means are estimated from 2,000 windows (`TM_SAMPLES=` to change) instead of all training windows.
    - `KIND=1bp` for the insertion tracks.

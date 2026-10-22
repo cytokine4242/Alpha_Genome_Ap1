@@ -2,7 +2,8 @@
 # Submit fine-tuning jobs from the Finetune/ folder on Katana (private account by default; DRY=1 prints the qsub commands instead).
 #   bash submit.sh bigwigs                  # array: one task per (cell type, condition) of data/samples_manifest.tsv -> 1 bp insertion bigWigs  (needs MANIFEST, CHROM_SIZES, OUT_DIR)
 #   bash submit.sh probe|lora|lora_locon|full   # config chosen by KIND (10bp or 1bp, default 10bp), PILOT=1, RNA=1, SEQ (131072 default, or 1048576), FOLD (FOLD_3)
-# Options (environment variables): ACCOUNT (default mwac_wonglab), GPU (default any; e.g. H200), BATCH / ACCUM (override the YAML batch size / accumulation, e.g. BATCH=1 ACCUM=32 on a 48 GB card), WALL (walltime)
+# Options (environment variables): ACCOUNT (default mwac_wonglab), GPU (default any; e.g. H200), MEM (host RAM per GPU, default 62gb: above 45gb excludes every V100 node, above 62gb also
+#   excludes the 8-GPU general A100 nodes, above 124gb leaves only H200-class nodes; the probe pilot used 19 GB), BATCH / ACCUM (override the YAML batch size / accumulation, e.g. BATCH=1 ACCUM=32 on a 48 GB card), WALL (walltime)
 set -e
 cd "$(dirname "$0")"
 ACCOUNT=${ACCOUNT-mwac_wonglab}
@@ -23,10 +24,10 @@ case "$1" in
     SEQ=${SEQ:-131072}; FOLD=${FOLD:-FOLD_3}
     CFG=configs/${1}_${KIND}_$(echo $FOLD | tr A-Z a-z)_$((SEQ / 1024))kb${PILOT:+_pilot}${RNA:+_rna}.yaml
     [ -f "$CFG" ] || { echo "$CFG not found: run scripts/make_configs.py first"; exit 1; }
-    if [ -n "$PILOT" ]; then W=${WALL:-02:00:00}; else case "$1" in probe) W=${WALL:-48:00:00} ;; *) W=${WALL:-72:00:00} ;; esac; fi
+    if [ -n "$PILOT" ]; then W=${WALL:-02:00:00}; else case "$1" in probe) W=${WALL:-24:00:00} ;; *) W=${WALL:-72:00:00} ;; esac; fi
     # adapters and full fine-tuning backpropagate through the trunk: on cards smaller than an H200 use batch 1 with 32-step accumulation unless BATCH/ACCUM are given
     if [ "$1" != probe ] && [ "$GPU" != H200 ] && [ -z "$BATCH" ]; then BATCH=1; ACCUM=${ACCUM:-32}; fi
     V="CONFIG=$CFG${BATCH:+,BATCH=$BATCH}${ACCUM:+,ACCUM=$ACCUM}"
-    run $O -l select=1:ncpus=8:mem=120gb:ngpus=1$SEL -l walltime=$W -N ft_${1}_${KIND}${PILOT:+_pilot} -v "$V" pbs/finetune.pbs ;;
+    run $O -l select=1:ncpus=8:mem=${MEM:-62gb}:ngpus=1$SEL -l walltime=$W -N ft_${1}_${KIND}${PILOT:+_pilot} -v "$V" pbs/finetune.pbs ;;
   *) echo "usage: bash submit.sh bigwigs|probe|lora|lora_locon|full"; exit 1 ;;
 esac
