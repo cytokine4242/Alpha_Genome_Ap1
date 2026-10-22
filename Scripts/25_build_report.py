@@ -751,6 +751,14 @@ SEC.pop("G7", None)
 SEC.pop("D5", None)
 
 
+DY = AN / "dynamic"
+dr = lambda n: pd.read_csv(DY / "tables" / n)
+Y_auc, Y_pi, Y_cond, Y_var, Y_cor = dr("classifier_auc.csv").set_index("features"), dr("classifier_permutation_importance.csv").set_index("feature"), dr("condition_specific_accessibility.csv").set_index("binding_pattern"), dr("accessibility_variability_across_conditions.csv").iloc[0], dr("prediction_vs_each_condition.csv").set_index("binding_pattern")
+Y_same, Y_pos, Y_cross, Y_match, Y_thr = dr("same_peak_pairs.csv").set_index("quantity"), dr("position_in_peak.csv").iloc[0], dr("cross_cell_type_concordance.csv").iloc[0], dr("matched_pairs.csv").set_index("effect"), dr("footprint_threshold.csv").iloc[0]
+Y_bin, Y_mod, Y_bal, Y_fpw = dr("dynamic_share_by_footprint_strength.csv"), dr("gap_models_with_mean_footprint.csv").set_index("model"), dr("matching_balance.csv"), dr("footprint_strength_when_bound.csv").iloc[0]
+dimg = lambda n, alt: img(DY / "figures" / f"{n}.png", alt)
+
+
 def strip_prose(s, keep_tables=None):
     """Keep figures, details blocks and (some) tables of a section; drop its paragraphs and lists (the dot points replace them)."""
     out, pos, ntab = [], 0, 0
@@ -818,6 +826,12 @@ CONF = {
  "G6": ("ok", "Unchanged by the filter."),
  "C7": ("mid", "Weak native-level correlation; the scramble null does not rank models, as MPRA effects are tiny."),
  "D4": ("mid", "A clean null, but only 2 neutral backgrounds and tiny MPRA effects."),
+ "DT": ("mid", "Strong descriptive result; footprint score comes from the same ATAC data, so weak footprint partly means low accessibility."),
+ "DC": ("mid", "Small effects but consistent across all six patterns; one pooled measurement per condition."),
+ "DM": ("mid", "Cross-validated and matched analyses; the same-peak comparison uses only 55 peaks."),
+ "DX": ("mid", "Only the 962 sites called in both cell types; classes are threshold calls."),
+ "DEXP": ("na", "Proposals, not results."),
+ "FT": ("na", "Proposal."),
  "B5": ("bad", "Not informative with these tracks."),
  "B8b": ("bad", "At the floor; not interpretable."),
 }
@@ -843,6 +857,11 @@ CH = [
     f"Stable loses more at 170 bp ({m.loc['170', 'diff_dyn_minus_stable']:+.2f} raw); this falls to {hg(cmn, M_MATCH).gap:+.2f} (matched accessibility) and {hg(cmn, M_FULL).gap:+.2f} (plus peak width, TSS distance); age and exercise classes cannot be told apart.",
     "Limit: a small residual remains and the data neither show nor exclude a separate sequence effect."),
   [("B3", "Stable versus Dynamic: the raw difference"), ("H1", "Correcting for accessibility at the matched readout"), ("B4", "Age, exercise and their combination"), ("D3", "Does it replicate in fibroblast sites?")]),
+ ("deep", "What makes Dynamic sites different? A deep dive",
+  U("Question: what separates Dynamic from Stable sites, using everything measured and predicted so far?",
+    f"Mostly footprint strength: Dynamic sites sit right at the binding-call threshold, so the class is largely 'weak vs strong footprint'; condition-specific opening is real but modest ({Y_cond.loc['All Dynamic', 'measured_log2_bound_minus_unbound']:+.2f} log2); the model finds no extra sequence logic ({Y_match.loc['170 bp shuffle', 'matched_gap_median']:+.2f} in matched pairs).",
+    "Limits: footprint score comes from the same ATAC data, and the classes overlap at equal footprint strength only in a narrow range."),
+  [("DT", "Is Dynamic mostly a footprint threshold?"), ("DC", "Condition-specific accessibility: real but modest"), ("DM", "Model features, matched pairs and same-peak pairs"), ("DX", "Is the class a property of the sequence?"), ("DEXP", "AlphaGenome experiments that would explore this further")]),
  ("robust", "Robustness: only sites where prediction matches measurement",
   U("Test: keep sites whose predicted accessibility agrees with measured, chosen from the native prediction and measurement only, and repeat the main analyses.",
     "The Stable-vs-Dynamic direction, the mutation split and the controls hold in every tier.",
@@ -858,7 +877,7 @@ CH = [
   [("B5", "Predicted RNA"), ("B8b", "Motif insertion into random backgrounds"), ("NOTE", "Other limits")]),
  ("reg", "Experiment register: every experiment, confidence and reason", None, []),
  ("bio", "What these tests taught us", None, []),
- ("open", "Review log, open issues and next steps", None, [("H2", "Corrections made after review"), ("H3", "Code issues found and not yet fixed"), ("NEXT", "Next steps")]),
+ ("open", "Review log, open issues and next steps", None, [("H2", "Corrections made after review"), ("H3", "Code issues found and not yet fixed"), ("NEXT", "Next steps"), ("FT", "What it would take to fine-tune cardiomyocyte and fibroblast heads")]),
  ("key", "Five key figures for a presentation", None, []),
 ]
 for ci, (ck, ct, cintro, subs) in enumerate(CH, 1):
@@ -1042,6 +1061,7 @@ BIO = f"""<p><strong>Bottom line.</strong> AlphaGenome says an AP-1 site's acces
    f"The motif is rarely the unit: {an3.loc['Context only', 'share_stable']:.0%} of Stable sites are context-only, {an3.loc['Motif only', 'share_stable']:.1%} motif-only, and at {an1.loc[('motif', 'Stable'), 'frac_gt0']:.0%} shuffling the motif raises the prediction.",
    f"Replacing the surroundings keeps {ratio_cm170:.0%} (CM) / {ratio_fb170:.0%} (FB) of the loss from replacing all 170&nbsp;bp.",
    f"Responsive AP-1 sites show little beyond context: the Stable-vs-Dynamic gap goes from {hg(cmn, M_RAW).gap:+.2f} to {hg(cmn, M_FULL).gap:+.2f}; a separate sequence effect is neither shown nor excluded.",
+   f"'Dynamic' is largely a footprint threshold: Dynamic sites sit at the call cut-off, the class is almost a function of footprint strength, and the same site is often Stable in one cell type and Dynamic in the other (kappa {Y_cross.cohens_kappa:.2f}).",
    f"Dynamic sites are over-predicted ({xts.loc['CM sites, heart ATAC', 'dynamic_median_signed']:+.2f} vs {xts.loc['CM sites, heart ATAC', 'stable_median_signed']:+.2f}), so their openness may depend on condition or cell state beyond sequence.",
    "Sequence sets a peak's rank and location sets its level (peak swap), equally for Stable and Dynamic donors.",
    "Accessibility is not enhancer activity at the element level: predicted scrambling effects correlate about 0 with MPRA changes, in genomic and neutral windows.")}
@@ -1069,12 +1089,16 @@ BIO_SEC = {
  "C4": "Well-bound AP-1 sites sit in accessible, motif-rich sequence; this partly restates that open chromatin supports binding.",
  "C5": "Nothing can be said about redundancy between neighbouring AP-1 sites from these data.",
  "B3": "Sites whose AP-1 binding changes lose less accessibility when their surroundings are removed; the next section asks whether that is more than chromatin context.",
- "H1": "Responsive AP-1 sites are not obviously built differently from constitutive ones: once their weaker chromatin context is counted, little extra sequence dependence remains. Their responsiveness may therefore come from things a sequence-only baseline model does not see (AP-1 activity, co-factors, chromatin state), as the manuscript suggests for dynamic elements. This cannot be tested here, because the model predicts baseline accessibility, not response.",
+ "H1": "Responsive AP-1 sites are not obviously built differently from constitutive ones: once their weaker chromatin context is counted, little extra sequence dependence remains. Their responsiveness may therefore come from things a sequence-only baseline model does not see (AP-1 activity, co-factors, chromatin state), as the manuscript suggests for dynamic elements. This cannot be tested here, because the model predicts baseline accessibility, not response. Many 'dynamic' sites may also simply be weak footprints near the calling threshold (see the deep-dive chapter).",
  "B4": "The model cannot tell age-driven from exercise-driven AP-1 changes by sequence at these sample sizes.",
  "D3": "The same picture at fibroblast AP-1 sites (indicative only; weak tracks).",
  "G2": "The well-predicted Dynamic sites are those whose accessibility is sequence-driven; the filtered result describes them, not all dynamic sites.",
  "C7": "Accessibility and reporter activity are different properties: a model that ranks open sequences does not predict how much activity a scramble removes, which is the manuscript's own reason for training a probe on the MPRA.",
  "D4": "The mismatch is not caused by the model using the surrounding genome; MPRA effects are small and accessibility is not enhancer activity.",
+ "DT": "Many 'dynamic' AP-1 sites are probably weakly bound sites that cross the calling threshold in some conditions rather than sites that switch on and off. Read the age and exercise labels as 'weakly vs strongly bound' and use a replicate-aware differential test to find truly responsive sites.",
+ "DC": "Condition-specific opening exists but is modest, and it is the part a baseline, condition-blind sequence model cannot see.",
+ "DM": "Nothing in the model's features marks Dynamic sites as built differently; what separates them is weaker context, and the gap between prediction and measurement.",
+ "DX": "The same DNA site is often Stable in one cell type and Dynamic in another, so class depends on cell state more than on the sequence.",
  "B5": "Single distal AP-1 elements barely change predicted gene expression; nothing about target-gene regulation can be concluded.",
  "B8b": "No conclusion about whether the motif alone can create accessibility.",
 }
@@ -1092,6 +1116,49 @@ B2 = U(f"Shuffling the 11&nbsp;bp motif: {m.loc['motif', 'median_stable']:.2f} l
 
 SPECIAL = {"MAN": MAN, "NOTE": NOTE, "NEXT": NEXT, "TECH": TECH, "B2": B2}
 
+
+_yb = lambda k: Y_bin.iloc[k]
+DT = U(f"Binding is called at one footprint-score cut-off ({Y_thr.threshold:.3f}). Dynamic sites sit right at it: median score {Y_thr.dynamic_bound_median:.2f} in conditions called bound and {Y_thr.dynamic_unbound_median:.2f} in conditions called unbound; {Y_thr['share_dynamic_bound_calls_within_0.15_of_threshold']:.0%} and {Y_thr['share_dynamic_unbound_calls_within_0.15_of_threshold']:.0%} of those calls are within 0.15 of the cut-off. Stable sites have a median of {Y_thr.stable_median_score:.2f}.",
+       f"Share of sites that are Dynamic by mean footprint score: {_yb(0).share_dynamic:.0%} in the weakest eighth, {_yb(1).share_dynamic:.0%} in the next, {_yb(2).share_dynamic:.0%} in the next, about 0% above that. The class is almost a function of footprint strength (AUC {Y_auc.loc['footprint score only (partly defines the classes)', 'auc_logistic']:.2f}).",
+       f"Dynamic sites' scores do not fluctuate more across conditions than Stable sites' (median SD {Y_thr.median_score_sd_across_conditions_dynamic:.3f} vs {Y_thr.median_score_sd_across_conditions_stable:.3f}); they are just close to the threshold.",
+       f"Accounting for mean footprint score takes the 170 bp gap from {Y_mod.loc['raw', 'gap_dynamic_minus_stable']:+.2f} to {Y_mod.loc['+ mean footprint score', 'gap_dynamic_minus_stable']:+.2f}; adding accessibility and peak width too gives {Y_mod.loc['+ native accessibility, peak width, mean footprint score', 'gap_dynamic_minus_stable']:+.2f} (CI {Y_mod.loc['+ native accessibility, peak width, mean footprint score', 'ci_lo']:+.2f} to {Y_mod.loc['+ native accessibility, peak width, mean footprint score', 'ci_hi']:+.2f}, not significant).",
+       "So 'Dynamic' is largely 'weak or marginal footprint in weaker chromatin' and not 'switches on and off'.",
+       "Caveats: footprint scores come from the same ATAC data (weak footprint partly means low accessibility), and the two classes overlap at equal footprint strength only in a narrow range, so the right-hand panel rests on few bins.") + \
+     f"<figure>{dimg('y4_footprint_threshold', 'Dynamic sites sit at the footprint threshold')}<figcaption>Left: footprint scores of Dynamic sites in the conditions called bound (orange) and unbound (grey), with the binding threshold. Middle: share of sites that are Dynamic by mean footprint score. Right: median 170 bp shuffle effect by footprint strength; the classes overlap only between about 0.5 and 1.0.</figcaption></figure>"
+_cd = lambda pat: Y_cond.loc[pat]
+DC = U(f"Measured accessibility at Dynamic sites is higher in the conditions where they are called bound: {Y_cond.loc['All Dynamic', 'measured_log2_bound_minus_unbound']:+.2f} log2 on average ({Y_cond.measured_log2_bound_minus_unbound.drop('All Dynamic').min():+.2f} to {Y_cond.measured_log2_bound_minus_unbound.drop('All Dynamic').max():+.2f} by pattern, all p < 0.001): real but small (about 11%).",
+       f"It also varies more across conditions at Dynamic sites (median SD {Y_var.dynamic_sd:.2f} vs {Y_var.stable_sd:.2f} log2, p < 1e-10).",
+       f"The model predicts one baseline value, and over-predicts Dynamic sites more in the conditions where they are unbound ({Y_cond.loc['All Dynamic', 'overprediction_diff_unbound_minus_bound']:+.2f} rank units; every pattern FDR < 0.001): consistent with permissive sequence that is open mostly when bound.",
+       f"Its prediction correlates about equally with accessibility in all three conditions (YS only: {Y_cor.loc['YS only', 'rho_pred_vs_YS']:.2f}, {Y_cor.loc['YS only', 'rho_pred_vs_MAS']:.2f}, {Y_cor.loc['YS only', 'rho_pred_vs_MAE']:.2f}), so it carries no condition-specific information; sites bound only in aged states match young-state accessibility best (MAS only: {Y_cor.loc['MAS only', 'rho_pred_vs_YS']:.2f} with YS vs {Y_cor.loc['MAS only', 'rho_pred_vs_MAS']:.2f} with MAS).") + \
+     f"<figure>{dimg('y2_condition_specific', 'Condition-specific accessibility at Dynamic sites')}<figcaption>Left: measured accessibility in bound minus unbound conditions, by binding pattern. Middle: the model's over-prediction in unbound minus bound conditions (Wilcoxon, BH). Right: variability of measured accessibility across the three conditions.</figcaption></figure>"
+_pc = lambda k: Y_pi.loc[k, 'auc_drop']
+DM = U(f"A classifier on model features separates the classes only modestly: native accessibility alone AUC {Y_auc.loc['native predicted accessibility only (motif, 170 bp, peak)', 'auc_logistic']:.2f}; context plus the shuffle effects {Y_auc.loc['context + model effects', 'auc_logistic']:.2f} (the effects add nothing).",
+       f"Measured accessibility alone gives {Y_auc.loc['measured accessibility only', 'auc_logistic']:.2f}; measured accessibility plus the prediction error plus the model features gives {Y_auc.loc['context + effects + measured accessibility + prediction error', 'auc_logistic']:.2f}: the gap between what the model predicts and what is measured carries the extra information (AUC drop when scrambled: measured accessibility {_pc('l_meas'):.2f}, 170 bp effect {_pc('eff_170'):.2f}, native 170 bp accessibility {_pc('l_170'):.2f}, prediction error {_pc('resid'):.2f}).",
+       f"Matched pairs ({int(Y_match.loc['170 bp shuffle', 'n_pairs'])} of {int(Y_match.loc['170 bp shuffle', 'n_dynamic_total'])} Dynamic sites matched to the Stable site with the same 170 bp and peak accessibility, peak width and TSS distance; balance within {Y_bal.std_diff_after.abs().max():.2f} SD): the 170 bp gap is {Y_match.loc['170 bp shuffle', 'matched_gap_median']:+.2f} (CI {Y_match.loc['170 bp shuffle', 'matched_ci_lo']:+.2f} to {Y_match.loc['170 bp shuffle', 'matched_ci_hi']:+.2f}); motif and peak shuffles about 0.",
+       f"Same-peak pairs ({int(Y_same.loc['170 bp shuffle effect', 'n_peaks'])} peaks holding both classes): the Dynamic site sits at lower accessibility ({Y_same.loc['native accessibility, 170 bp (log10)', 'median_dynamic_minus_stable']:+.2f} log10 at 170 bp) and loses less ({Y_same.loc['170 bp shuffle effect', 'median_dynamic_minus_stable']:+.2f}, CI {Y_same.loc['170 bp shuffle effect', 'ci_lo']:+.2f} to {Y_same.loc['170 bp shuffle effect', 'ci_hi']:+.2f}): the effect follows local accessibility even inside one peak.",
+       f"Position in the peak differs a little (Dynamic sites slightly more off-centre: {Y_pos.dynamic_median:.2f} vs {Y_pos.stable_median:.2f}, p = {Y_pos.p:.3f}), too small to matter.") + \
+     f"<figure>{dimg('y1_classifier', 'Classifier separating Dynamic from Stable sites')}<figcaption>Cross-validated AUC (folds grouped by peak) for telling Dynamic from Stable sites with different feature sets, and which features carry the separation in the full model.</figcaption></figure><figure>{dimg('y3_matched_and_same_peak', 'Matched pairs and same-peak pairs')}<figcaption>The 170 bp gap in all sites, in matched pairs and in same-peak pairs (median with 95% bootstrap CI).</figcaption></figure>"
+DX = U(f"{int(Y_cross.shared_sites)} sites are present in both the cardiomyocyte and fibroblast tables; {Y_cross.agreement:.0%} keep the same class (Cohen's kappa {Y_cross.cohens_kappa:.2f}). {int(Y_cross.stable_cm_dynamic_fb)} are Stable in cardiomyocytes but Dynamic in fibroblasts, {int(Y_cross.dynamic_cm_stable_fb)} the reverse; only {int(Y_cross.dynamic_both)} are Dynamic in both.",
+       f"Of cardiomyocyte-Dynamic sites {1 - Y_cross.p_fb_stable_given_cm_dynamic:.0%} are Dynamic in fibroblasts, against {1 - Y_cross.p_fb_stable_given_cm_stable:.0%} of cardiomyocyte-Stable sites: a weak association.",
+       "So the same DNA site is often strongly bound in one cell type and marginal in another: the class depends more on cell state than on the sequence.",
+       "Caveats: shared sites are a special set (called in both cell types), and the classes are threshold calls (see the first section of this chapter).")
+DEXP = U("<strong>Intrinsic-sequence test.</strong> Place each site's 170 bp (native and shuffled) into neutral backgrounds, as in the MPRA neutral-context run, for Dynamic sites and for Stable sites matched on footprint strength: is the accessibility a property of the sequence or of its location? Small run (hours).",
+         "<strong>Tile scan or saturation mutagenesis</strong> on matched subsets (about 500 each of Dynamic, weak-Stable and strong-Stable): where do the important bases lie, how concentrated are they, and which neighbouring motifs (found by a motif scan on Katana) matter?",
+         "<strong>AP-1 affinity titration in place.</strong> Replace the motif by graded variants (consensus, weaker, half-site, scrambled), move it and duplicate it, and read accessibility; if AP-1 is only marginally engaged at Dynamic sites they should respond less.",
+         "<strong>Co-factor insertion and rescue.</strong> Insert GATA, TBX, MEF2 or NFAT motifs 20 to 60 bp from the AP-1 site at Dynamic sites: which raises predicted accessibility to Stable-like levels?",
+         "<strong>Other-motif shuffle control</strong> (already planned): does AP-1 matter more than other footprinted motifs in the same peak?",
+         "<strong>Breadth and state from the other heads</strong> (one forward pass for all 8,697 sites): ATAC across 18 mouse tissues and DNase across 67 give tissue breadth; heart and embryonic-fibroblast H3K27ac, H3K4me1, H3K4me3, EP300 (postnatal heart) and RNA/CAGE show whether Dynamic sites look like weaker or poised enhancers. There is no AP-1 ChIP track in the mouse model, so FOS binding cannot be predicted directly.",
+         "<strong>Redefine Dynamic with a continuous, replicate-aware differential test</strong> (data side): keep sites with a strong footprint in at least one condition and a significant change, then repeat the shuffle comparison on those truly differential sites. This is the most direct fix for the threshold problem.",
+         "<strong>Fine-tuned cardiomyocyte and fibroblast heads with per-condition tracks</strong> (see [[FT]]) would let the model learn condition-specific accessibility, which a baseline model cannot.")
+FT = U("<strong>Essential: base-resolution accessibility per cell type and condition.</strong> Pseudobulk fragment files or BAMs from the snATAC, with the barcode-to-cell-type table, turned into bigWigs of Tn5 insertion sites (depth-normalised) for cardiomyocytes and fibroblasts (ideally all 19 types) and for each condition (YS, MAS, MAE, YE) and replicate (2 batches × 2 sexes), on mm10. The project folder has only peak-level counts, which cannot supervise base-resolution tracks.",
+       "<strong>Genome-wide training windows</strong> including closed regions, with chromosome-held-out train, validation and test sets (for example hold out two chromosomes each), mappability and blacklist masks, and fragments per pseudobulk reported (aim for tens of millions per cell type and condition; if shallower, train on 128 bp bins or merge conditions).",
+       "<strong>Strongly useful: matched snRNA-seq pseudobulk</strong> per cell type and condition (strand-specific coverage or 128 bp bins) for the RNA heads.",
+       "<strong>Strongly useful: c-FOS (and JUN) CUT&Tag per condition</strong> from the manuscript, as a FOS-binding head (the base mouse model has no AP-1 track), plus TOBIAS footprint scores as a derived track and any histone CUT&Tag.",
+       "<strong>Held out for testing:</strong> the fibroblast MPRA, to check whether the fibroblast head predicts scramble effects better than the Patski track does.",
+       "<strong>Design:</strong> per-condition output tracks so condition-specific differences are learnable; start with a probe on the frozen backbone (cheap, thousands of windows; Minh's trial-19 probe code is the starting point) before unfreezing the last blocks; train multi-task with the original heart and Patski tracks to avoid forgetting.",
+       "<strong>Evaluate</strong> on held-out chromosomes (signal and peak correlation), on differential accessibility (MAS minus YS), against the built-in heart and Patski heads, and by whether the perturbation results in this report change.")
+SPECIAL.update({"DT": DT, "DC": DC, "DM": DM, "DX": DX, "DEXP": DEXP, "FT": FT})
+
 # ---------------- summary
 GLOSS = U("<strong>Site</strong> = one Fos (AP-1) motif footprint called by TOBIAS in a cell type. <strong>Stable</strong> = bound in all three conditions; <strong>Dynamic</strong> = any other pattern.",
           "<strong>YS / MAS / MAE</strong> = young sedentary, aged sedentary, aged + exercise. Age Up = bound in MAS but not YS; Exercise Up = bound in MAE but not MAS; Down = the reverse.",
@@ -1105,6 +1172,7 @@ SUMMARY = f"""
 {U(f"{badge('ok')} <strong>Context, not the motif.</strong> Shuffling the 170&nbsp;bp around an AP-1 site costs {m.loc['170', 'median_stable']:.2f} log2 vs {m.loc['motif', 'median_stable']:.2f} for the 11&nbsp;bp motif (Stable sites): most predicted accessibility sits in the surrounding sequence ({clink('depend')}).",
    f"{badge('mid')} <strong>Local and saturating.</strong> A same-size shuffle 300&nbsp;bp away does nothing ({co_.loc['Stable', 'offset_pm300_median']:.2f}); the loss saturates near 340&nbsp;bp; replacing everything but the motif keeps {ratio_cm170:.0%} (CM) / {ratio_fb170:.0%} (FB) of the loss, though a ratio near 100% is partly expected and follows the track ({link('D1')}, {link('D2')}).",
    f"{badge('mid')} <strong>Stable vs Dynamic is mostly chromatin context.</strong> The gap is {m.loc['170', 'diff_dyn_minus_stable']:+.2f} raw and {hg(cmn, M_FULL).gap:+.2f} after accounting for accessibility, peak width and TSS distance (Patski: {hg(fbp, M_MATCH).gap:+.2f} matched only, {hg(fbp, M_FULL).gap:+.2f} full). A separate sequence effect is neither shown nor excluded ({clink('dyn')}).",
+   f"{badge('mid')} <strong>'Dynamic' is largely a footprint threshold.</strong> Dynamic sites sit right at the binding-call cut-off (median score {Y_thr.dynamic_bound_median:.2f} when called bound, {Y_thr.dynamic_unbound_median:.2f} when unbound; cut-off {Y_thr.threshold:.2f}), the class is almost a function of mean footprint score, and measured accessibility changes with binding only modestly ({Y_cond.loc['All Dynamic', 'measured_log2_bound_minus_unbound']:+.2f} log2). The same site is often Stable in one cell type and Dynamic in the other ({clink('deep')}).",
    f"{badge('mid')} <strong>Sequence sets rank, location sets level</strong> in a peak swap, equally for Stable and Dynamic donors; only 4 recipient windows ({link('B8a')}).",
    f"{badge('mid')} <strong>The model tracks measured accessibility moderately</strong> (rho {xov.loc['CM sites, heart ATAC', 'rho']:.2f} cardiomyocyte, {xov.loc['FB sites, heart ATAC', 'rho']:.2f} fibroblast with the heart track, {xov.loc['FB sites, Patski ATAC', 'rho']:.2f} with Patski); Dynamic sites are over-predicted ({clink('found')}).",
    f"{badge('mid')} <strong>The native head does not explain the MPRA.</strong> Predicted scrambling effects correlate about 0 with MPRA changes, in genomic and neutral windows; the MPRA's own effects are tiny ({clink('mpra')}).",
