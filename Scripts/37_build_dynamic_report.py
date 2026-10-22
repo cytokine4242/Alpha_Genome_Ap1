@@ -14,6 +14,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 AN = ROOT / "Analysis"
 DY, DPR, ST = AN / "dynamic", AN / "dynamic_profiles", AN / "scan_titrate"
+SVC = AN / "stable_vs_changing"
 PT, SCL, DR, CX, DEP, HYP = AN / "partners", AN / "score_classes", AN / "distance_rules", AN / "class_context", AN / "dependence", AN / "hypotheses"
 
 IMGS: dict[int, Path] = {}
@@ -122,6 +123,12 @@ def register_table():
         rows.append(f"<tr><td><b>{i}</b></td><td>{badge(VCOL.get(r.verdict, 'inc'))}</td><td>{html.escape(r.hypothesis)}</td>"
                     f"<td>n = {int(r.n):,}</td><td>{html.escape(str(r.result))}</td></tr>")
     return ("<table class='t reg'><tr><th>ID</th><th>Verdict</th><th>Hypothesis</th><th>n</th><th>Result</th></tr>" + "".join(rows) + "</table>")
+
+
+SVCR = pd.read_csv(SVC / "tables" / "stable_vs_changing.csv")
+sv = lambda c, m: SVCR[(SVCR.contrast == c) & (SVCR.measure == m)].iloc[0]
+TH, CH, AU, AD = "Threshold: Dynamic vs Stable", "\u0394score: Changing vs Steady", "\u0394score: Age Up vs Unchanged", "\u0394score: Age Down vs Unchanged"
+nyes = lambda c: int((SVCR[SVCR.contrast == c].detects == "YES").sum())
 
 
 # ---------------------------------------------------------------- sections
@@ -273,6 +280,19 @@ sec("spacing", "Spacing: is there a rule, and is there helical phasing?", "mid",
             "Power spectrum of the detrended 1 bp distance histogram. Shaded: the 9.5&ndash;11.5 bp helical band. Dotted: the 95th percentile of nulls made by jittering each distance by up to &plusmn;7 bp.")
       + "</details>"
     + bio("The partners cluster just outside the AP-1 motif, with a mode around 13&ndash;16 bp between centres, and they lose influence as they move away. That is what cooperative binding on nearby DNA looks like. What is missing is the signature of a fixed protein-protein interface: no 10&ndash;11 bp repeat, so no evidence that AP-1 and MEF2 must sit on the same face of the helix. Read together, these AP-1 sites look like members of a compact cardiac enhancer module built by local co-occupancy rather than by a rigid composite element."))
+
+sec("answer", "The central question: does anything separate stable from changing?", "ok",
+    f"One panel of 16 measures, four contrasts, identical matching on predicted accessibility, peak width, TSS distance and measured accessibility (balance within {SVCR.balance_sd.max():.3f} SD); BH-corrected within each contrast.",
+    U("Everything tested so far is pulled into one comparison so the answer does not depend on which analysis is quoted. Measures fall in four blocks: the site's own AP-1 sequence, the sequence of its neighbourhood (PWM scan, needs no ATAC signal), its footprinted neighbourhood (needs signal), and how it responds to mutation.",
+      f"<b>Yes &mdash; {nyes(TH)} of 16 measures separate Dynamic from Stable (threshold), but almost none of them is about how the site responds.</b> The site's own AP-1 motif is weaker ({sv(TH, 'best AP-1 PWM score within 100 bp').values}, FDR {sv(TH, 'best AP-1 PWM score within 100 bp').fdr:.3f}) and it has fewer AP-1 motifs around it ({sv(TH, 'AP-1 PWM hits within 100 bp').values}, FDR {sv(TH, 'AP-1 PWM hits within 100 bp').fdr:.3f}); both are sequence measurements and cannot be detection artefacts. Its neighbourhood carries fewer footprinted families ({sv(TH, 'TF families footprinted within 100 bp').values}, FDR {sv(TH, 'TF families footprinted within 100 bp').fdr:.4f}) and less MEF2 ({sv(TH, 'a MEF2 footprint within 100 bp').values}, FDR {sv(TH, 'a MEF2 footprint within 100 bp').fdr:.4f}).",
+      f"<b>Of the four mutation responses, only the 170 bp shuffle differs</b> ({sv(TH, 'effect of shuffling the 170 bp').values}, FDR {sv(TH, 'effect of shuffling the 170 bp').fdr:.4f}) &mdash; the chromatin-context effect already established. Replacing the motif, replacing the peak and the 300 bp-away control are all flat, and the control being flat is what makes the rest credible.",
+      f"<b>The two definitions point in OPPOSITE directions, because they select opposite kinds of site.</b> Dynamic (threshold) sites have fewer AP-1 motifs nearby; Changing (&Delta;score) sites have more ({sv(CH, 'AP-1 PWM hits within 100 bp').values}, FDR {sv(CH, 'AP-1 PWM hits within 100 bp').fdr:.3f}) and more footprinted families ({sv(CH, 'TF families footprinted within 100 bp').values}, FDR {sv(CH, 'TF families footprinted within 100 bp').fdr:.4f}). A threshold crossing picks out weak sites near the calling boundary; a large score change picks out strong sites with room to move.",
+      f"<b>Direction-agnostic change explains little either way.</b> Changing vs Steady detects {nyes(CH)} of 16, and the largest is a {abs(sv(CH, 'effect of shuffling the 170 bp').difference):.2f} log2 shift in one mutation type.",
+      f"<b>Age Down (&Delta;score) has a genuine sequence signature, and it is MEF2.</b> Those sites carry stronger MEF2 motifs in the DNA ({sv(AD, 'best MEF2 PWM score within 100 bp').values} best PWM score, FDR {sv(AD, 'best MEF2 PWM score within 100 bp').fdr:.3f}) as well as more MEF2 footprints ({sv(AD, 'a MEF2 footprint within 100 bp').values}, FDR {sv(AD, 'a MEF2 footprint within 100 bp').fdr:.3f}). Sequence and occupancy agree, so this is not a detection effect.",
+      f"<b>Age Up (&Delta;score) detects nothing in this panel.</b> The core-quality result is still the largest effect for that contrast ({sv(AU, 'has an exact TGA[C/G]TCA core').values}, raw p = {sv(AU, 'has an exact TGA[C/G]TCA core').p:.3f}) but does not survive correction across 16 measures (FDR {sv(AU, 'has an exact TGA[C/G]TCA core').fdr:.2f}). Tested on its own it stands; tested inside a broad panel it does not, and both statements belong in the record."),
+    fig(SVC / "figures" / "w1_stable_vs_changing.png", "Does anything separate stable from changing?",
+        "Standardised difference for 16 measures under four class contrasts, all matched identically. Orange = FDR &lt; 0.05 within that contrast. Dotted lines separate the four blocks of measures.")
+    + bio("The answer is yes, but not where the project has been looking. A changing AP-1 site is not built to respond differently &mdash; it has a weaker AP-1 motif, fewer AP-1 motifs around it, and a sparser, less MEF2-rich neighbourhood. In other words it is a marginal site in a marginal enhancer, which is exactly the kind of element whose occupancy should fluctuate with transcription-factor availability. Responsiveness looks like a consequence of being weak and poorly supported, not of a distinct regulatory design."))
 
 sec("register", "Hypothesis register: everything tested, including what failed", "ok",
     "Eleven stated hypotheses, each with a matched test and a verdict recorded whether or not it held; two were overturned by their own controls.",
