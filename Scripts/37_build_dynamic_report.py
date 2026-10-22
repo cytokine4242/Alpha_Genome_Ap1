@@ -14,7 +14,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 AN = ROOT / "Analysis"
 DY, DPR, ST = AN / "dynamic", AN / "dynamic_profiles", AN / "scan_titrate"
-SVC, MH = AN / "stable_vs_changing", AN / "motif_heatmap"
+SVC, MH, SF, TI = AN / "stable_vs_changing", AN / "motif_heatmap", AN / "scan_features", AN / "titration"
 PT, SCL, DR, CX, DEP, HYP = AN / "partners", AN / "score_classes", AN / "distance_rules", AN / "class_context", AN / "dependence", AN / "hypotheses"
 
 IMGS: dict[int, Path] = {}
@@ -126,6 +126,16 @@ def register_table():
 
 
 SVCR = pd.read_csv(SVC / "tables" / "stable_vs_changing.csv")
+SFR = pd.read_csv(SF / "tables" / "scan_features_by_class.csv")
+TIR = pd.read_csv(TI / "tables" / "titration_by_class.csv")
+TIO = pd.read_csv(TI / "tables" / "titration_overall.csv").set_index("feature")
+TIV = pd.read_csv(TI / "tables" / "validity_checks.csv")
+sf = lambda c, f: SFR[(SFR.contrast == c) & (SFR.feature.str.startswith(f))].iloc[0]
+ti = lambda c, f: TIR[(TIR.contrast == c) & (TIR.feature.str.startswith(f))].iloc[0]
+nsf = lambda c: int((SFR[SFR.contrast == c].detects == "YES").sum())
+nti = lambda c: int((TIR[TIR.contrast == c].detects == "YES").sum())
+GINI = "concentration of dependence (Gini)"
+C_AU_D, C_AD_D = "Age Up vs Unchanged (\u0394score)", "Age Down vs Unchanged (\u0394score)"
 MHT = pd.read_csv(MH / "tables" / "top5_each_direction.csv")
 MHA = pd.read_csv(MH / "tables" / "importance_by_class.csv").set_index("family")
 
@@ -292,6 +302,32 @@ sec("spacing", "Spacing: is there a rule, and is there helical phasing?", "mid",
             "Power spectrum of the detrended 1 bp distance histogram. Shaded: the 9.5&ndash;11.5 bp helical band. Dotted: the 95th percentile of nulls made by jittering each distance by up to &plusmn;7 bp.")
       + "</details>"
     + bio("The partners cluster just outside the AP-1 motif, with a mode around 13&ndash;16 bp between centres, and they lose influence as they move away. That is what cooperative binding on nearby DNA looks like. What is missing is the signature of a fixed protein-protein interface: no 10&ndash;11 bp repeat, so no evidence that AP-1 and MEF2 must sit on the same face of the helix. Read together, these AP-1 sites look like members of a compact cardiac enhancer module built by local co-occupancy rather than by a rigid composite element."))
+
+sec("scanfeat", "What the mutation scan sees, across every class", "ok",
+    f"All 3,678 cardiomyocyte elements, 16 scan-derived features, eight class contrasts, each matched on predicted context AND measured accessibility; BH within contrast.",
+    U("This is the scan read as a whole rather than one feature at a time: for each site, how much of its dependence sits where, how concentrated it is, how far it spreads, and how much single bases matter. Earlier versions of this comparison ran on 399 sites and found nothing; with the complete scan the picture changes.",
+      f"<b>Dynamic sites have more diffuse dependence.</b> {nsf('Dynamic vs Stable')} of 16 features separate them from matched Stable sites. The share of dependence within &plusmn;85 bp is {sf('Dynamic vs Stable', 'share of dependence within').median_class:.2f} vs {sf('Dynamic vs Stable', 'share of dependence within').median_reference:.2f} (FDR {sf('Dynamic vs Stable', 'share of dependence within').fdr:.4f}), the spread is {sf('Dynamic vs Stable', 'spread of dependence').median_class:.0f} vs {sf('Dynamic vs Stable', 'spread of dependence').median_reference:.0f} bp, and the concentration (Gini) is {sf('Dynamic vs Stable', GINI).median_class:.3f} vs {sf('Dynamic vs Stable', GINI).median_reference:.3f}.",
+      f"<b>Single bases matter less, everywhere.</b> The largest single-base effect at a Dynamic site is {sf('Dynamic vs Stable', 'largest single-base').median_class:.2f} vs {sf('Dynamic vs Stable', 'largest single-base').median_reference:.2f}, importance inside the motif {sf('Dynamic vs Stable', 'single-base importance inside').median_class:.2f} vs {sf('Dynamic vs Stable', 'single-base importance inside').median_reference:.2f}, and in the flanks {sf('Dynamic vs Stable', 'single-base importance in the flanks').median_class:.2f} vs {sf('Dynamic vs Stable', 'single-base importance in the flanks').median_reference:.2f}. Both are lower, so this is not the motif losing ground to its flanks &mdash; the whole neighbourhood is flatter.",
+      f"<b>Concentration is the axis that runs through every class, and it is directional.</b> Age Up (threshold) is the most diffuse of all ({sf('Age Up vs Stable (threshold)', GINI).standardised:+.2f} SD, FDR {sf('Age Up vs Stable (threshold)', GINI).fdr:.4f}), Exercise Down likewise ({sf('Ex Down vs Stable (threshold)', GINI).standardised:+.2f} SD). In the &Delta;score classes the sign flips between directions: Age Up {sf(C_AU_D, GINI).standardised:+.2f} SD (more diffuse) against Age Down {sf(C_AD_D, GINI).standardised:+.2f} SD (more concentrated), both FDR &lt; 0.01.",
+      f"<b>Age Down (threshold) is the one class that looks like Stable</b> ({nsf('Age Down vs Stable (threshold)')} of 16 features differ), and Exercise Up nearly so ({nsf('Ex Up vs Stable (threshold)')} of 16).",
+      "So gaining a binding call goes with dependence spreading out over the neighbourhood; losing one does not. A site that gains AP-1 occupancy with age is one whose accessibility was never pinned to a few bases in the first place."),
+    fig(SF / "figures" / "y1_scan_features_by_class.png", "Scan features by class",
+        "Standardised difference from the reference class for each scan-derived feature; * and a box mark FDR &lt; 0.05 within that contrast. Threshold classes left of the line, &Delta;score classes right.")
+    + bio("Responsive sites are not built around a strong, tightly-defined core with a sharp dependence peak. Their dependence is spread thinly across the neighbourhood, no single base is worth much, and the AP-1 motif is one contributor among many. That is the same conclusion the partner work reached from the other direction, and it is why these sites sit near the occupancy threshold: there is no single anchor holding them open."))
+
+sec("titration", "AP-1 affinity titration: does strength behave the way a binding site should?", "ok",
+    f"All 3,678 elements; {int(TIO.loc[TIO.index[TIO.index.str.startswith('effect of changing 1')][0], 'n']):,} with an exact core carry the dose series, {int(TIO.loc[TIO.index[TIO.index.str.startswith('gain from upgrading')][0], 'n']):,} without one carry the upgrade. Each class contrast matched as above.",
+    U(f"<b>The model behaves like a binding site, but saturates immediately.</b> Changing one core base already costs {TIO.loc[TIO.index[TIO.index.str.startswith('effect of changing 1')][0], 'median']:.2f} log2; changing all seven costs {TIO.loc[TIO.index[TIO.index.str.startswith('effect of changing all')][0], 'median']:.2f}. Almost the entire effect is spent on the first base, and the curve is flat from about four onward. There is no graded affinity ladder.",
+      f"<b>Upgrading an imperfect core gains {TIO.loc[TIO.index[TIO.index.str.startswith('gain from upgrading')][0], 'median']:+.2f} log2</b> at the {int(TIO.loc[TIO.index[TIO.index.str.startswith('gain from upgrading')][0], 'n'])} sites that lack one &mdash; a real, sizeable gain, and the mirror of the loss above.",
+      f"<b>Orientation does not matter:</b> reversing the whole 11 bp motif costs {TIO.loc[TIO.index[TIO.index.str.startswith('effect of reversing')][0], 'median']:.3f} log2, essentially nothing, as expected for a near-palindromic site. <b>A half-site is worth about as little as no site:</b> {TIO.loc[TIO.index[TIO.index.str.startswith('effect of keeping only')][0], 'median']:.2f} log2.",
+      f"<b>A second copy genuinely adds accessibility</b> ({TIO.loc[TIO.index[TIO.index.str.startswith('net value of a second')][0], 'median']:+.2f} log2 against its own shuffled control) and <b>position matters more than presence</b>: the benefit peaks at &plusmn;20&ndash;40 bp and falls to near zero by &plusmn;150 bp. Relocating the motif behaves the same way. The model has learned that an AP-1 motif works where the rest of the element is, not anywhere in the peak.",
+      f"<b>Validity check:</b> the dose-response slope tracks the core quality measured independently in the genome sequence (Spearman {TIV.rho.iloc[0]:.2f}, p &lt; 0.001), so the titration and the sequence scan agree.",
+      f"<b>Between classes, almost nothing differs &mdash; with one exception.</b> Dynamic vs Stable: {nti('Dynamic vs Stable')} of 10. Every threshold class: 0 of 9&ndash;10. But <b>Age Up (&Delta;score) sites get more out of a second motif copy</b> ({ti(C_AU_D, 'net value of a second').median_class:+.2f} vs {ti(C_AU_D, 'net value of a second').median_reference:+.2f}, FDR {ti(C_AU_D, 'net value of a second').fdr:.4f}), benefit more when that copy is near ({ti(C_AU_D, 'does a second copy help').standardised:+.2f} SD, FDR {ti(C_AU_D, 'does a second copy help').fdr:.3f}), lose more to a single core base ({ti(C_AU_D, 'effect of changing 1 core').median_class:.2f} vs {ti(C_AU_D, 'effect of changing 1 core').median_reference:.2f}, FDR {ti(C_AU_D, 'effect of changing 1 core').fdr:.3f}) and tolerate relocation better.",
+      "That is a coherent set: age-gained sites respond more to AP-1 dosage in both directions &mdash; they gain more from an added motif and lose more from a damaged one. It is the clearest support so far for a mass-action reading of the ageing change, and it comes from an experiment designed before that hypothesis existed."),
+    fig(TI / "figures" / "z1_titration_overview.png", "Titration overview",
+        "Left: dose-response to weakening the core, Stable against Dynamic, with 95% bootstrap CI. Middle: single edits. Right: the net value of a second or relocated motif copy against its own shuffled control, by offset.")
+    + f"<details><summary>Every titration feature across every class</summary>{fig(TI / 'figures' / 'z2_titration_by_class.png', 'Titration by class', 'Standardised difference from the reference class; * and a box mark FDR &lt; 0.05 within that contrast.')}</details>"
+    + bio("AP-1 motif strength behaves like a switch rather than a dial: one wrong base in the core costs nearly as much as destroying it, and a half-site is worth nothing. What is graded is <i>position</i> &mdash; a motif helps most within about 40 bp of where the element already is. Age-gained sites are the one class that reads AP-1 dosage more sharply in both directions, which is what you would expect if their change with age is driven by how much AP-1 protein is around rather than by how they are built."))
 
 sec("motifmap", "Which motifs matter, broken down by DIRECTION of change", "inc",
     "Exploratory and thin: Age Down is 29 scanned sites and Exercise Up 22, so most cells rest on 5\u201320 sites. Every cell carries its n, and p-values are uncorrected.",
