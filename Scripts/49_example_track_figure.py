@@ -50,7 +50,7 @@ FCOL = {"MEF2": "#c0392b", "GATA": "#8e44ad", "NFI (Nfia/b/c/x)": "#16a085", "TE
         "TBX": "#7f8c8d", "CTCF / cohesin": "#2c3e50", "SRF / MADS": "#e67e22", "AP-1 (Fos/Jun/Atf/Batf)": "#555555", "MYC / MAX": "#95a5a6", "RUNX": "#95a5a6", "ETS": "#95a5a6"}
 
 # ---------------------------------------------------------------- figure
-fig = plt.figure(figsize=(13.6, 8.6))
+fig = plt.figure(figsize=(16.4, 7.4))
 gs = fig.add_gridspec(5, 1, height_ratios=[3.0, 0.9, 0.55, 3.0, 0.9], hspace=0.16)
 GE = pd.read_csv(ROOT / "Data/derived/cm_sites_nearest_gene_mast.csv").set_index("site_id")
 panels = [(a.stable, "Stable AP-1 site", BLUE, 0), (a.dynamic, "Dynamic AP-1 site \u2014 gains binding with age", ORANGE, 3)]

@@ -51,7 +51,16 @@ pres.defineSlideMaster({
 });
 
 // ------------------------------------------------------------------ helpers
-const FIG = (slide, file, opts) => slide.addImage({ path: F(file), ...opts });
+const sizeOf = require("image-size").default || require("image-size");
+// fit an image inside a box, preserving its real aspect ratio — stretching is the commonest slide defect
+function FIG(slide, file, box) {
+  const { width, height } = sizeOf(require("fs").readFileSync(F(file)));
+  const r = width / height;
+  let w = box.w, h = w / r;
+  if (h > box.h) { h = box.h; w = h * r; }
+  slide.addImage({ path: F(file), x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h });
+}
+const BOX = { x: 0.55, y: 1.2, w: 12.2, h: 5.1 };
 
 function statRow(slide, items, y, h = 1.25) {
   const n = items.length, gap = 0.3, w = (12.2 - gap * (n - 1)) / n;
@@ -95,88 +104,88 @@ statRow(s, [
   { v: "0.31", l: "threshold class vs measured change", c: "1F6FB2" },
 ], 5.55, 1.35);
 s.addText("Every comparison below matches each responsive site to a Stable site on predicted accessibility, peak width, TSS distance and measured accessibility.",
-  { isTextBox: true, x: 7.1, y: 1.5, w: 5.65, h: 2.4, fontSize: 15, color: "111111", fill: { color: "F2F2F2" }, margin: 12, objectName: "matching-note" });
-s.addText("The Δscore definition tracks the measured data about twice as well.", { isTextBox: true, x: 7.1, y: 4.25, w: 5.65, h: 0.9, fontSize: 15, italic: true, color: "595959", margin: 0 });
+  { isTextBox: true, x: 7.1, y: 1.5, w: 5.65, h: 1.5, fontSize: 15, color: "111111", fill: { color: "F2F2F2" }, margin: 12, objectName: "matching-note" });
+s.addText("The Δscore definition tracks the measured data about twice as well.", { isTextBox: true, x: 7.1, y: 3.25, w: 5.65, h: 0.9, fontSize: 15, italic: true, color: "595959", margin: 0 });
 s.addNotes("The two definitions pick out largely different sites. Report every result labelled by which definition it comes from.");
 
-// ================================================================== 3 the null
+// ================================================================== 3 method schematic
+s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Design" });
+s.addText("What we did to every site", { placeholder: "title" });
+FIG(s, "Analysis/slide_figures/s1_method_schematic.png", BOX);
+takeaway(s, "3,678 sites \u00d7 364 edits each, every edit read as the change in predicted accessibility over the surrounding 170 bp");
+s.addNotes("The 131 kb window is what AlphaGenome takes as input; we only ever edit the middle 600 bp. Each tile is 3 replicate random replacements, averaged. Effects are log2(edited / native).");
+
+// ================================================================== 4 the null
 pres.addSection({ title: "Findings" });
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("Responsive sites are not built differently", { placeholder: "title" });
-FIG(s, "Analysis/dynamic/figures/y5_mutation_type_profile.png", { x: 1.45, y: 1.15, w: 10.4, h: 5.2 });
-takeaway(s, "all 21 mutation types agree within 0.14 log2 once chromatin context is matched; the raw gap was context, not sequence");
+s.addText("Most of the difference is chromatin, not sequence", { placeholder: "title" });
+FIG(s, "Analysis/slide_figures/s2_matched_null.png", BOX);
+takeaway(s, "the motif and the whole peak behave the same once context is matched; a residual 170 bp difference survives, and the next slide shows what it is");
 s.addNotes("Raw, Dynamic sites lose less to every wide edit. After matching on predicted accessibility, peak width and TSS distance, nothing survives. A classifier on the whole response profile is at chance, AUC 0.49.");
 
 // ================================================================== 4 partners
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("What these sites actually depend on is MEF2", { placeholder: "title" });
-FIG(s, "Analysis/partners/figures/p1_tile_importance_by_family.png", { x: 0.55, y: 1.2, w: 8.2, h: 5.0 });
+s.addText("Both classes lean on the same partners", { placeholder: "title" });
+FIG(s, "Analysis/slide_figures/s8_partners.png", { x: 0.55, y: 1.2, w: 9.0, h: 5.0 });
 s.addText([
   { text: "2.49 million", options: { bold: true, fontSize: 22, color: "C2551C", breakLine: true } },
-  { text: "footprinted cardiomyocyte TFBS mapped onto the scan", options: { fontSize: 14, color: "595959", breakLine: true, paraSpaceAfter: 16 } },
-  { text: "A MEF2 neighbour matters about eight times more than a second AP-1 site.", options: { fontSize: 15, breakLine: true, paraSpaceAfter: 12 } },
-  { text: "The commonest factors — KLF/SP — matter least.", options: { fontSize: 15, color: "595959" } },
-], { isTextBox: true, x: 9.05, y: 1.7, w: 3.7, h: 3.8, margin: 0 });
-takeaway(s, "the model rediscovered the cardiac programme — MEF2, GATA, NFI, TEAD — without being told any of it");
-s.addNotes("Importance is the loss from replacing a 10 bp tile over that factor's footprint, measured against the site's own footprint-free tiles. Holds under five different adjustments.");
+  { text: "footprinted cardiomyocyte TFBS mapped onto the scan", options: { fontSize: 14, color: "595959", breakLine: true, paraSpaceAfter: 14 } },
+  { text: "The ranking is the validation: MEF2, GATA, NFI and TEAD come out on top, and the model was never told any of them.", options: { fontSize: 14.5, breakLine: true, paraSpaceAfter: 12 } },
+  { text: "The class split is the question, and the answer is no. Not one family matters more to a Dynamic site than to its matched Stable partner.", options: { fontSize: 14.5, breakLine: true, paraSpaceAfter: 12 } },
+  { text: "Whatever makes a site responsive, it is not a different cast of neighbours.", options: { fontSize: 14.5, color: "595959", italic: true } },
+], { isTextBox: true, x: 9.75, y: 1.5, w: 3.0, h: 4.4, margin: 0 });
+takeaway(s, "the cast of partners is identical in both classes — what differs is how the dependence is spread across them");
+s.addNotes("Importance is the loss from replacing a 10 bp tile over that factor's footprint, measured against the site's own footprint-free tiles, holding under five adjustments. The class comparison is at site level inside the 442 matched pairs; nothing survives BH correction. AP-1's own footprints are the one uncorrected p < 0.05, and Dynamic sites lean slightly MORE on them.");
 
 // ================================================================== 5 spacing
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("Partners sit just outside the motif, with no helical phasing", { placeholder: "title" });
-FIG(s, "Analysis/distance_rules/figures/r3_close_range.png", { x: 1.6, y: 1.5, w: 10.1, h: 4.65 });
-takeaway(s, "cooperative occupancy across a nucleosome-scale window, not a rigid composite element");
+s.addText("The partner that matters is the one that sits closest", { placeholder: "title" });
+FIG(s, "Analysis/slide_figures/s7_spacing.png", BOX);
+takeaway(s, "MEF2 is 2.67\u00d7 enriched immediately beside the motif (FDR 0.004); KLF/SP, the commonest factor, is not");
 s.addNotes("MEF2 is enriched 2.67x at 11-25 bp against 1.47x for KLF/SP, modal spacing 14 bp between centres. No 10-11 bp repeat survives correction, so no fixed protein-protein register.");
 
 // ================================================================== 6 example
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("One locus, two architectures", { placeholder: "title" });
-FIG(s, "Analysis/example_track/example_scan_track.png", { x: 1.75, y: 1.1, w: 9.8, h: 5.25 });
+FIG(s, "Analysis/example_track/example_scan_track.png", { x: 0.55, y: 1.15, w: 12.2, h: 5.2 });
 takeaway(s, "at the age-gained site every cardiac cofactor is bound in all three conditions — only AP-1 switches");
 s.addNotes("Top: a Stable site, 85% of its dependence on the AP-1 motif. Bottom: an age-gained site where the AP-1 motif is worth -0.18 and the strongest other window -1.48. Tnfaip8 rises with age, matching the AP-1 gain.");
 
 // ================================================================== 7 diffuse
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Responsive sites spread their dependence out", { placeholder: "title" });
-FIG(s, "Analysis/scan_features/figures/y1_scan_features_by_class.png", { x: 1.9, y: 1.12, w: 9.5, h: 5.2 });
-takeaway(s, "gaining a binding call goes with diffuse dependence; losing one does not — gain and loss are not mirror images");
+FIG(s, "Analysis/slide_figures/s3_dependence.png", BOX);
+takeaway(s, "this is the part that survives matching: a responsive site has no single anchor holding it open");
 s.addNotes("10 of 16 scan features separate Dynamic from matched Stable. Share of dependence within 85 bp 0.63 vs 0.74, spread 94 vs 86 bp, largest single-base effect 0.74 vs 0.90. Age Up is the most diffuse class of all.");
 
 // ================================================================== 8 titration
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Motif strength is a switch; position is a dial", { placeholder: "title" });
-FIG(s, "Analysis/titration/figures/z1_titration_overview.png", { x: 0.55, y: 1.35, w: 12.2, h: 3.55 });
+FIG(s, "Analysis/slide_figures/s4_titration.png", { x: 0.55, y: 1.2, w: 12.2, h: 3.75 });
 statRow(s, [
   { v: "−0.45", l: "cost of changing one core base" },
   { v: "−0.56", l: "cost of changing all seven" },
-  { v: "+0.28", l: "net value of a second copy" },
-  { v: "±40 bp", l: "where that copy helps most", c: "C2551C" },
+  { v: "−0.29", l: "destroyed, re-inserted nearby" },
+  { v: "±20–40 bp", l: "where a motif works best", c: "C2551C" },
 ], 5.15, 1.15);
-takeaway(s, "one wrong base costs nearly as much as destroying the motif; a half-site is worth nothing");
+takeaway(s, "a motif moved elsewhere recovers only a third of what destroying it cost \u2014 position matters, not just presence");
 s.addNotes("The dose-response slope tracks core quality measured independently from the genome sequence, rho 0.30. Orientation is irrelevant, as expected for a near-palindrome.");
 
 // ================================================================== 9 age-gained
-s = pres.addSlide({ masterName: "TITLE_BODY", sectionTitle: "Findings" });
+s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Age-gained sites read AP-1 dosage more sharply", { placeholder: "title" });
+FIG(s, "Analysis/slide_figures/s5_age_gained.png", { x: 0.55, y: 1.2, w: 12.2, h: 4.15 });
 s.addText([
-  { text: "Sites in the top fifth of binding-score gain with age differ from matched controls in four ways, and they all point the same direction:", options: { breakLine: true, paraSpaceAfter: 16 } },
-  { text: "They gain more from an added motif copy  (+0.38 vs +0.32, FDR < 0.001)", options: { bullet: true, breakLine: true } },
-  { text: "They benefit more when that copy is near  (FDR 0.003)", options: { bullet: true, breakLine: true } },
-  { text: "They lose more from one damaged core base  (−0.60 vs −0.51, FDR 0.023)", options: { bullet: true, breakLine: true } },
-  { text: "They carry a perfect consensus core more often  (84.5% vs 78.6%, p = 0.02)", options: { bullet: true, paraSpaceAfter: 16 } },
-], { isTextBox: true, x: 0.55, y: 1.35, w: 7.35, h: 4.0, fontSize: 17, color: "111111", margin: 0 });
-s.addText([
-  { text: "Mass action", options: { bold: true, fontSize: 19, color: "C2551C", breakLine: true } },
-  { text: "If ageing raises AP-1 activity, occupancy rises first at the highest-affinity motifs. Those are exactly the sites that gain.", options: { fontSize: 15, breakLine: true, paraSpaceAfter: 12 } },
-  { text: "Losing binding is not the reverse: age-lost sites show no sequence signature at all.", options: { fontSize: 15, color: "595959" } },
-], { isTextBox: true, x: 8.2, y: 1.5, w: 4.55, h: 3.3, fill: { color: "F2F2F2" }, margin: 14, objectName: "massaction" });
-s.addText("Ageing gains AP-1 sites over losses 2.2 : 1. Exercise reverses it, 0.67 : 1.",
-  { isTextBox: true, x: 0.55, y: 5.55, w: 12.2, h: 0.6, fontSize: 16, italic: true, color: "111111", margin: 0 });
+  { text: "Mass action   ", options: { bold: true, fontSize: 17, color: "C2551C" } },
+  { text: "if ageing raises AP-1 activity, occupancy rises first at the highest-affinity motifs \u2014 exactly the sites that gain. Losing binding is not the reverse: age-lost sites show no sequence signature at all.", options: { fontSize: 15 } },
+], { isTextBox: true, x: 0.55, y: 5.5, w: 12.2, h: 1.0, fill: { color: "F2F2F2" }, margin: 12, objectName: "massaction" });
+
 s.addNotes("The titration experiment was designed before this hypothesis existed, so this is a prediction rather than a fit. Caveat: the motif-sensitivity result does not survive matching on measured accessibility; the core-quality result does.");
 
 // ================================================================== 10 MPRA
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("An independent reporter assay agrees", { placeholder: "title" });
-FIG(s, "Analysis/mpra_scan/figures/m1_mpra_vs_scan.png", { x: 0.55, y: 2.6, w: 12.2, h: 3.7 });
+FIG(s, "Analysis/slide_figures/s6_mpra.png", { x: 0.55, y: 2.45, w: 12.2, h: 3.85 });
 statRow(s, [
   { v: "7.5%", l: "AlphaGenome: the motif's share of local dependence", c: "1F6FB2" },
   { v: "9.3%", l: "fibroblast MPRA: the same quantity, measured in the lab", c: "C2551C" },

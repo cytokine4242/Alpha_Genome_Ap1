@@ -67,6 +67,7 @@ d["age_delta"] = d.MAS_score - d.YS_score                       # score change, 
 d["ex_delta"] = d.MAE_score - d.MAS_score                       # aged sedentary -> aged + exercise
 d["l_170"], d["l_peak"] = np.log10(d.native_170.clip(lower=1e-3)), np.log10(d.native_peak.clip(lower=1e-3))
 d["l_pw"], d["l_tss"] = np.log10(d.peak_width), np.log10(d.abs_tss + 1)
+d["l_meas"] = np.log10(d[["cm_ys", "cm_mas", "cm_mae"]].mean(axis=1).clip(lower=1e-3))
 pc = 0.05 * d[["cm_ys", "cm_mas", "cm_mae"]].stack().median()
 d["meas_age"] = np.log2((d.cm_mas + pc) / (d.cm_ys + pc))       # measured accessibility change, same two contrasts
 d["meas_ex"] = np.log2((d.cm_mae + pc) / (d.cm_mas + pc))
@@ -133,7 +134,8 @@ BM = pd.DataFrame(rows)
 BM.to_csv(OUT / "tables" / "b_measured_change_by_class.csv", index=False)
 
 # ---------------------------------------------------------------- C. mutation responses under the score-based classes
-MCOLS = ["l_170", "l_peak", "l_pw", "l_tss"]
+# measured accessibility is matched alongside the predicted covariates: see the matching note in 33_dynamic_vs_stable_deep_dive.py
+MCOLS = ["l_170", "l_peak", "l_pw", "l_tss", "l_meas"]
 
 
 def matched_pairs2(frame, is_case, cols):

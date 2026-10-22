@@ -130,7 +130,9 @@ FD.to_csv(OUT / "tables" / "per_site_alphagenome_features.csv")
 df = df.join(FD, how="left", rsuffix="_f") if False else df
 
 # ---------------------------------------------------------------- G. matched pairs (also the sample for the feature scan)
-MCOLS = ["l_170", "l_peak", "l_pw", "l_tss"]
+# measured accessibility belongs in the match: matching on the prediction alone leaves Dynamic sites 0.8 SD lower in the
+# measured data, which is itself most of what makes a wide edit cost less. With it, all five covariates balance within 0.06 SD.
+MCOLS = ["l_170", "l_peak", "l_pw", "l_tss", "l_meas"]
 m_ = df.dropna(subset=MCOLS + ["eff_170", "eff_motif", "eff_peak"]).copy()
 Z = (m_[MCOLS] - m_[MCOLS].mean()) / m_[MCOLS].std()
 dyn_ids = m_.index[m_.dyn == 1].tolist()

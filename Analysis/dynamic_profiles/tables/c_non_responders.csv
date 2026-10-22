@@ -1,2 +1,2 @@
 definition,share_dynamic_all,share_stable_all,p_fisher_all,n_pairs,share_dynamic_matched,share_stable_matched,discordant_dyn_only,discordant_stable_only,p_mcnemar_matched
-replace the 11 bp motif changes accessibility over the motif by less than 10%,0.29533678756476683,0.2731338149294806,0.22258337765364633,720,0.2902777777777778,0.29444444444444445,142,145,0.90604999181145
+replace the 11 bp motif changes accessibility over the motif by less than 10%,0.29533678756476683,0.2731338149294806,0.22258337765364633,439,0.2938496583143508,0.275626423690205,88,80,0.5892869358592487
