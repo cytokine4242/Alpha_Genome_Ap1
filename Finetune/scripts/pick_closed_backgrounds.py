@@ -8,7 +8,10 @@ two we fine-tuned on. Candidate centres are drawn at random on chr1-19 and chrX 
   - the centre is at least --min-dist-peak bp from every interval of every --peaks file (all cell types' called peaks),
   - the measured density over the central --core bp is at most --max-rel times that track's genome-wide mean, in EVERY
     --bigwig. The threshold is relative because the 1 bp insertion tracks and the 10 bp coverage tracks have different
-    scales; the genome-wide mean comes from each file's own header.
+    scales; the genome-wide mean comes from each file's own header. It is only a loose sanity gate: a genome-wide mean is
+    dominated by peaks, so ordinary closed sequence already sits at roughly half of it. "Quiet" is then defined against the
+    candidates themselves -- only the quietest --pool-frac of them stay eligible, and the chosen windows' actual levels are
+    printed and stored, so how quiet they are can be checked rather than assumed.
 From the quiet pool, --n windows are chosen so that their GC content matches the elements that will be inserted
 (--gc-from, a site table: the GC of each site's peak), by taking the quiet window closest to each of n evenly spaced
 quantiles of the element GC distribution. GC therefore cannot differ systematically between the hosts and the inserts.
@@ -93,7 +96,8 @@ def main():
     ap.add_argument("--n", type=int, default=20)
     ap.add_argument("--window", type=int, default=131072, help="model window that must be inside the chromosome and N-free")
     ap.add_argument("--core", type=int, default=4096, help="central region whose measured density must be low")
-    ap.add_argument("--max-rel", type=float, default=0.1, help="core density allowed, as a multiple of each track's genome-wide mean")
+    ap.add_argument("--max-rel", type=float, default=0.5, help="loose gate: core density allowed, as a multiple of each track's genome-wide mean")
+    ap.add_argument("--pool-frac", type=float, default=0.2, help="keep only this quietest fraction of surviving candidates as eligible hosts")
     ap.add_argument("--min-dist-peak", type=int, default=5_000, help="minimum distance from the centre to any called peak")
     ap.add_argument("--tries", type=int, default=20000)
     ap.add_argument("--seed", type=int, default=46)
@@ -165,6 +169,12 @@ def main():
         raise SystemExit("no quiet windows found: raise --max-rel or --tries, or lower --min-dist-peak (the counts above say which filter to relax)")
 
     pool = pool.sort_values("total_rel").reset_index(drop=True)
+    q = pool.total_rel.quantile([0, .25, .5, .75, 1]).round(3).to_dict()
+    print(f"total signal of the surviving candidates (summed over {len(bws)} tracks, each as a multiple of its own mean): {q}", flush=True)
+    keep = max(args.n * 3, int(len(pool) * args.pool_frac))
+    pool = pool.head(keep).reset_index(drop=True)
+    print(f"keeping the quietest {len(pool)} as eligible hosts (max total {pool.total_rel.max():.3f}, "
+          f"i.e. at most {pool.total_rel.max() / len(bws):.3f} x each track's mean on average)", flush=True)
     pool["n_free"] = [int("N" not in fa[r.chrom][r.window_start:r.window_end]) for r in pool.itertuples()]
     pool = pool[pool.n_free == 1].drop(columns="n_free").reset_index(drop=True)
 
