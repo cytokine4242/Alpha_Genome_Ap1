@@ -274,7 +274,7 @@ def main():
         rows = []
         for (name, kind, pos, alt, rep, tgt), pred in zip(meta, preds):
             for ts in ag.tracksets:
-                r = {"site_id": sid, "group": row["group"], "binding_category": row["binding_category"], "stable_dynamic": row["stable_dynamic"], "native_170_pred": row["native_170"],
+                r = {"site_id": sid, "group": row["group"], "binding_category": row["binding_category"], "stable_dynamic": row["stable_dynamic"], "native_170_pred": row.get("native_170", np.nan),
                      "native_core": L.decode(codes[c0:c1]), "core_found": bool(found), "condition": name, "kind": kind, "pos": pos, "alt": alt, "rep": rep, "trackset": ts,
                      "tss_dist": None if tss is None else tss - int(row["motif_mid"]), **L.readout(pred[ts], reg, tss_rel, cfg)}
                 r["atac_target"] = float(pred[ts]["atac"][tgt[0]:tgt[1]].mean()) if tgt is not None and "atac" in pred[ts] else np.nan

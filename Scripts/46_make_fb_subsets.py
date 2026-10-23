@@ -12,6 +12,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 SEED, N_SWAP = 46, 50
 s = pd.read_csv(ROOT / "Katana" / "data" / "fb_fos_sites.csv")
+s = s.drop(columns=[c for c in ("YS_score", "MAS_score", "MAE_score") if c in s])   # no TOBIAS footprint scores in these experiments
 
 dyn = s[s.stable_dynamic == "Dynamic"]
 stab = s[s.stable_dynamic == "Stable"].sample(n=len(dyn), random_state=SEED)
