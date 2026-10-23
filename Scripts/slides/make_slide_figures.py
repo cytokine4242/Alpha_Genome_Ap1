@@ -414,17 +414,16 @@ def titration():
     e = tt[tt.kind != "native"].copy()
     e["eff"] = np.log2((e.atac_170 + pc) / (e.site_id.map(nat) + pc))
     TF = pd.read_csv(ROOT / "Analysis/titration/tables/titration_features_per_site.csv").set_index("site_id")
-    M = [("mm1_170", "One damaged core base", "TGACTCA with a single base changed", "Effect (log2FC)"),
-         ("mm7_170", "All seven core bases", "the motif destroyed outright", "Effect (log2FC)"),
-         ("add_copy_net_170", "A second copy added", "net of a shuffled-sequence control", "Effect (log2FC)"),
-         ("relocate_net_170", "The motif moved elsewhere", "net of the same control", "Effect (log2FC)")]
+    # the 1-base and 7-base results repeat the motif shuffle shown earlier, so only copy number and position are kept here
+    M = [("add_copy_net_170", "A second copy added", "net of a shuffled-sequence control", "Effect (log2FC)"),
+         ("relocate_net_170", "The motif moved elsewhere", "the motif destroyed and re-inserted, net of the same control", "Effect (log2FC)")]
     d = S.join(TF[[m[0] for m in M]], how="left")
     emit_class_figure("s4_titration", [(d[c], t, sub, y) for c, t, sub, y in M], class_dot_panel, KEY_DOT)
     CURVE = [("Stable", None, None, CTRL_GREY)] + [(n, c, v, col) for n, c, v, col in GROUPS if n != "Dynamic (all)"]
     members = lambda nm, c_, v_: set(S.index[S.stable_dynamic == "Stable"]) if nm == "Stable" else set(S.index[S[c_] == v_])
-    for fname, kind, xlab, ylab, zero in (("d_dose", "core_mm", "Core bases changed (of 7)", "Loss (log2FC)", False),
-                                          ("d_addcopy", "dup", "Position of the added copy (bp)", "Change vs native (log2FC)", True)):
-        fig, ax = plt.subplots(figsize=(3.4, 2.5))
+    for fname, kind, xlab, ylab, zero in (("d_addcopy", "dup", "Position of the added copy (bp)", "Change vs native (log2FC)", True),
+                                          ("d_relocate", "move", "Position it was moved to (bp)", "Change vs native (log2FC)", True)):
+        fig, ax = plt.subplots(figsize=(4.0, 2.8))
         for nm, c_, v_, col in CURVE:
             w = e[(e.kind == kind) & (e.site_id.isin(members(nm, c_, v_)))].groupby("pos").eff.median()
             ax.plot(w.index, w.values, color=col, lw=2.0, marker="o", ms=4)

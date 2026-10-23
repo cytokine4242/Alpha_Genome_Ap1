@@ -94,7 +94,7 @@ function classFigure(slide, name, box, opts = {}) {
     slide.addText(r, { isTextBox: true, x: box.x - 0.52, y: box.y + head + ri * ch + ch / 2 - 0.75, w: 1.5, h: 1.5,
       fontSize: 10, color: "111111", align: "center", valign: "middle", rotate: 270, margin: 0, objectName: `${name}-row-${ri}` });
   });
-  let lx = box.x + gut;
+  let lx = box.x;
   const ly = box.y + box.h - foot + 0.10;
   man.legend.forEach(([lab, col], i) => {
     slide.addShape(pres.ShapeType.ellipse, { x: lx, y: ly + 0.045, w: 0.12, h: 0.12, fill: { color: col.replace("#", "") }, line: { color: col.replace("#", ""), width: 0 }, objectName: `${name}-dot-${i}` });
@@ -229,15 +229,15 @@ s.addNotes("10 of 16 scan features separate Dynamic from matched Stable. Share o
 
 // ================================================================== 8 titration
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("Motif strength is a switch; position is a dial", { placeholder: "title" });
-s.addText("The dose curve, class by class", { isTextBox: true, x: 0.55, y: 1.12, w: 2.6, h: 0.3, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "dose-title" });
-FIG(s, "Analysis/slide_figures/panels/d_dose.png", { x: 0.55, y: 1.45, w: 2.5, h: 1.85 });
-s.addText("Where a second copy helps", { isTextBox: true, x: 0.55, y: 3.42, w: 2.6, h: 0.3, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "copy-title" });
-FIG(s, "Analysis/slide_figures/panels/d_addcopy.png", { x: 0.55, y: 3.75, w: 2.5, h: 1.85 });
-s.addText("both curves drawn once per class; colours as in the legend", { isTextBox: true, x: 0.55, y: 5.65, w: 2.7, h: 0.5, fontSize: 9.5, color: "595959", margin: 0, objectName: "curve-caption" });
-classFigure(s, "s4_titration", { x: 3.75, y: 1.1, w: 9.0, h: 5.1 }, { gutter: 0.62 });
-takeaway(s, "one wrong base costs \u22120.45 of the \u22120.56 total and a moved motif recovers only a third \u2014 but every class titrates the same way");
-s.addNotes("The dose-response slope tracks core quality measured independently from the genome sequence, rho 0.30. Orientation is irrelevant, as expected for a near-palindrome.");
+s.addText("Position is a dial, and a moved motif never replaces the original", { placeholder: "title" });
+s.addText("Where the added copy works best", { isTextBox: true, x: 0.55, y: 1.12, w: 3.1, h: 0.3, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "copy-title" });
+FIG(s, "Analysis/slide_figures/panels/d_addcopy.png", { x: 0.55, y: 1.45, w: 3.1, h: 1.95 });
+s.addText("...and where it lands when moved", { isTextBox: true, x: 0.55, y: 3.52, w: 3.1, h: 0.3, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "move-title" });
+FIG(s, "Analysis/slide_figures/panels/d_relocate.png", { x: 0.55, y: 3.85, w: 3.1, h: 1.95 });
+s.addText("both curves drawn once per class; colours as in the legend", { isTextBox: true, x: 0.55, y: 5.85, w: 3.2, h: 0.5, fontSize: 9.5, color: "595959", margin: 0, objectName: "curve-caption" });
+classFigure(s, "s4_titration", { x: 4.5, y: 1.1, w: 8.3, h: 5.1 }, { gutter: 0.62 });
+takeaway(s, "a second copy is worth most at \u00b120\u201340 bp and a moved motif recovers only a third of what destroying it cost \u2014 and no class differs once context is matched");
+s.addNotes("The 1-base and 7-base core results are not repeated here: they say the same thing as the motif shuffle on the earlier slide. One wrong base costs -0.45 of the -0.56 total, the dose slope tracks core quality read from the genome at rho 0.30, and orientation is irrelevant as expected for a near-palindrome.");
 
 // ================================================================== 9 age-gained
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
