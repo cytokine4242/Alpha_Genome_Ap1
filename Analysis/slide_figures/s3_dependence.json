@@ -12,10 +12,6 @@
   {
    "title": "Spread along the element",
    "subtitle": "SD of window position, weighted by loss"
-  },
-  {
-   "title": "Depth of the single best base",
-   "subtitle": "largest effect of any one base change, \u00b130 bp"
   }
  ],
  "rows": [
@@ -30,9 +26,6 @@
   ],
   [
    "s3_dependence_c2_r0.png"
-  ],
-  [
-   "s3_dependence_c3_r0.png"
   ]
  ],
  "legend": [
@@ -61,5 +54,5 @@
    "#B3B2AE"
   ]
  ],
- "key": "grey line and band: all 2,907 Stable sites, median with a 95% bootstrap CI.   Each class is every site carrying that call, tested against that reference by Mann\u2013Whitney, BH across all 20 tests on this figure.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05"
+ "key": "grey line and band: all 2,907 Stable sites, median with a 95% bootstrap CI.   Each class is every site carrying that call, tested against that reference by Mann\u2013Whitney, BH across all 15 tests on this figure.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05"
 }

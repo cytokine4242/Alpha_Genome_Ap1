@@ -80,29 +80,39 @@ function legendRow(slide, items, x, y) {
 function classFigure(slide, name, box, opts = {}) {
   const man = JSON.parse(require("fs").readFileSync(F(`Analysis/slide_figures/${name}.json`), "utf8"));
   const nCol = man.cols.length, nRow = man.panels[0].length;
-  const gut = opts.gutter ?? 0.12, head = 0.82, foot = opts.foot ?? 0.92, gap = 0.08;
-  const cw = (box.w - gut) / nCol, ch = (box.h - head - foot) / nRow;
+  const stack = opts.stack ?? false;                       // one measure per row instead of per column
+  const gut = opts.gutter ?? 0.12, head = stack ? 0.0 : 0.82, foot = opts.foot ?? 0.92, gap = 0.08;
+  const cw = stack ? box.w - gut : (box.w - gut) / nCol;
+  const ch = stack ? (box.h - foot) / nCol : (box.h - head - foot) / nRow;
   man.cols.forEach((c, ci) => {
-    const x = box.x + gut + ci * cw;
-    slide.addText(c.title, { isTextBox: true, x, y: box.y, w: cw - gap, h: 0.48, fontSize: 12.5, bold: true, color: "111111", valign: "top", margin: 0, objectName: `${name}-title-${ci}` });
-    slide.addText(c.subtitle, { isTextBox: true, x, y: box.y + 0.47, w: cw - gap, h: 0.34, fontSize: 9.5, color: "595959", valign: "top", margin: 0, objectName: `${name}-sub-${ci}` });
+    const x = box.x + gut;
+    if (stack) {
+      const y0 = box.y + ci * ch;
+      slide.addText(c.title, { isTextBox: true, x, y: y0, w: cw, h: 0.26, fontSize: 11.5, bold: true, color: "111111", margin: 0, objectName: `${name}-title-${ci}` });
+      FIG(slide, `Analysis/slide_figures/panels/${man.panels[ci][0]}`, { x, y: y0 + 0.28, w: cw, h: ch - 0.34 });
+      return;
+    }
+    slide.addText(c.title, { isTextBox: true, x: x + ci * cw, y: box.y, w: cw - gap, h: 0.48, fontSize: 12.5, bold: true, color: "111111", valign: "top", margin: 0, objectName: `${name}-title-${ci}` });
+    slide.addText(c.subtitle, { isTextBox: true, x: x + ci * cw, y: box.y + 0.47, w: cw - gap, h: 0.34, fontSize: 9.5, color: "595959", valign: "top", margin: 0, objectName: `${name}-sub-${ci}` });
     man.panels[ci].forEach((f, ri) => {
-      FIG(slide, `Analysis/slide_figures/panels/${f}`, { x, y: box.y + head + ri * ch, w: cw - gap, h: ch - gap });
+      FIG(slide, `Analysis/slide_figures/panels/${f}`, { x: x + ci * cw, y: box.y + head + ri * ch, w: cw - gap, h: ch - gap });
     });
   });
   if (nRow > 1) man.rows.forEach((r, ri) => {
     slide.addText(r, { isTextBox: true, x: box.x - 0.52, y: box.y + head + ri * ch + ch / 2 - 0.75, w: 1.5, h: 1.5,
       fontSize: 10, color: "111111", align: "center", valign: "middle", rotate: 270, margin: 0, objectName: `${name}-row-${ri}` });
   });
-  let lx = box.x;
-  const ly = box.y + box.h - foot + 0.10;
+  const lx0 = opts.legendX ?? box.x;
+  let lx = lx0;
+  const lw = opts.legendW ?? box.w;
+  const ly = opts.legendY ?? (box.y + box.h - foot + 0.10);
   man.legend.forEach(([lab, col], i) => {
     slide.addShape(pres.ShapeType.ellipse, { x: lx, y: ly + 0.045, w: 0.12, h: 0.12, fill: { color: col.replace("#", "") }, line: { color: col.replace("#", ""), width: 0 }, objectName: `${name}-dot-${i}` });
     const w = 0.22 + lab.length * 0.072;
     slide.addText(lab, { isTextBox: true, x: lx + 0.17, y: ly, w, h: 0.22, fontSize: 10.5, color: "111111", margin: 0, objectName: `${name}-leg-${i}` });
     lx += 0.17 + w + 0.12;
   });
-  slide.addText(man.key, { isTextBox: true, x: box.x, y: ly + 0.30, w: box.w, h: 0.55, fontSize: 9, color: "595959", margin: 0, objectName: `${name}-key` });
+  if (opts.showKey !== false) slide.addText(man.key, { isTextBox: true, x: lx0, y: ly + 0.30, w: lw, h: 0.55, fontSize: 9, color: "595959", margin: 0, objectName: `${name}-key` });
 }
 
 function statRow(slide, items, y, h = 1.25) {
@@ -181,7 +191,9 @@ s.addNotes("A demonstration, not a result: this element was chosen for legibilit
 pres.addSection({ title: "Findings" });
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Responsive sites lose less to every edit of their element", { placeholder: "title" });
-classFigure(s, "s2_matched_null", { x: 0.55, y: 1.25, w: 12.2, h: 4.9 });
+s.addText("The three edits, and the control", { isTextBox: true, x: 0.55, y: 1.08, w: 5.4, h: 0.28, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "ed-t" });
+FIG(s, "Analysis/slide_figures/panels/d_edits.png", { x: 0.55, y: 1.38, w: 5.4, h: 1.3 });
+classFigure(s, "s2_matched_null", { x: 0.55, y: 2.82, w: 12.2, h: 3.36 }, { foot: 1.0 });
 takeaway(s, "every class loses less than Stable sites do at every scale, and the 300 bp control shows it is not a global offset");
 s.addNotes("Top row is the uncontrolled comparison: if the accessibility difference is itself biology, it lives there. Bottom row matches each class to its own Stable controls on predicted and measured accessibility, peak width and TSS distance. The 300 bp control is the thing to check: Age Up differs slightly even there (-0.152 vs -0.111 matched), but that offset is 0.04 against a 0.26 effect at 170 bp and runs the opposite way, so it does not explain the result.");
 
@@ -245,13 +257,13 @@ s.addNotes("Both are promoters a few hundred bp from a TSS, matched on predicted
 // ================================================================== 7 diffuse
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Responsive sites spread their dependence out", { placeholder: "title" });
-s.addText("Where the dependence sits", { isTextBox: true, x: 0.55, y: 1.25, w: 3.0, h: 0.28, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "prof-t1" });
-FIG(s, "Analysis/slide_figures/panels/s12_profile_absolute.png", { x: 0.55, y: 1.56, w: 3.0, h: 1.85 });
-s.addText("...as a share of each site\u2019s own total", { isTextBox: true, x: 0.55, y: 3.5, w: 3.0, h: 0.28, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "prof-t2" });
-FIG(s, "Analysis/slide_figures/panels/s12_profile_shape.png", { x: 0.55, y: 3.81, w: 3.0, h: 1.85 });
-s.addText("median over sites, smoothed over 3 windows; gold band = the \u00b115 bp core. Stable sites peak highest at the core; Age Up, Exercise Down and Dynamic carry 1.2\u20131.3\u00d7 more of their total beyond \u00b185 bp.",
-  { isTextBox: true, x: 0.55, y: 5.72, w: 3.0, h: 0.6, fontSize: 8.5, color: "595959", margin: 0, objectName: "prof-cap" });
-classFigure(s, "s3_dependence", { x: 3.6, y: 1.25, w: 9.15, h: 4.9 });
+s.addText("Where the dependence sits across the element", { isTextBox: true, x: 0.55, y: 1.14, w: 7.6, h: 0.3, fontSize: 13.5, bold: true, color: "111111", margin: 0, objectName: "prof-t1" });
+s.addText("median loss at each of the 60 windows, smoothed over 3; gold band = the \u00b115 bp core", { isTextBox: true, x: 0.55, y: 1.45, w: 7.6, h: 0.3, fontSize: 10.5, color: "595959", margin: 0, objectName: "prof-s1" });
+FIG(s, "Analysis/slide_figures/panels/s12_profile_absolute.png", { x: 0.55, y: 1.76, w: 7.6, h: 1.95 });
+s.addText("...and the same as a share of each site\u2019s own total", { isTextBox: true, x: 0.55, y: 3.78, w: 7.6, h: 0.3, fontSize: 13.5, bold: true, color: "111111", margin: 0, objectName: "prof-t2" });
+s.addText("depth divided out, so only the shape is compared", { isTextBox: true, x: 0.55, y: 4.07, w: 7.6, h: 0.3, fontSize: 10.5, color: "595959", margin: 0, objectName: "prof-s2" });
+FIG(s, "Analysis/slide_figures/panels/s12_profile_shape.png", { x: 0.55, y: 4.32, w: 7.6, h: 1.85 });
+classFigure(s, "s3_dependence", { x: 8.35, y: 1.14, w: 4.4, h: 5.2 }, { gutter: 0.02, foot: 0.0, stack: true, legendX: 0.55, legendW: 12.2, legendY: 6.26, showKey: false });
 takeaway(s, "Stable sites peak highest at the core; Age Up, Exercise Down and Dynamic carry more of their dependence out in the flanks \u2014 Age Down simply has less of everything");
 s.addNotes("The profiles on the left are what the four measures are read off. At the core (within 15 bp) every class loses less than Stable sites do: Age Down 0.73x, Exercise Up 0.76x, Exercise Down 0.78x, Dynamic 0.80x, Age Up 0.90x, all FDR <= 0.016. Normalised to each site\u2019s own total, the core share is barely different (0.93-1.00) but the flank share beyond 85 bp is higher in Age Up 1.31x, Exercise Down 1.29x and Dynamic 1.21x, all FDR <= 0.0002, while Age Down is 0.99x. So Age Down is not a redistribution, it is a weaker element throughout.");
 

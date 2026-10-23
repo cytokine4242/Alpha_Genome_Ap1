@@ -83,7 +83,7 @@ S_.to_csv(OUT / "tables" / "core_vs_flank_by_class.csv", index=False)
 
 for metric, ylab, fname in (("loss", "Median loss at that window (log2FC)", "s12_profile_absolute.png"),
                             ("share", "Share of the site's total loss", "s12_profile_shape.png")):
-    fig, ax = plt.subplots(figsize=(4.9, 2.6))
+    fig, ax = plt.subplots(figsize=(7.8, 2.45))
     for nm, _col, _val, c in GROUPS:
         g = P[(P["class"] == nm) & (P.metric == metric)].sort_values("centre")
         y = g["median"].rolling(3, center=True, min_periods=1).mean()   # 3-window smoothing; the tails are noisy
@@ -92,7 +92,7 @@ for metric, ylab, fname in (("loss", "Median loss at that window (log2FC)", "s12
     ax.set_xlim(-305, 305)
     ax.set_xlabel("Window position relative to the motif (bp)", fontsize=9.5)
     ax.set_ylabel(ylab, fontsize=9.5)
-    fig.subplots_adjust(left=0.185, right=0.99, top=0.975, bottom=0.185)
+    fig.subplots_adjust(left=0.115, right=0.995, top=0.97, bottom=0.195)
     fig.savefig(PAN / fname, facecolor=SURF)
     plt.close(fig)
 

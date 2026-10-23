@@ -149,23 +149,22 @@ def emit_class_figure(name, measures, panel_fn, test_note):
     print("  wrote", name, f"({sum(len(r) for r in panels)} panels)")
 
 
-def class_dot_panel(ax, v, ylab, mode, minn=15):
-    """One measure, one mode. mode="all": every class against all Stable sites, nothing controlled -- if the
-    accessibility difference is real biology it lives here. mode="matched": every class against its own matched
-    Stable controls, paired. Both are shown for every result; neither is the privileged one."""
+def class_dot_panel(ax, v, ylab, mode, minn=15, horizontal=False):
+    """One measure, one mode. mode="all" compares every class against all Stable sites, nothing controlled.
+    horizontal=True puts the classes on the y-axis, which stacks better in a narrow column."""
     ps = {}
     base_all = v.reindex(sorted(_STABLE)).dropna().values
+    lo0, hi0 = boot(base_all, 400)
+    span, line = (ax.axvspan, ax.axvline) if horizontal else (ax.axhspan, ax.axhline)
     if mode == "all":
-        lo, hi = boot(base_all, 400)
-        ax.axhspan(lo, hi, color=CTRL_GREY, alpha=0.30, lw=0, zorder=1)
-        ax.axhline(np.median(base_all), color=STABLE_GREY, lw=1.4, zorder=2)
+        span(lo0, hi0, color=CTRL_GREY, alpha=0.30, lw=0, zorder=1)
+        line(np.median(base_all), color=STABLE_GREY, lw=1.4, zorder=2)
     for k, (nm, col_, val_, col) in enumerate(GROUPS):
         if mode == "all":
             a = v.reindex(sorted(S.index[S[col_] == val_])).dropna().values
-            b = base_all
             if len(a) < minn:
                 continue
-            ps[nm] = mannwhitneyu(a, b).pvalue
+            ps[nm] = mannwhitneyu(a, base_all).pvalue
             series = [(a, col, 0.0)]
         else:
             P = class_pairs(nm)
@@ -178,15 +177,26 @@ def class_dot_panel(ax, v, ylab, mode, minn=15):
             series = [(b, CTRL_GREY, 0.19), (a, col, -0.19)]
         for vals, c_, off in series:
             lo, hi = boot(vals, 400)
-            ax.errorbar(k + off, np.median(vals), yerr=[[np.median(vals) - lo], [hi - np.median(vals)]],
-                        fmt="o", ms=9, color=c_, lw=2.2, capsize=0, zorder=4)
-    lo_, hi_ = ax.get_ylim()
-    ax.set_ylim(lo_, hi_ + (hi_ - lo_) * 0.16)
-    ax.set_xticks(range(len(GROUPS)), [n.replace("Exercise ", "Ex ").replace(" (all)", "") for n, _, _, _ in GROUPS],
-                  fontsize=10.5, rotation=20, ha="right")
-    ax.set_xlim(-0.6, len(GROUPS) - 0.4)
-    if ylab:
-        ax.set_ylabel(ylab, fontsize=11)
+            m_ = np.median(vals)
+            if horizontal:
+                ax.errorbar(m_, k + off, xerr=[[m_ - lo], [hi - m_]], fmt="o", ms=8, color=c_, lw=2.0, capsize=0, zorder=4)
+            else:
+                ax.errorbar(k + off, m_, yerr=[[m_ - lo], [hi - m_]], fmt="o", ms=9, color=c_, lw=2.2, capsize=0, zorder=4)
+    labs = [n.replace("Exercise ", "Ex ").replace(" (all)", "") for n, _, _, _ in GROUPS]
+    if horizontal:
+        ax.set_yticks(range(len(GROUPS)), labs, fontsize=9.5)
+        ax.set_ylim(len(GROUPS) - 0.45, -0.55)                   # Dynamic at the top, reading downward
+        lo_, hi_ = ax.get_xlim()
+        ax.set_xlim(lo_ - (hi_ - lo_) * 0.04, hi_ + (hi_ - lo_) * 0.12)
+        if ylab:
+            ax.set_xlabel(ylab, fontsize=9.5)
+    else:
+        lo_, hi_ = ax.get_ylim()
+        ax.set_ylim(lo_, hi_ + (hi_ - lo_) * 0.16)
+        ax.set_xticks(range(len(GROUPS)), labs, fontsize=10.5, rotation=20, ha="right")
+        ax.set_xlim(-0.6, len(GROUPS) - 0.4)
+        if ylab:
+            ax.set_ylabel(ylab, fontsize=11)
     return ps
 
 
@@ -248,9 +258,15 @@ def mark_fdr(axes, allps):
     for (i, nm, _p), q in zip(flat, fdr):
         k = [n for n, _, _, _ in GROUPS].index(nm)
         ax = axes[i]
-        ax.text(k, 0.985, ("***" if q < 1e-3 else "**" if q < 0.01 else "*" if q < 0.05 else "ns"),
-                transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=12,
-                color=INK if q < 0.05 else MUTED, fontweight="bold" if q < 0.05 else "normal")
+        star = "***" if q < 1e-3 else "**" if q < 0.01 else "*" if q < 0.05 else "ns"
+        col_ = INK if q < 0.05 else MUTED
+        bold = "bold" if q < 0.05 else "normal"
+        if getattr(ax, "_horizontal", False):
+            ax.text(0.985, k, star, transform=ax.get_yaxis_transform(), ha="right", va="center",
+                    fontsize=10.5, color=col_, fontweight=bold)
+        else:
+            ax.text(k, 0.985, star, transform=ax.get_xaxis_transform(), ha="center", va="top",
+                    fontsize=12, color=col_, fontweight=bold)
 
 
 
@@ -280,6 +296,32 @@ def element_panel():
             ha="center", va="top", fontsize=13, color=INK, linespacing=1.5)
     fig.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
     save(fig, "s0_element")
+
+
+def edits_diagram():
+    """The four edits of slide 4, drawn to scale on one rail: what is replaced, and how much of it."""
+    fig, ax = plt.subplots(figsize=(7.0, 2.0))
+    ax.set_xlim(-620, 620)
+    ax.set_ylim(-0.42, 4.25)
+    ax.axis("off")
+    ROWS = [(3.55, 11, 0, "Replace the 11 bp motif", ORANGE),
+            (2.55, 170, 0, "Replace the 170 bp element", ORANGE),
+            (1.55, 900, 0, "Replace the whole peak", ORANGE),
+            (0.55, 170, 300, "Replace 170 bp, 300 bp away \u2014 the motif untouched", STABLE_GREY)]
+    for y, width, centre, lab, c in ROWS:
+        ax.plot([-600, 600], [y, y], color=RAIL, lw=1.1, zorder=2)
+        ax.add_patch(Rectangle((centre - width / 2, y - 0.13), max(width, 14), 0.26, color=c, ec="none", zorder=3))
+        if centre:                                              # only the control spares the motif, so only it shows one
+            ax.add_patch(Rectangle((-5.5, y - 0.11), 11, 0.22, color="#C9961F", ec=INK, lw=0.8, zorder=4))
+        ax.text(-600, y + 0.26, lab, fontsize=10, color=INK, va="bottom",
+                fontweight="bold" if c is ORANGE else "normal")
+    for x_ in (-600, -300, 0, 300, 600):
+        ax.plot([x_, x_], [0.18, 0.10], color=MUTED, lw=0.8)
+        ax.text(x_, 0.02, f"{x_:+d}" if x_ else "0", ha="center", va="top", fontsize=8.5, color=MUTED)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+    fig.savefig(PAN / "d_edits.png", facecolor=SURF, bbox_inches="tight")
+    plt.close(fig)
+    print("  wrote d_edits")
 
 
 def _band(kind):
@@ -394,17 +436,29 @@ def _profile_schematic(ax):
 def dependence():
     SCF2 = SCF.assign(near_abs_170=SCF.total_dependence_170 * SCF.share_within_85_170,
                       far_abs_170=SCF.total_dependence_170 * (1 - SCF.share_within_85_170))
-    M = [("near_abs_170", "Dependence near the motif", "loss summed over windows within \u00b185 bp", "Summed loss within\n\u00b185 bp (log2)"),
-         ("far_abs_170", "Dependence out in the context", "loss summed over windows beyond that", "Summed loss beyond\n\u00b185 bp (log2)"),
-         ("spread_170", "Spread along the element", "SD of window position, weighted by loss", "Spread of the loss (bp)"),
-         ("ism_max", "Depth of the single best base", "largest effect of any one base change, \u00b130 bp", "Largest single-base\neffect (|log2FC|)")]
+    M = [("near_abs_170", "Dependence near the motif", "loss summed over windows within \u00b185 bp", "Summed loss within \u00b185 bp (log2)"),
+         ("far_abs_170", "Dependence out in the context", "loss summed over windows beyond that", "Summed loss beyond \u00b185 bp (log2)"),
+         ("spread_170", "Spread along the element", "SD of window position, weighted by loss", "Spread of the loss (bp)")]
     d = S.join(SCF2[[m[0] for m in M]], how="inner")
-    emit_class_figure("s3_dependence", [(d[c], t, sub, y) for c, t, sub, y in M], class_dot_panel, KEY_DOT)
-    fig, ax = plt.subplots(figsize=(3.5, 2.9))
-    _profile_schematic(ax)
-    fig.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
-    fig.savefig(PAN / "d_profile.png", facecolor=SURF, bbox_inches="tight")
-    plt.close(fig)
+    cols, panels, made, allps = [], [], [], []
+    for ci, (col, title, sub, xlab) in enumerate(M):
+        cols.append({"title": title, "subtitle": sub})
+        fig, ax = plt.subplots(figsize=(4.4, 1.40))
+        ax._horizontal = True
+        allps.append(class_dot_panel(ax, d[col], xlab, "all", horizontal=True))
+        f = f"s3_dependence_c{ci}_r0.png"
+        made.append((fig, ax, f))
+        panels.append([f])
+    mark_fdr([a_ for _, a_, _ in made], allps)
+    for fig, _ax, f in made:
+        fig.subplots_adjust(left=0.225, right=0.99, top=0.95, bottom=0.33)
+        fig.savefig(PAN / f, facecolor=SURF)
+        plt.close(fig)
+    (OUT / "s3_dependence.json").write_text(json.dumps(
+        {"name": "s3_dependence", "cols": cols, "rows": ["every site of that class against all Stable sites"],
+         "panels": panels, "legend": [[nm, col] for nm, _, _, col in GROUPS] + [["Stable (all 2,907 sites)", CTRL_GREY]],
+         "key": KEY_DOT.format(n=sum(len(x) for x in allps))}, indent=1))
+    print("  wrote s3_dependence (3 stacked panels)")
 
 
 # ================================================================ 4. titration, everything against native
@@ -656,5 +710,5 @@ def top_tile_odds():
 
 
 print("building slide figures")
-element_panel(); bands(); matched_null(); dependence(); titration(); age_gained(); mpra(); spacing(); partners(); mef2_by_class(); top_tile_odds()
+element_panel(); bands(); edits_diagram(); matched_null(); dependence(); titration(); age_gained(); mpra(); spacing(); partners(); mef2_by_class(); top_tile_odds()
 print("done ->", OUT)
