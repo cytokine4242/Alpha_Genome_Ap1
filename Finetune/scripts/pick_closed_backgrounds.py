@@ -33,6 +33,8 @@ import numpy as np
 import pandas as pd
 
 CANONICAL = [f"chr{i}" for i in list(range(1, 20)) + ["X"]]
+# chrX is excluded by default: its copy number and ATAC signal differ systematically from the autosomes, so its windows look
+# quietest and would dominate a set chosen on signal alone.
 
 
 def load_peaks(files):
@@ -99,6 +101,9 @@ def main():
     ap.add_argument("--max-rel", type=float, default=0.5, help="loose gate: core density allowed, as a multiple of each track's genome-wide mean")
     ap.add_argument("--pool-frac", type=float, default=0.2, help="keep only this quietest fraction of surviving candidates as eligible hosts")
     ap.add_argument("--min-dist-peak", type=int, default=5_000, help="minimum distance from the centre to any called peak")
+    ap.add_argument("--exclude-chroms", nargs="*", default=["chrX"], help="chromosomes not to draw hosts from")
+    ap.add_argument("--max-per-chrom", type=int, default=3, help="at most this many chosen windows per chromosome")
+    ap.add_argument("--min-spacing", type=int, default=5_000_000, help="minimum distance between two chosen windows on the same chromosome")
     ap.add_argument("--tries", type=int, default=20000)
     ap.add_argument("--seed", type=int, default=46)
     args = ap.parse_args()
@@ -119,7 +124,8 @@ def main():
         bws[name] = bw
     print("tracks and their genome-wide means:", {k: round(v, 5) for k, v in means.items()}, flush=True)
 
-    sizes = {c: len(fa[c]) for c in CANONICAL if c in fa}
+    sizes = {c: len(fa[c]) for c in CANONICAL if c in fa and c not in args.exclude_chroms}
+    print(f"drawing from {len(sizes)} chromosomes (excluded: {args.exclude_chroms or 'none'})", flush=True)
     chroms = list(sizes)
     w = np.array([sizes[c] for c in chroms], float)
     w /= w.sum()
@@ -184,10 +190,22 @@ def main():
     else:
         target = gc_of_sites(args.gc_from, fa)
         want = np.quantile(target, np.linspace(0.05, 0.95, args.n))
-        avail, chosen = pool.copy(), []
+        avail, chosen, per_chrom = pool.copy(), [], {}
         for t in want:
-            j = (avail.gc_core - t).abs().idxmin()
+            cand = avail
+            if len(chosen):                                   # spread the hosts out: cap per chromosome and keep them apart
+                taken = pd.DataFrame(chosen)
+                full = {c for c, n in per_chrom.items() if n >= args.max_per_chrom}
+                cand = cand[~cand.chrom.isin(full)]
+                for c, g in taken.groupby("chrom"):
+                    near = cand.chrom.eq(c) & cand.centre.apply(lambda x: (g.centre - x).abs().min() < args.min_spacing)
+                    cand = cand[~near]
+            if cand.empty:
+                print(f"  no window left for GC {t:.3f} under the spread limits; stopping at {len(chosen)}")
+                break
+            j = (cand.gc_core - t).abs().idxmin()
             chosen.append(avail.loc[j])
+            per_chrom[avail.loc[j].chrom] = per_chrom.get(avail.loc[j].chrom, 0) + 1
             avail = avail.drop(index=j)
         out = pd.DataFrame(chosen).reset_index(drop=True)
         print(f"GC matched to {len(target)} element peaks: elements median {np.median(target):.3f} "
@@ -196,7 +214,7 @@ def main():
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(args.out, index=False)
-    print(f"wrote {len(out)} windows to {args.out}")
+    print(f"wrote {len(out)} windows to {args.out}; per chromosome: {out.chrom.value_counts().to_dict()}")
     print(out[["chrom", "centre", "gc_core", "total_rel"]].round(4).to_string(index=False))
 
 
