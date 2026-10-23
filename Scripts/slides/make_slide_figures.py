@@ -365,27 +365,30 @@ def matched_null():
 
 # ================================================================ 3. dependence shape, raw and matched
 def _profile_schematic(ax):
-    """What the four measures are read off: one site's sliding-window profile, with the near window marked."""
+    """What the measures are read off. The motif is 11 bp -- a hairline at this scale -- so it gets its own narrow
+    marker and a leader line; the shaded band is the \u00b185 bp readout window and is labelled as such."""
     ax.axis("off")
     ax.set_xlim(-310, 310)
-    ax.set_ylim(-1.95, 0.80)
+    ax.set_ylim(-1.95, 1.05)
     rng2 = np.random.default_rng(7)
     c = np.arange(-295, 300, 10)
     prof = -(0.95 * np.exp(-(c ** 2) / (2 * 55 ** 2)) + 0.30 * np.exp(-((c - 150) ** 2) / (2 * 40 ** 2))
              + 0.22 * np.exp(-((c + 190) ** 2) / (2 * 45 ** 2))) - rng2.uniform(0, 0.05, len(c))
-    ax.axvspan(-85, 85, color=ORANGE, alpha=0.10, lw=0, zorder=1)
+    ax.axvspan(-85, 85, color=ORANGE, alpha=0.09, lw=0, zorder=1)
     ax.bar(c[np.abs(c) <= 85], prof[np.abs(c) <= 85], width=9, color=ORANGE, zorder=3)
     ax.bar(c[np.abs(c) > 85], prof[np.abs(c) > 85], width=9, color=CTRL_GREY, zorder=3)
     ax.axhline(0, color=RAIL, lw=1.2, zorder=4)
-    ax.text(0, 0.60, "one site's sliding-window profile", ha="center", fontsize=11.5, color=INK, fontweight="bold")
-    ax.text(0, 0.30, "each bar = one 10 bp window replaced", ha="center", fontsize=10, color=MUTED)
-    ax.annotate("", xy=(-85, -1.32), xytext=(85, -1.32), arrowprops=dict(arrowstyle="|-|,widthA=0.3,widthB=0.3", color=ORANGE, lw=1.2))
-    ax.text(0, -1.40, "near: \u00b185 bp", ha="center", va="top", fontsize=10.5, color=ORANGE, fontweight="bold")
-    ax.text(-200, 0.40, "far", ha="center", fontsize=10.5, color=MUTED)
-    ax.text(200, 0.40, "far", ha="center", fontsize=10.5, color=MUTED)
-    ax.annotate("", xy=(0, -1.72), xytext=(-185, -1.72), arrowprops=dict(arrowstyle="<->", color=MUTED, lw=1.0))
-    ax.text(-92, -1.68, "spread", ha="center", va="bottom", fontsize=10, color=MUTED)
-    ax.text(0, 0.06, "AP-1 motif", ha="center", va="bottom", fontsize=9.5, color=ORANGE)
+    ax.add_patch(Rectangle((-6, -0.07), 12, 0.14, color="#C9961F", ec=INK, lw=0.9, zorder=6))
+    ax.annotate("AP-1 motif, 11 bp", xy=(6, 0.02), xytext=(118, 0.52), fontsize=9.5, color="#9a7d0a",
+                arrowprops=dict(arrowstyle="->", color="#9a7d0a", lw=1.0))
+    ax.text(0, 0.90, "one site's sliding-window profile", ha="center", fontsize=11, color=INK, fontweight="bold")
+    ax.text(0, 0.66, "each bar = one 10 bp window replaced", ha="center", fontsize=9.5, color=MUTED)
+    ax.annotate("", xy=(-85, -1.34), xytext=(85, -1.34), arrowprops=dict(arrowstyle="|-|,widthA=0.3,widthB=0.3", color=ORANGE, lw=1.2))
+    ax.text(0, -1.42, "near: within \u00b185 bp of the motif", ha="center", va="top", fontsize=9.5, color=ORANGE, fontweight="bold")
+    ax.text(-215, 0.30, "far", ha="center", fontsize=10, color=MUTED)
+    ax.text(215, 0.30, "far", ha="center", fontsize=10, color=MUTED)
+    ax.annotate("", xy=(0, -1.78), xytext=(-185, -1.78), arrowprops=dict(arrowstyle="<->", color=MUTED, lw=1.0))
+    ax.text(-92, -1.74, "spread", ha="center", va="bottom", fontsize=9.5, color=MUTED)
 
 
 def dependence():

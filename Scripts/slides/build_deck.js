@@ -227,16 +227,16 @@ s.addNotes("Presence vs rank is the point. MEF2, does the element have one: Dyna
 // ================================================================== 5d AP-1 cluster locus
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("What the model leans on: its own motif, or a neighbour", { placeholder: "title" });
-s.addText("Two elements with a comparable set of neighbouring AP-1 footprints and comparable accessibility. Coloured bars are the three most damaging windows; gold marks the called AP-1 motif; the lane below shows every other AP-1 footprint, merged where calls overlap and numbered.",
+s.addText("Two elements with comparable accessibility and a comparable set of neighbouring AP-1 footprints. Numbered circles mark the three most damaging windows, ranked; the dotted line drops from each to whatever lies beneath it. Gold is the called AP-1 motif, grey the other AP-1 footprints, merged where calls overlap.",
   { isTextBox: true, x: 0.8, y: 1.1, w: 11.9, h: 0.5, fontSize: 11.5, color: "595959", margin: 0, objectName: "cl-intro" });
 s.addText([{ text: "Stable  ", options: { bold: true, fontSize: 13, color: "1F6FB2" } },
-           { text: "chr2:110,186,562 \u2014 all three top windows are the motif itself", options: { fontSize: 12, color: "111111" } }],
+           { text: "chr2:110,186,562 \u2014 windows 1 and 2 are the called motif; the seven AP-1 sites at +140 to +190 bp cost nothing", options: { fontSize: 12, color: "111111" } }],
   { isTextBox: true, x: 0.8, y: 1.72, w: 11.9, h: 0.28, margin: 0, objectName: "cl-t1" });
-FIG(s, "Analysis/slide_figures/panels/s11_cluster_stable.png", { x: 0.8, y: 2.02, w: 11.9, h: 1.9 });
+FIG(s, "Analysis/slide_figures/panels/s11_cluster_stable.png", { x: 0.55, y: 2.0, w: 12.2, h: 2.0 });
 s.addText([{ text: "Age-gained  ", options: { bold: true, fontSize: 13, color: "C2551C" } },
-           { text: "chr13:35,395,938 \u2014 the two worst windows sit on a cluster of neighbouring AP-1 sites, and the called motif is only third", options: { fontSize: 12, color: "111111" } }],
+           { text: "chr13:35,395,938 \u2014 windows 1 and 3 sit on a cluster of ten AP-1 sites at \u221265 bp; the called motif is only second", options: { fontSize: 12, color: "111111" } }],
   { isTextBox: true, x: 0.8, y: 3.95, w: 11.9, h: 0.28, margin: 0, objectName: "cl-t2" });
-FIG(s, "Analysis/slide_figures/panels/s11_cluster_dynamic.png", { x: 0.8, y: 4.25, w: 11.9, h: 1.9 });
+FIG(s, "Analysis/slide_figures/panels/s11_cluster_dynamic.png", { x: 0.55, y: 4.22, w: 12.2, h: 2.0 });
 s.addText("own motif \u22121.90 against strongest neighbour \u22121.18 at the Stable site; \u22121.56 against \u22122.05 at the age-gained one. 8 and 10 neighbouring AP-1 footprints respectively.",
   { isTextBox: true, x: 0.8, y: 6.14, w: 11.9, h: 0.3, fontSize: 9.5, color: "595959", margin: 0, objectName: "cl-key" });
 takeaway(s, "one locus showing the 1.45\u00d7 result: when a responsive element has a second AP-1 site, that is what the model leans on");
