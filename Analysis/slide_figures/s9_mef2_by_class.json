@@ -1,0 +1,54 @@
+{
+ "name": "s9_mef2_by_class",
+ "cols": [
+  {
+   "title": "A MEF2 footprint within 25 bp",
+   "subtitle": "counting footprints, used by the model or not"
+  },
+  {
+   "title": "...one the model actually leans on",
+   "subtitle": "restricted to tiles worth more than 0.2 log2"
+  }
+ ],
+ "rows": [
+  "all sites, nothing controlled",
+  "each class against its own matched Stable controls"
+ ],
+ "panels": [
+  [
+   "s9_mef2_by_class_c0_r0.png",
+   "s9_mef2_by_class_c0_r1.png"
+  ],
+  [
+   "s9_mef2_by_class_c1_r0.png",
+   "s9_mef2_by_class_c1_r1.png"
+  ]
+ ],
+ "legend": [
+  [
+   "Dynamic (all)",
+   "#4F4F4F"
+  ],
+  [
+   "Age Up",
+   "#C2551C"
+  ],
+  [
+   "Age Down",
+   "#1F6FB2"
+  ],
+  [
+   "Exercise Up",
+   "#2E7D32"
+  ],
+  [
+   "Exercise Down",
+   "#7B3FA0"
+  ],
+  [
+   "Stable (all, or matched controls)",
+   "#B3B2AE"
+  ]
+ ],
+ "key": "grey line and band (top row): all Stable sites with a 95% bootstrap CI.   grey dots (bottom row): that class's own matched controls.   Fisher on all sites, exact McNemar on matched pairs, BH across all 20 tests.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05"
+}

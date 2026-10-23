@@ -1,0 +1,70 @@
+{
+ "name": "s2_matched_null",
+ "cols": [
+  {
+   "title": "Replace the 11 bp motif",
+   "subtitle": "the motif alone"
+  },
+  {
+   "title": "Replace the 170 bp element",
+   "subtitle": "the element around it"
+  },
+  {
+   "title": "Replace the whole peak",
+   "subtitle": "everything, read over the peak"
+  },
+  {
+   "title": "Edit 300 bp away",
+   "subtitle": "the control: nothing at stake"
+  }
+ ],
+ "rows": [
+  "all sites, nothing controlled",
+  "each class against its own matched Stable controls"
+ ],
+ "panels": [
+  [
+   "s2_matched_null_c0_r0.png",
+   "s2_matched_null_c0_r1.png"
+  ],
+  [
+   "s2_matched_null_c1_r0.png",
+   "s2_matched_null_c1_r1.png"
+  ],
+  [
+   "s2_matched_null_c2_r0.png",
+   "s2_matched_null_c2_r1.png"
+  ],
+  [
+   "s2_matched_null_c3_r0.png",
+   "s2_matched_null_c3_r1.png"
+  ]
+ ],
+ "legend": [
+  [
+   "Dynamic (all)",
+   "#4F4F4F"
+  ],
+  [
+   "Age Up",
+   "#C2551C"
+  ],
+  [
+   "Age Down",
+   "#1F6FB2"
+  ],
+  [
+   "Exercise Up",
+   "#2E7D32"
+  ],
+  [
+   "Exercise Down",
+   "#7B3FA0"
+  ],
+  [
+   "Stable (all, or matched controls)",
+   "#B3B2AE"
+  ]
+ ],
+ "key": "grey line and band (top row): all Stable sites, median with 95% bootstrap CI.   grey dots (bottom row): that class's own matched Stable controls.   Stars test the class against that reference \u2014 Mann\u2013Whitney on all sites, paired Wilcoxon on matched pairs \u2014 BH across all 40 tests.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05"
+}

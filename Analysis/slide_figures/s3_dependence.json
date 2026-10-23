@@ -1,0 +1,70 @@
+{
+ "name": "s3_dependence",
+ "cols": [
+  {
+   "title": "Dependence near the motif",
+   "subtitle": "loss summed over windows within \u00b185 bp"
+  },
+  {
+   "title": "Dependence out in the context",
+   "subtitle": "loss summed over windows beyond that"
+  },
+  {
+   "title": "Spread along the element",
+   "subtitle": "SD of window position, weighted by loss"
+  },
+  {
+   "title": "Depth of the single best base",
+   "subtitle": "largest effect of any one base change, \u00b130 bp"
+  }
+ ],
+ "rows": [
+  "all sites, nothing controlled",
+  "each class against its own matched Stable controls"
+ ],
+ "panels": [
+  [
+   "s3_dependence_c0_r0.png",
+   "s3_dependence_c0_r1.png"
+  ],
+  [
+   "s3_dependence_c1_r0.png",
+   "s3_dependence_c1_r1.png"
+  ],
+  [
+   "s3_dependence_c2_r0.png",
+   "s3_dependence_c2_r1.png"
+  ],
+  [
+   "s3_dependence_c3_r0.png",
+   "s3_dependence_c3_r1.png"
+  ]
+ ],
+ "legend": [
+  [
+   "Dynamic (all)",
+   "#4F4F4F"
+  ],
+  [
+   "Age Up",
+   "#C2551C"
+  ],
+  [
+   "Age Down",
+   "#1F6FB2"
+  ],
+  [
+   "Exercise Up",
+   "#2E7D32"
+  ],
+  [
+   "Exercise Down",
+   "#7B3FA0"
+  ],
+  [
+   "Stable (all, or matched controls)",
+   "#B3B2AE"
+  ]
+ ],
+ "key": "grey line and band (top row): all Stable sites, median with 95% bootstrap CI.   grey dots (bottom row): that class's own matched Stable controls.   Stars test the class against that reference \u2014 Mann\u2013Whitney on all sites, paired Wilcoxon on matched pairs \u2014 BH across all 40 tests.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05"
+}

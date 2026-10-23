@@ -5,6 +5,7 @@ Writes into Analysis/slide_figures/.   python3 Scripts/slides/make_slide_figures
 from __future__ import annotations
 
 import glob
+import json
 import warnings
 from pathlib import Path
 
@@ -105,6 +106,48 @@ def class_pairs(nm):
         f["grp"] = np.where(f.index.isin(_STABLE), "Stable", np.where(f[col] == val, nm, ""))
         _PAIRS[nm] = pairs(f[f.grp != ""], "grp", nm, "Stable")
     return _PAIRS[nm]
+
+
+KEY_DOT = ("grey line and band (top row): all Stable sites, median with 95% bootstrap CI.   "
+           "grey dots (bottom row): that class's own matched Stable controls.   "
+           "Stars test the class against that reference \u2014 Mann\u2013Whitney on all sites, paired Wilcoxon on matched pairs "
+           "\u2014 BH across all {n} tests.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05")
+KEY_PROP = ("grey line and band (top row): all Stable sites with a 95% bootstrap CI.   grey dots (bottom row): "
+            "that class's own matched controls.   Fisher on all sites, exact McNemar on matched pairs, BH across all {n} tests.   "
+            "*** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05")
+
+
+PAN = OUT / "panels"
+PAN.mkdir(parents=True, exist_ok=True)
+
+
+def emit_class_figure(name, measures, panel_fn, test_note):
+    """Emit one bare PNG per measure x mode plus a JSON manifest. Nothing but axes, ticks, axis labels and the
+    significance marks goes in the image; every title, legend and caption is left for the slide to place as real text,
+    so a wording change never means regenerating a figure."""
+    cols, panels, made, allps = [], [], [], []
+    for ci, (v, title, sub, ylab) in enumerate(measures):
+        cols.append({"title": title, "subtitle": sub})
+        rowfiles = []
+        for ri, mode in enumerate(("all", "matched")):
+            fig, ax = plt.subplots(figsize=(3.7, 2.35))
+            allps.append(panel_fn(ax, v, ylab, mode))
+            f = f"{name}_c{ci}_r{ri}.png"
+            made.append((fig, ax, f))
+            rowfiles.append(f)
+        panels.append(rowfiles)
+    mark_fdr([a for _, a, _ in made], allps)
+    for fig, _ax, f in made:
+        fig.subplots_adjust(left=0.255, right=0.99, top=0.965, bottom=0.28)
+        fig.savefig(PAN / f, facecolor=SURF)
+        plt.close(fig)
+    man = {"name": name, "cols": cols,
+           "rows": ["all sites, nothing controlled", "each class against its own matched Stable controls"],
+           "panels": panels,
+           "legend": [[nm, col] for nm, _, _, col in GROUPS] + [["Stable (all, or matched controls)", CTRL_GREY]],
+           "key": test_note.format(n=sum(len(d) for d in allps))}
+    (OUT / f"{name}.json").write_text(json.dumps(man, indent=1))
+    print("  wrote", name, f"({sum(len(r) for r in panels)} panels)")
 
 
 def class_dot_panel(ax, v, ylab, mode, minn=15):
@@ -313,36 +356,12 @@ def bands():
 
 # ================================================================ 2. the matched comparison, raw and matched together
 def matched_null():
-    """The four edits that carry the argument, every directional class, shown both ways: against all Stable sites
-    and against each class's own matched controls. The scale-specific residual is the point -- the motif and the
-    whole peak close up under matching, the 170 bp element does not."""
-    KEY = [("replace motif, read over motif", "Replace the 11 bp motif", "the motif alone"),
-           ("replace 170 bp, read over 170 bp", "Replace the 170 bp element", "the element around it"),
-           ("replace peak, read over peak", "Replace the whole peak", "everything, read over the peak"),
-           ("170 bp shuffle \u00b1300 bp away, read over motif", "Edit 300 bp away", "the control: nothing at stake")]
-    d = S.join(FD[[k for k, _, _ in KEY]])
-    fig, axes = plt.subplots(2, 4, figsize=(16.0, 7.4), sharex=True)
-    allps, flat = [], []
-    for c_, (col, lab, defn) in enumerate(KEY):
-        for r_, mode in enumerate(("all", "matched")):
-            ax = axes[r_, c_]
-            allps.append(class_dot_panel(ax, d[col], "Effect on predicted\naccessibility (log2FC)" if c_ == 0 else "", mode))
-            flat.append(ax)
-            if r_ == 0:
-                ax.set_title(lab, fontsize=13, loc="left", pad=26)
-                ax.text(0.0, 1.015, defn, transform=ax.transAxes, ha="left", va="bottom", fontsize=10.5, color=MUTED)
-    mark_fdr(flat, allps)
-    for r_, txt in enumerate(("all sites, nothing controlled\n(grey band = all Stable sites)",
-                              "each class against its own\ncontext-matched Stable controls")):
-        axes[r_, 0].text(-0.42, 0.5, txt, transform=axes[r_, 0].transAxes, rotation=90, ha="center", va="center",
-                         fontsize=11, color=INK, linespacing=1.5)
-    h = [axes[0, 0].plot([], [], "o", color=col, ms=9, label=nm)[0] for nm, _, _, col in GROUPS]
-    h.append(axes[0, 0].plot([], [], "o", color=CTRL_GREY, ms=9, label="Stable (all, or matched controls)")[0])
-    fig.subplots_adjust(left=0.115, right=0.99, top=0.875, bottom=0.265, wspace=0.34, hspace=0.26)
-    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.5, 0.008))
-    fig.text(0.55, 0.145, TEST_KEY.format(n=sum(len(d) for d in allps)), ha="center", va="top",
-             fontsize=10, color=MUTED, linespacing=1.6)
-    save(fig, "s2_matched_null")
+    KEY = [("replace motif, read over motif", "Replace the 11 bp motif", "the motif alone", "Effect (log2FC)"),
+           ("replace 170 bp, read over 170 bp", "Replace the 170 bp element", "the element around it", "Effect (log2FC)"),
+           ("replace peak, read over peak", "Replace the whole peak", "everything, read over the peak", "Effect (log2FC)"),
+           ("170 bp shuffle \u00b1300 bp away, read over motif", "Edit 300 bp away", "the control: nothing at stake", "Effect (log2FC)")]
+    d = S.join(FD[[k for k, _, _, _ in KEY]])
+    emit_class_figure("s2_matched_null", [(d[c], t, sub, y) for c, t, sub, y in KEY], class_dot_panel, KEY_DOT)
 
 
 # ================================================================ 3. dependence shape, raw and matched
@@ -371,48 +390,23 @@ def _profile_schematic(ax):
 
 
 def dependence():
-    """How much of a site's sequence dependence sits near its motif and how much sits out in the surrounding context,
-    in absolute log2 units rather than as a share, so 'more distributed' can be read directly. Every class, both ways."""
     SCF2 = SCF.assign(near_abs_170=SCF.total_dependence_170 * SCF.share_within_85_170,
                       far_abs_170=SCF.total_dependence_170 * (1 - SCF.share_within_85_170))
-    M = [("near_abs_170", "Dependence near the motif",
-          "loss summed over windows within \u00b185 bp", "Summed loss within\n\u00b185 bp (log2)"),
-         ("far_abs_170", "Dependence out in the context",
-          "loss summed over windows beyond that", "Summed loss beyond\n\u00b185 bp (log2)"),
-         ("spread_170", "Spread along the element",
-          "SD of window position, weighted by loss", "Spread of the loss (bp)"),
-         ("ism_max", "Depth of the single best base",
-          "largest effect of any one base change, \u00b130 bp", "Largest single-base\neffect (|log2FC|)")]
+    M = [("near_abs_170", "Dependence near the motif", "loss summed over windows within \u00b185 bp", "Summed loss within\n\u00b185 bp (log2)"),
+         ("far_abs_170", "Dependence out in the context", "loss summed over windows beyond that", "Summed loss beyond\n\u00b185 bp (log2)"),
+         ("spread_170", "Spread along the element", "SD of window position, weighted by loss", "Spread of the loss (bp)"),
+         ("ism_max", "Depth of the single best base", "largest effect of any one base change, \u00b130 bp", "Largest single-base\neffect (|log2FC|)")]
     d = S.join(SCF2[[m[0] for m in M]], how="inner")
-    fig = plt.figure(figsize=(16.6, 7.4))
-    gs = fig.add_gridspec(2, 6, width_ratios=[1.2, 0.22, 1, 1, 1, 1], wspace=0.42, hspace=0.26,
-                          left=0.012, right=0.99, top=0.855, bottom=0.265)
-    _profile_schematic(fig.add_subplot(gs[:, 0]))
-    allps, flat = [], []
-    for c_, (col, lab, defn, ylab) in enumerate(M):
-        for r_, mode in enumerate(("all", "matched")):
-            ax = fig.add_subplot(gs[r_, c_ + 2])
-            allps.append(class_dot_panel(ax, d[col], ylab, mode))
-            flat.append(ax)
-            if r_ == 0:
-                ax.set_title(lab, fontsize=12.5, loc="left", pad=26)
-                ax.text(0.0, 1.015, defn, transform=ax.transAxes, ha="left", va="bottom", fontsize=10, color=MUTED)
-                ax.tick_params(labelbottom=False)
-    mark_fdr(flat, allps)
-    for y_, txt in ((0.665, "all sites,\nnothing controlled"), (0.40, "each class vs its own\nmatched controls")):
-        fig.text(0.205, y_, txt, rotation=90, ha="center", va="center", fontsize=10.5, color=INK, linespacing=1.5)
-    h = [flat[0].plot([], [], "o", color=col, ms=9, label=nm)[0] for nm, _, _, col in GROUPS]
-    h.append(flat[0].plot([], [], "o", color=CTRL_GREY, ms=9, label="Stable (all, or matched controls)")[0])
-    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.55, 0.008))
-    fig.text(0.55, 0.145, TEST_KEY.format(n=sum(len(d_) for d_ in allps)), ha="center", va="top",
-             fontsize=10, color=MUTED, linespacing=1.6)
-    save(fig, "s3_dependence")
+    emit_class_figure("s3_dependence", [(d[c], t, sub, y) for c, t, sub, y in M], class_dot_panel, KEY_DOT)
+    fig, ax = plt.subplots(figsize=(3.5, 2.9))
+    _profile_schematic(ax)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
+    fig.savefig(PAN / "d_profile.png", facecolor=SURF, bbox_inches="tight")
+    plt.close(fig)
 
 
 # ================================================================ 4. titration, everything against native
 def titration():
-    """Mechanism split by class throughout. Left column: the dose curve and the position curve drawn once per class.
-    Right: four titration quantities per site, every class, both against all Stable sites and against matched controls."""
     tt = pd.concat([pd.read_csv(f) for f in sorted(glob.glob(str(ROOT / "Katana/results/titrate*_cm_chunk*.csv")))], ignore_index=True)
     tt = tt[tt.trackset == "CM"]
     nat = tt[tt.kind == "native"].set_index("site_id").atac_170
@@ -425,86 +419,54 @@ def titration():
          ("add_copy_net_170", "A second copy added", "net of a shuffled-sequence control", "Effect (log2FC)"),
          ("relocate_net_170", "The motif moved elsewhere", "net of the same control", "Effect (log2FC)")]
     d = S.join(TF[[m[0] for m in M]], how="left")
-    fig = plt.figure(figsize=(16.6, 7.4))
-    gs = fig.add_gridspec(2, 6, width_ratios=[1.35, 0.26, 1, 1, 1, 1], wspace=0.42, hspace=0.46,
-                          left=0.045, right=0.99, top=0.855, bottom=0.265)
+    emit_class_figure("s4_titration", [(d[c], t, sub, y) for c, t, sub, y in M], class_dot_panel, KEY_DOT)
     CURVE = [("Stable", None, None, CTRL_GREY)] + [(n, c, v, col) for n, c, v, col in GROUPS if n != "Dynamic (all)"]
-
-    def curve_members(nm, col_, val_):
-        return set(S.index[S.stable_dynamic == "Stable"]) if nm == "Stable" else set(S.index[S[col_] == val_])
-
-    ax = fig.add_subplot(gs[0, 0])
-    for nm, col_, val_, c in CURVE:
-        ids = curve_members(nm, col_, val_)
-        w = e[(e.kind == "core_mm") & (e.site_id.isin(ids))].groupby("pos").eff.median()
-        ax.plot(w.index, w.values, color=c, lw=2.2, marker="o", ms=5, label=nm.replace("Exercise ", "Ex "))
-    ax.set_xlabel("Core bases changed (of 7)", fontsize=11)
-    ax.set_ylabel("Loss of predicted\naccessibility (log2FC)", fontsize=11)
-    ax.set_title("The dose curve, class by class", fontsize=12.5, loc="left", pad=6)
-    ax.text(0.99, 0.04, "colours as in the legend below", transform=ax.transAxes, ha="right", fontsize=9.5, color=MUTED)
-
-    ax = fig.add_subplot(gs[1, 0])
-    for nm, col_, val_, c in CURVE:
-        ids = curve_members(nm, col_, val_)
-        w = e[(e.kind == "dup") & (e.site_id.isin(ids))].groupby("pos").eff.median()
-        ax.plot(w.index, w.values, color=c, lw=2.2, marker="o", ms=4)
-    ax.axhline(0, color=INK, lw=1.0)
-    ax.set_xlabel("Position of the added copy (bp)", fontsize=11)
-    ax.set_ylabel("Change vs native (log2FC)", fontsize=11)
-    ax.set_title("Where a second copy helps", fontsize=12.5, loc="left", pad=6)
-
-    allps, flat = [], []
-    for c_, (col, lab, defn, ylab) in enumerate(M):
-        for r_, mode in enumerate(("all", "matched")):
-            ax = fig.add_subplot(gs[r_, c_ + 2])
-            allps.append(class_dot_panel(ax, d[col], ylab if c_ == 0 else "", mode))
-            flat.append(ax)
-            if r_ == 0:
-                ax.set_title(lab, fontsize=12.5, loc="left", pad=26)
-                ax.text(0.0, 1.015, defn, transform=ax.transAxes, ha="left", va="bottom", fontsize=10, color=MUTED)
-                ax.tick_params(labelbottom=False)
-    mark_fdr(flat, allps)
-    for y_, txt in ((0.665, "all sites,\nnothing controlled"), (0.40, "each class vs its own\nmatched controls")):
-        fig.text(0.238, y_, txt, rotation=90, ha="center", va="center", fontsize=10.5, color=INK, linespacing=1.5)
-    h = [flat[0].plot([], [], "o", color=col, ms=9, label=nm)[0] for nm, _, _, col in GROUPS]
-    h.append(flat[0].plot([], [], "o", color=CTRL_GREY, ms=9, label="Stable (all, or matched controls)")[0])
-    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.55, 0.008))
-    fig.text(0.55, 0.145, TEST_KEY.format(n=sum(len(d_) for d_ in allps)), ha="center", va="top",
-             fontsize=10, color=MUTED, linespacing=1.6)
-    save(fig, "s4_titration")
+    members = lambda nm, c_, v_: set(S.index[S.stable_dynamic == "Stable"]) if nm == "Stable" else set(S.index[S[c_] == v_])
+    for fname, kind, xlab, ylab, zero in (("d_dose", "core_mm", "Core bases changed (of 7)", "Loss (log2FC)", False),
+                                          ("d_addcopy", "dup", "Position of the added copy (bp)", "Change vs native (log2FC)", True)):
+        fig, ax = plt.subplots(figsize=(3.4, 2.5))
+        for nm, c_, v_, col in CURVE:
+            w = e[(e.kind == kind) & (e.site_id.isin(members(nm, c_, v_)))].groupby("pos").eff.median()
+            ax.plot(w.index, w.values, color=col, lw=2.0, marker="o", ms=4)
+        if zero:
+            ax.axhline(0, color=INK, lw=1.0)
+        ax.set_xlabel(xlab, fontsize=10.5)
+        ax.set_ylabel(ylab, fontsize=10.5)
+        fig.subplots_adjust(left=0.235, right=0.985, top=0.965, bottom=0.21)
+        fig.savefig(PAN / f"{fname}.png", facecolor=SURF, bbox_inches="tight")
+        plt.close(fig)
 
 
 # ================================================================ 5. the age-gained result
 def age_gained():
+    """One bare panel: the three titration quantities on which age-gained (\u0394score) sites differ."""
     TI = pd.read_csv(ROOT / "Analysis/titration/tables/titration_by_class.csv")
-    ti = lambda f: TI[(TI.contrast == "Age Up vs Unchanged (Δscore)") & (TI.feature.str.startswith(f))].iloc[0]
-    reg = pd.read_csv(ROOT / "Analysis/hypotheses/tables/hypothesis_register.csv").set_index("id")
-    items = [("net value of a second", "Gains more from\nan added motif copy", "+0.38", "+0.32"),
-             ("does a second copy help", "Benefits more when\nthat copy is near", "+0.21", "+0.14"),
-             ("effect of changing 1 core", "Loses more from one\ndamaged core base", "−0.60", "−0.51")]
-    fig, ax = plt.subplots(figsize=(10.4, 4.4))
+    ti = lambda f: TI[(TI.contrast == "Age Up vs Unchanged (\u0394score)") & (TI.feature.str.startswith(f))].iloc[0]
+    items = [("net value of a second", "Gains more from\nan added motif copy"),
+             ("does a second copy help", "Benefits more when\nthat copy is near"),
+             ("effect of changing 1 core", "Loses more from one\ndamaged core base")]
+    fig, ax = plt.subplots(figsize=(6.4, 3.4))
     ys = np.arange(len(items))[::-1]
-    for y, (key, lab, a_, b_) in zip(ys, items):
+    for y, (key, lab) in zip(ys, items):
         r = ti(key)
-        ax.scatter(r.median_reference, y, s=150, color=GREY, zorder=3, label="Unchanged" if y == ys[0] else None)
-        ax.scatter(r.median_class, y, s=150, color=ORANGE, zorder=4, label="Age-gained (Δscore)" if y == ys[0] else None)
-        ax.plot([r.median_reference, r.median_class], [y, y], color=MUTED, lw=1.6, zorder=2)
-        ax.text(max(r.median_class, r.median_reference) + 0.075, y, f"FDR {r.fdr:.3f}" if r.fdr >= 1e-3 else "FDR < 0.001",
-                va="center", fontsize=11.5, color=MUTED)
-    ax.set_yticks(ys, [i[1] for i in items], fontsize=12.5)
+        ax.scatter(r.median_reference, y, s=110, color=CTRL_GREY, zorder=3)
+        ax.scatter(r.median_class, y, s=110, color=ORANGE, zorder=4)
+        ax.plot([r.median_reference, r.median_class], [y, y], color=MUTED, lw=1.5, zorder=2)
+        ax.text(max(r.median_class, r.median_reference) + 0.06, y,
+                f"FDR {r.fdr:.3f}" if r.fdr >= 1e-3 else "FDR < 0.001", va="center", fontsize=10.5, color=MUTED)
+    ax.set_yticks(ys, [l for _, l in items], fontsize=11)
     ax.axvline(0, color=MUTED, lw=1)
-    ax.set_xlim(-0.80, 0.78)
-    ax.set_xlabel("Effect on predicted accessibility (log2FC)", fontsize=12.5)
-    ax.set_title("Age-gained sites respond more to AP-1 dosage, both ways", fontsize=14, loc="left", pad=8)
-    ax.legend(frameon=False, fontsize=12, loc="upper left", bbox_to_anchor=(0.0, 0.42))
-    fig.tight_layout()
-    save(fig, "s5_age_gained")
+    ax.set_xlim(-0.80, 0.80)
+    ax.set_xlabel("Effect on predicted accessibility (log2FC)", fontsize=10.5)
+    fig.subplots_adjust(left=0.265, right=0.99, top=0.97, bottom=0.165)
+    fig.savefig(PAN / "s5_age_gained.png", facecolor=SURF, bbox_inches="tight")
+    plt.close(fig)
+    print("  wrote s5 panel")
 
 
 # ================================================================ 6. MPRA against the model, same axes
 def mpra():
-    MSA = pd.read_csv(ROOT / "Analysis/mpra_scan/tables/motif_share_both_assays.csv").set_index("dataset")
-    AGD, MPD = "AlphaGenome (CM, genomic context)", "MPRA (fibroblast, episomal)"
+    """Two bare panels: the motif's share of local dependence in each assay, and the class direction, where they disagree."""
     FDl = FD["replace 170 bp, read over 170 bp"]
     agm = (FDl - FD["replace surroundings (motif kept), read over 170 bp"]) / FDl
     ag = pd.DataFrame({"share": agm.where(FDl < -0.5)}).join(sl[["stable_dynamic"]]).dropna()
@@ -512,180 +474,130 @@ def mpra():
     m = m[m.replicated == True].copy()
     m["share"] = (m.delta_vs_MotifShuff / m.delta_vs_FullShuff).replace([np.inf, -np.inf], np.nan)
     mp = m[m.delta_vs_FullShuff > 0.1]
-    fig, axes = plt.subplots(1, 2, figsize=(12.6, 4.8), gridspec_kw={"width_ratios": [1, 1.2]})
-    ax = axes[0]
-    for k, (v, lab, c) in enumerate(((ag.share.values, "AlphaGenome\npredicted accessibility\n(cardiomyocyte, in genome)", BLUE),
-                                     (mp.share.dropna().values, "MPRA\nreporter activity\n(fibroblast, episomal)", ORANGE))):
+
+    fig, ax = plt.subplots(figsize=(4.2, 3.2))
+    for k, (v, c) in enumerate(((ag.share.values, BLUE), (mp.share.dropna().values, ORANGE))):
         v = v[(v > -0.5) & (v < 1.5)]
         lo, hi = boot(v)
         ax.bar(k, np.median(v), width=0.52, color=c, alpha=0.85)
-        ax.errorbar(k, np.median(v), yerr=[[np.median(v) - lo], [hi - np.median(v)]], color=INK, lw=2, capsize=6)
-        ax.text(k, np.median(v) + 0.035, f"{np.median(v):.0%}", ha="center", fontsize=19, fontweight="bold", color=c)
-        ax.text(k, -0.028, f"n = {len(v):,}", ha="center", fontsize=11.5, color=MUTED)
-    ax.set_xticks([0, 1], ["AlphaGenome\n(CM, in genome)", "MPRA\n(fibroblast, episomal)"], fontsize=12)
+        ax.errorbar(k, np.median(v), yerr=[[np.median(v) - lo], [hi - np.median(v)]], color=INK, lw=1.8, capsize=5)
+        ax.text(k, np.median(v) + 0.028, f"{np.median(v):.0%}", ha="center", fontsize=15, fontweight="bold", color=c)
+        ax.text(k, -0.026, f"n = {len(v):,}", ha="center", fontsize=10, color=MUTED)
+    ax.set_xticks([0, 1], ["AlphaGenome\n(CM, in genome)", "MPRA\n(fibroblast)"], fontsize=10.5)
     ax.set_ylim(-0.05, 0.19)
-    ax.set_ylabel("Share of the element's sequence dependence\nattributable to the AP-1 motif", fontsize=12)
-    ax.set_title("Same answer: the motif is a small part", fontsize=14, loc="left", pad=8)
-    ax = axes[1]
+    ax.set_ylabel("Motif's share of the element's\nsequence dependence", fontsize=10.5)
+    fig.subplots_adjust(left=0.235, right=0.985, top=0.97, bottom=0.185)
+    fig.savefig(PAN / "s6_share.png", facecolor=SURF, bbox_inches="tight")
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(4.2, 3.2))
     agS = (-FDl.reindex(sl.index[sl.stable_dynamic == "Stable"]).dropna()).values
     agD = (-FDl.reindex(sl.index[sl.stable_dynamic == "Dynamic"]).dropna()).values
     mpS = m[m.Group == "Stable"].delta_vs_FullShuff.dropna().values
     mpD = m[m.Group != "Stable"].delta_vs_FullShuff.dropna().values
-    panels = [("AlphaGenome\nloss of predicted\naccessibility", agS, agD, BLUE),
-              ("MPRA\nloss of reporter\nactivity", mpS, mpD, ORANGE)]
-    for k, (lab, vS, vD, c) in enumerate(panels):
+    for k, (vS, vD, c) in enumerate(((agS, agD, BLUE), (mpS, mpD, ORANGE))):
         r = np.median(vD) / np.median(vS)
         bs = [np.median(rng.choice(vD, len(vD))) / np.median(rng.choice(vS, len(vS))) for _ in range(800)]
         lo, hi = np.percentile(bs, [2.5, 97.5])
-        p_ = mannwhitneyu(vS, vD).pvalue
-        lo, hi = max(lo, 0.4), min(hi, 7.0)
-        ax.errorbar(k, r, yerr=[[max(r - lo, 0)], [max(hi - r, 0)]], fmt="o", ms=15, color=c, lw=2.8, capsize=0, zorder=4)
-        ax.text(k + 0.17, r, f"{r:.2f}\u00d7", ha="left", va="center", fontsize=17, fontweight="bold", color=c)
-        ax.text(k, 0.43, "p < 0.001" if p_ < 1e-3 else f"p = {p_:.3f}", ha="center", fontsize=11.5, color=MUTED)
-    ax.axhline(1, color=INK, lw=1.4, ls=":")
-    ax.text(1.46, 1.06, "no difference", ha="right", fontsize=11.5, color=MUTED)
+        ax.errorbar(k, r, yerr=[[max(r - max(lo, 0.4), 0)], [max(min(hi, 7.0) - r, 0)]], fmt="o", ms=13, color=c, lw=2.4, capsize=0, zorder=4)
+        ax.text(k + 0.16, r, f"{r:.2f}\u00d7", ha="left", va="center", fontsize=14, fontweight="bold", color=c)
+    ax.axhline(1, color=INK, lw=1.3, ls=":")
     ax.set_yscale("log")
     ax.set_yticks([0.5, 1, 2, 4], ["0.5\u00d7", "1\u00d7", "2\u00d7", "4\u00d7"])
     ax.set_ylim(0.38, 7.5)
-    ax.set_xticks([0, 1], [p[0] for p in panels], fontsize=12)
+    ax.set_xticks([0, 1], ["AlphaGenome\n(accessibility)", "MPRA\n(reporter activity)"], fontsize=10.5)
     ax.set_xlim(-0.55, 1.55)
-    ax.set_ylabel("Responsive elements, relative to Stable\nin the same assay", fontsize=12)
-    ax.set_title("But they disagree on which elements depend more", fontsize=14, loc="left", pad=8)
-    ax.text(0.5, -0.30, "below 1\u00d7: responsive lose less   \u00b7   above 1\u00d7: responsive lose more",
-            transform=ax.transAxes, ha="center", fontsize=11.5, color=MUTED)
-    fig.tight_layout(w_pad=4.0)
-    save(fig, "s6_mpra")
+    ax.set_ylabel("Responsive elements, relative to\nStable in the same assay", fontsize=10.5)
+    fig.subplots_adjust(left=0.235, right=0.985, top=0.97, bottom=0.185)
+    fig.savefig(PAN / "s6_direction.png", facecolor=SURF, bbox_inches="tight")
+    plt.close(fig)
+    print("  wrote s6 panels")
 
 
 # ================================================================ 7. spacing, with the test on it
 def spacing():
-    """Three questions kept apart, because the old single panel ran them together.
-    Left: how OFTEN a partner sits at each distance (occurrence). Middle: how much it MATTERS at that distance
-    (importance, against footprint-free tiles in the same distance bin). Right: whether the classes differ in either."""
     CL = pd.read_csv(ROOT / "Analysis/distance_rules/tables/f_close_range_peak.csv").set_index("family")
     FINE = pd.read_csv(ROOT / "Analysis/distance_rules/tables/f_close_range_profile.csv")
     IMP = pd.read_csv(ROOT / "Analysis/distance_rules/tables/g_importance_by_distance.csv")
-    FP = pd.read_csv(ROOT / "Analysis/partners/tables/footprints_near_sites.csv")
-    FP = FP[~FP.own_ap1].copy()
-    FP["mid"] = (FP.rel_start + FP.rel_end) / 2
+    SER = (("MEF2", ORANGE, 2.6), ("KLF / SP", GREY, 2.2))
 
-    fig, axes = plt.subplots(1, 2, figsize=(12.4, 5.4), gridspec_kw={"width_ratios": [1.15, 1]})
-    SER = (("MEF2", "MEF2", ORANGE, 2.8), ("KLF / SP", "KLF/SP", GREY, 2.4))
-
-    ax = axes[0]
-    for fam, lab, c, lw in SER:
+    fig, ax = plt.subplots(figsize=(4.6, 3.0))
+    for fam, c, lw in SER:
         w = FINE[FINE.family == fam]
-        ax.plot(w.distance, w.share.rolling(3, center=True, min_periods=1).mean() * 100, color=c, lw=lw, label=lab)
+        ax.plot(w.distance, w.share.rolling(3, center=True, min_periods=1).mean() * 100, color=c, lw=lw)
     ax.axvspan(0, 5.5, color="#EDEDED", lw=0)
     ax.axvspan(11, 25, color=ORANGE, alpha=0.10, lw=0)
-    ax.text(18, 0.12, "abutting", ha="center", va="bottom", fontsize=11.5, color=ORANGE, fontweight="bold")
-    ax.set_xlabel("Distance from the AP-1 motif (bp, centre to centre)", fontsize=12)
-    ax.set_ylabel("Share of that family's footprints (%)", fontsize=12)
+    ax.set_xlabel("Distance from the AP-1 motif (bp)", fontsize=10.5)
+    ax.set_ylabel("Share of that family's footprints (%)", fontsize=10)
     ax.set_xlim(0, 60)
     ax.set_ylim(0, 2.1)
-    ax.legend(frameon=False, fontsize=12, loc="upper right")
-    ax.set_title("How often a partner sits there", fontsize=13.5, loc="left", pad=30)
-    ax.text(0.0, 1.015, f"every footprint of that family, important or not.\nMEF2 {CL.loc['MEF2', 'density_ratio_near_over_far']:.2f}\u00d7 enriched at 11\u201325 bp vs {CL.loc['KLF / SP', 'density_ratio_near_over_far']:.2f}\u00d7 for KLF/SP (FDR {CL.loc['MEF2', 'fdr']:.3f})",
-            transform=ax.transAxes, ha="left", va="bottom", fontsize=10.5, color=MUTED, linespacing=1.45)
+    fig.subplots_adjust(left=0.155, right=0.985, top=0.97, bottom=0.165)
+    fig.savefig(PAN / "s7_occurrence.png", facecolor=SURF, bbox_inches="tight")
+    plt.close(fig)
 
-    ax = axes[1]
-    for fam, lab, c, lw in SER:
+    fig, ax = plt.subplots(figsize=(4.6, 3.0))
+    for fam, c, lw in SER:
         w = IMP[IMP.family == fam]
-        ax.plot(w.mid, w.importance, color=c, lw=lw, marker="o", ms=7, label=lab)
+        ax.plot(w.mid, w.importance, color=c, lw=lw, marker="o", ms=6)
     ax.axhline(0, color=MUTED, lw=1.0)
-    ax.set_xlabel("Distance from the AP-1 motif (bp)", fontsize=12)
-    ax.set_ylabel("Extra loss when that tile is replaced (log2FC)", fontsize=11.5)
-    ax.set_title("How much it matters there", fontsize=13.5, loc="left", pad=30)
-    ax.text(0.0, 1.015, "a MEF2 neighbour is worth most within ~50 bp and still\nworth \u22120.30 at 250 bp; KLF/SP is worth nothing anywhere",
-            transform=ax.transAxes, ha="left", va="bottom", fontsize=10.5, color=MUTED, linespacing=1.45)
+    ax.set_xlabel("Distance from the AP-1 motif (bp)", fontsize=10.5)
+    ax.set_ylabel("Extra loss vs footprint-free tiles (log2FC)", fontsize=10)
     ax.set_xlim(-10, 270)
-
-    fig.subplots_adjust(left=0.085, right=0.985, top=0.80, bottom=0.165, wspace=0.34)
-    save(fig, "s7_spacing")
+    fig.subplots_adjust(left=0.155, right=0.985, top=0.97, bottom=0.165)
+    fig.savefig(PAN / "s7_importance.png", facecolor=SURF, bbox_inches="tight")
+    plt.close(fig)
+    print("  wrote s7 panels   MEF2 near/far ratio %.2f (FDR %.3f)" % (CL.loc["MEF2", "density_ratio_near_over_far"], CL.loc["MEF2", "fdr"]))
 
 
 # ================================================================ 8. partners, ranked AND split by class
 def partners():
-    """The ranking is validation; the class split is the question. Dynamic is broken into its four directional classes,
-    because a gain and a loss could cancel in the pooled comparison, and shown both raw and context-matched."""
+    """Two bare panels: the ranking with every class on it, all sites and matched. Titles and key live on the slide."""
     FI = pd.read_csv(ROOT / "Analysis/partners/tables/i_site_level_family_importance.csv")
     FI = FI[FI.family != "Other"]
-    cl = S[["stable_dynamic", "age_class", "ex_class"]].copy()
-    CLASSES = [("Age Up", "age_class", "Age Up", ORANGE), ("Age Down", "age_class", "Age Down", BLUE),
-               ("Exercise Up", "ex_class", "Exercise Up", GREEN_D), ("Exercise Down", "ex_class", "Exercise Down", PURPLE_D)]
-    STCOL = STABLE_GREY
+    cl = S[["stable_dynamic", "age_class", "ex_class"]]
     stable_ids = set(cl.index[cl.stable_dynamic == "Stable"])
     FAM = ["MEF2", "NFI (Nfia/b/c/x)", "GATA", "TEAD", "AP-1 (Fos/Jun/Atf/Batf)", "KLF / SP"]
-
-    # one matched control set per class, so a class is never compared against sites it could not be matched to
-    matched = {}
-    for nm, col, val, _c in CLASSES:
-        f = S.copy()
-        f["grp"] = np.where(f.index.isin(stable_ids), "Stable", np.where(f[col] == val, nm, ""))
-        P = pairs(f[f.grp != ""], "grp", nm, "Stable")
-        matched[nm] = (set(P.case), set(P.control), len(P))
-    pooled_ctrl = set().union(*[m[1] for m in matched.values()])
-
-    fig, axes = plt.subplots(1, 2, figsize=(15.6, 5.7), sharey=True)
-    ys = np.arange(len(FAM))[::-1]
-    lim = 0.0
-    tests, dropped = [], 0
-    for ax, mode in zip(axes, ("all", "matched")):
+    matched = {nm: class_pairs(nm) for nm, _, _, _ in GROUPS if nm != "Dynamic (all)"}
+    pooled_ctrl = set().union(*[set(P.control) for P in matched.values()])
+    tests = []
+    for mode, fname in (("all", "s8_partners_all.png"), ("matched", "s8_partners_matched.png")):
+        fig, ax = plt.subplots(figsize=(5.0, 3.6))
+        ys = np.arange(len(FAM))[::-1]
+        lim = 0.0
         for y, fam in zip(ys, FAM):
             g = FI[FI.family == fam].set_index("site_id").vs_free
-            series = [("Stable", STCOL, g.reindex(sorted(stable_ids if mode == "all" else pooled_ctrl)).dropna().values)]
-            for nm, col, val, c in CLASSES:
-                ids = set(cl.index[cl[col] == val]) if mode == "all" else matched[nm][0]
+            base = g.reindex(sorted(stable_ids if mode == "all" else pooled_ctrl)).dropna().values
+            series = [("Stable", CTRL_GREY, base)]
+            for nm, col_, val_, c in GROUPS:
+                if nm == "Dynamic (all)":
+                    continue
+                ids = set(cl.index[cl[col_] == val_]) if mode == "all" else set(matched[nm].case)
                 series.append((nm, c, g.reindex(sorted(ids)).dropna().values))
             for k, (nm, c, v) in enumerate(series):
                 if len(v) < 18:
-                    dropped += 1
                     continue
                 lo, hi = boot(v, 400)
                 lim = min(lim, lo)
                 ax.errorbar(np.median(v), y + (2 - k) * 0.155, xerr=[[np.median(v) - lo], [hi - np.median(v)]],
-                            fmt="o", ms=7.5, color=c, lw=1.9, capsize=0, zorder=4)
+                            fmt="o", ms=6, color=c, lw=1.7, capsize=0, zorder=4)
+                if nm != "Stable":
+                    tests.append(mannwhitneyu(base, v).pvalue)
         ax.axvline(0, color=MUTED, lw=1.0, ls=":")
-        ax.set_ylim(-0.62, len(FAM) - 0.38)
-    axes[0].set_yticks(ys, [f.split(" (")[0].split(" /")[0] for f in FAM], fontsize=13.5)
-    axes[0].set_title("All sites", fontsize=14, loc="left", pad=10)
-    axes[1].set_title("Context-matched to Stable, class by class", fontsize=14, loc="left", pad=10)
-    for ax in axes:
+        ax.set_yticks(ys, [f.split(" (")[0].split(" /")[0] for f in FAM], fontsize=11)
         ax.set_xlim(lim * 1.05, 0.12)
-    h = [axes[0].plot([], [], "o", color=c, ms=9, label=l)[0]
-         for l, c in [("Stable", STCOL)] + [(nm, c) for nm, _, _, c in CLASSES]]
-    fig.subplots_adjust(left=0.135, right=0.99, top=0.92, bottom=0.23, wspace=0.07)
-    fig.text(0.56, 0.135, "How much accessibility is lost when a 10 bp tile over this family's footprint is replaced (log2FC)",
-             ha="center", fontsize=12.5)
-    fig.legend(handles=h, frameon=False, fontsize=12, loc="lower center", ncol=5, bbox_to_anchor=(0.56, 0.045))
-    for mode in ("all", "matched"):
-        for fam in sorted(FI.family.unique()):
-            g = FI[FI.family == fam].set_index("site_id").vs_free
-            base = g.reindex(sorted(stable_ids if mode == "all" else pooled_ctrl)).dropna().values
-            if len(base) < 15:
-                continue
-            for nm, col, val, _c in CLASSES:
-                ids = set(cl.index[cl[col] == val]) if mode == "all" else matched[nm][0]
-                v = g.reindex(sorted(ids)).dropna().values
-                if len(v) < 15:
-                    continue
-                tests.append({"mode": mode, "family": fam, "cls": nm, "p": mannwhitneyu(base, v).pvalue})
-    TT = pd.DataFrame(tests).sort_values("p")
-    TT["fdr"] = (TT.p * len(TT) / np.arange(1, len(TT) + 1)).clip(upper=1)
-    best = {m: TT[TT["mode"] == m].iloc[0] for m in ("all", "matched")}
-    bm = best["matched"]
-    fig.text(0.56, 0.008, "six families shown; tests run over all "
-                          + f"{int((TT['mode'] == 'matched').sum())} class-by-family comparisons and none survives correction "
-                          + f"(smallest matched FDR {bm.fdr:.2f}, {bm.family.split(' (')[0].split(' /')[0]} in {bm.cls}, p = {bm.p:.3f})"
-                          + "  \u00b7  matched pairs per class: " + ", ".join(f"{nm} {matched[nm][2]}" for nm, _, _, _ in CLASSES),
-             ha="center", fontsize=10.5, color=MUTED)
-    save(fig, "s8_partners")
+        ax.set_ylim(-0.62, len(FAM) - 0.38)
+        ax.set_xlabel("Loss when that tile is replaced (log2FC)", fontsize=10)
+        fig.subplots_adjust(left=0.215, right=0.99, top=0.97, bottom=0.145)
+        fig.savefig(PAN / fname, facecolor=SURF)
+        plt.close(fig)
+    q = np.sort(np.array(tests))
+    q = float(np.min(q * len(q) / np.arange(1, len(q) + 1)))
+    (OUT / "s8_partners.json").write_text(json.dumps({"n_tests": len(tests), "min_fdr": round(q, 3)}, indent=1))
+    print(f"  wrote s8 panels   {len(tests)} tests, smallest FDR {q:.2f}")
 
 
 # ================================================================ 9. the MEF2 deficit, by class, two ways
 def mef2_by_class():
-    """The close-MEF2 result given its own figure. Two definitions of 'has one' -- a footprint at all, and a footprint
-    the model actually leans on -- each shown against all Stable sites and against each class's own matched controls."""
     FP = pd.read_csv(ROOT / "Analysis/partners/tables/footprints_near_sites.csv")
     FP = FP[~FP.own_ap1].copy()
     FP["mid"] = (FP.rel_start + FP.rel_end) / 2
@@ -694,36 +606,10 @@ def mef2_by_class():
     near = set(FP[(FP.family == "MEF2") & (FP.mid.abs() <= 25)].site_id)
     leaned = {i for i in near if imp.get(i, 0) < -0.2}
     M = [(pd.Series({i: float(i in near) for i in S.index}), "A MEF2 footprint within 25 bp",
-          "counting footprints, whether or not the model uses them",
-          "Sites with a MEF2 footprint\nwithin 25 bp (%)"),
+          "counting footprints, used by the model or not", "Sites with one (%)"),
          (pd.Series({i: float(i in leaned) for i in S.index}), "...one the model actually leans on",
-          "the same, restricted to sites where replacing that tile\ncosts more than 0.2 log2 against footprint-free tiles",
-          "Sites with a close MEF2\nthe model leans on (%)")]
-    fig, axes = plt.subplots(2, 2, figsize=(11.0, 7.6), sharex=True)
-    allps, flat = [], []
-    for c_, (flag, lab, defn, ylab) in enumerate(M):
-        for r_, mode in enumerate(("all", "matched")):
-            ax = axes[r_, c_]
-            allps.append(class_prop_panel(ax, flag, ylab, mode))
-            flat.append(ax)
-            if r_ == 0:
-                ax.set_title(lab, fontsize=13.5, loc="left", pad=40)
-                ax.text(0.0, 1.025, defn, transform=ax.transAxes, ha="left", va="bottom",
-                        fontsize=10.5, color=MUTED, linespacing=1.45)
-    mark_fdr(flat, allps)
-    for r_, txt in enumerate(("all sites, nothing controlled\n(grey band = all Stable sites)",
-                              "each class against its own\ncontext-matched Stable controls")):
-        axes[r_, 0].text(-0.33, 0.5, txt, transform=axes[r_, 0].transAxes, rotation=90, ha="center", va="center",
-                         fontsize=11, color=INK, linespacing=1.5)
-    h = [axes[0, 0].plot([], [], "o", color=col, ms=9, label=nm)[0] for nm, _, _, col in GROUPS]
-    h.append(axes[0, 0].plot([], [], "o", color=CTRL_GREY, ms=9, label="Stable (all, or matched controls)")[0])
-    fig.subplots_adjust(left=0.155, right=0.985, top=0.835, bottom=0.235, wspace=0.36, hspace=0.26)
-    fig.legend(handles=h, frameon=False, fontsize=11, loc="lower center", ncol=3, bbox_to_anchor=(0.56, 0.055))
-    fig.text(0.56, 0.045, "grey line and band: all Stable sites with a 95% bootstrap CI.   grey dots: that class's own matched controls.\n"
-                          "Fisher on all sites, exact McNemar on the matched pairs, BH across all "
-                          f"{sum(len(d) for d in allps)} tests.    *** p < 0.001    ** p < 0.01    * p < 0.05    ns \u2265 0.05",
-             ha="center", va="top", fontsize=10, color=MUTED, linespacing=1.6)
-    save(fig, "s9_mef2_by_class")
+          "restricted to tiles worth more than 0.2 log2", "Sites with one (%)")]
+    emit_class_figure("s9_mef2_by_class", M, class_prop_panel, KEY_PROP)
 
 
 print("building slide figures")
