@@ -565,9 +565,6 @@ def partners():
                 if len(v) < 18:
                     dropped += 1
                     continue
-                if nm != "Stable":
-                    tests.append({"mode": mode, "family": fam, "cls": nm,
-                                  "p": mannwhitneyu(series[0][2], v).pvalue})
                 lo, hi = boot(v, 400)
                 lim = min(lim, lo)
                 ax.errorbar(np.median(v), y + (2 - k) * 0.155, xerr=[[np.median(v) - lo], [hi - np.median(v)]],
@@ -585,14 +582,26 @@ def partners():
     fig.text(0.56, 0.135, "How much accessibility is lost when a 10 bp tile over this family's footprint is replaced (log2FC)",
              ha="center", fontsize=12.5)
     fig.legend(handles=h, frameon=False, fontsize=12, loc="lower center", ncol=5, bbox_to_anchor=(0.56, 0.045))
+    for mode in ("all", "matched"):
+        for fam in sorted(FI.family.unique()):
+            g = FI[FI.family == fam].set_index("site_id").vs_free
+            base = g.reindex(sorted(stable_ids if mode == "all" else pooled_ctrl)).dropna().values
+            if len(base) < 15:
+                continue
+            for nm, col, val, _c in CLASSES:
+                ids = set(cl.index[cl[col] == val]) if mode == "all" else matched[nm][0]
+                v = g.reindex(sorted(ids)).dropna().values
+                if len(v) < 15:
+                    continue
+                tests.append({"mode": mode, "family": fam, "cls": nm, "p": mannwhitneyu(base, v).pvalue})
     TT = pd.DataFrame(tests).sort_values("p")
     TT["fdr"] = (TT.p * len(TT) / np.arange(1, len(TT) + 1)).clip(upper=1)
     best = {m: TT[TT["mode"] == m].iloc[0] for m in ("all", "matched")}
-    fig.text(0.56, 0.008, "matched pairs per class: " + ", ".join(f"{nm} {matched[nm][2]}" for nm, _, _, _ in CLASSES)
-                          + f"  \u00b7  over all {len(TT)} class-by-family comparisons the smallest FDR is "
-                          + f"{best['all'].fdr:.2f} before matching ({best['all'].family.split(' (')[0].split(' /')[0]} in {best['all'].cls}) "
-                          + f"and {best['matched'].fdr:.2f} after"
-                          + "  \u00b7  a class is left out where fewer than 18 of its sites carry that footprint",
+    bm = best["matched"]
+    fig.text(0.56, 0.008, "six families shown; tests run over all "
+                          + f"{int((TT['mode'] == 'matched').sum())} class-by-family comparisons and none survives correction "
+                          + f"(smallest matched FDR {bm.fdr:.2f}, {bm.family.split(' (')[0].split(' /')[0]} in {bm.cls}, p = {bm.p:.3f})"
+                          + "  \u00b7  matched pairs per class: " + ", ".join(f"{nm} {matched[nm][2]}" for nm, _, _, _ in CLASSES),
              ha="center", fontsize=10.5, color=MUTED)
     save(fig, "s8_partners")
 
