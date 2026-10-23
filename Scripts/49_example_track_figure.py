@@ -23,15 +23,13 @@ warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "Analysis" / "example_track"
 OUT.mkdir(parents=True, exist_ok=True)
-INK, MUTED, SURF, GRID, BLUE, ORANGE, AQUA, GREY = "#0b0b0b", "#52514e", "#fcfcfb", "#e4e3df", "#2a78d6", "#eb6834", "#1baf7a", "#9a9993"
+INK, MUTED, SURF, GRID, BLUE, ORANGE, AQUA, GREY = "#0b0b0b", "#52514e", "#ffffff", "#e4e3df", "#1F6FB2", "#C2551C", "#1baf7a", "#9a9993"
 plt.rcParams.update({"font.size": 11, "axes.facecolor": SURF, "figure.facecolor": SURF, "axes.edgecolor": MUTED, "axes.labelcolor": INK, "text.color": INK,
                      "xtick.color": MUTED, "ytick.color": MUTED, "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
                      "grid.color": GRID, "grid.linewidth": 0.6, "axes.axisbelow": True, "savefig.dpi": 220})
 ap = argparse.ArgumentParser()
-ap.add_argument("--gene-dyn", default="Tnfaip8")
-ap.add_argument("--gene-dyn-dist", default="39.7")
-ap.add_argument("--stable", default="chr8-86768679-86768690")
-ap.add_argument("--dynamic", default="chr18-50011979-50011990")
+ap.add_argument("--stable", default="chr11-50211071-50211082")       # Sqstm1 promoter, bound in all three conditions
+ap.add_argument("--dynamic", default="chr11-80428854-80428865")      # Psmd11 promoter, AP-1 gained in both aged states
 a = ap.parse_args()
 
 # ---------------------------------------------------------------- data
@@ -53,6 +51,11 @@ FCOL = {"MEF2": "#c0392b", "GATA": "#8e44ad", "NFI (Nfia/b/c/x)": "#16a085", "TE
 fig = plt.figure(figsize=(16.4, 7.4))
 gs = fig.add_gridspec(5, 1, height_ratios=[3.0, 0.9, 0.55, 3.0, 0.9], hspace=0.16)
 GE = pd.read_csv(ROOT / "Data/derived/cm_sites_nearest_gene_mast.csv").set_index("site_id")
+SL = pd.read_csv(ROOT / "Data/derived/cm_sites_nearest_gene_mast.csv").set_index("site_id")
+CAT = pd.read_csv(ROOT / "Analysis/cm/qc/tables/site_level_table_cm.csv").set_index("site_id")
+PATTERN = {"YS+MAS+MAE": "AP-1 bound in all three conditions", "MAS+MAE": "no AP-1 in young, bound in both aged states",
+           "MAS only": "no AP-1 in young, bound in aged sedentary only", "MAE only": "AP-1 only after exercise",
+           "YS only": "AP-1 in young only, lost with age", "YS+MAS": "AP-1 lost with exercise", "YS+MAE": "AP-1 lost in aged sedentary"}
 panels = [(a.stable, "Stable AP-1 site", BLUE, 0), (a.dynamic, "Dynamic AP-1 site \u2014 gains binding with age", ORANGE, 3)]
 ymin = min(TILE.eff.min(), -0.2) * 1.15
 for sid, lab, col, row in panels:
@@ -69,8 +72,8 @@ for sid, lab, col, row in panels:
     ax.set_ylabel("Loss of predicted\naccessibility (log2FC)", fontsize=10.5)
     chrom, s_, e_ = sid.split("-")
     g = GE.loc[sid]
-    gname, gdist, grna_a, grna_e = (a.gene_dyn, float(a.gene_dyn_dist), 0.826, -0.307) if sid == a.dynamic else (g.gene, g.dist_gene / 1000, g.rna_age, g.rna_ex)
-    ax.set_title(f"{lab}   ·   {chrom}:{int(s_):,}   ·   {gname} ({gdist:.1f} kb)",
+    gname, gdist, grna_a, grna_e = g.gene, g.dist_gene / 1000, g.rna_age, g.rna_ex
+    ax.set_title(f"{lab}   ·   {chrom}:{int(s_):,}   ·   {gname} promoter, {gdist * 1000:.0f} bp from the TSS",
                  fontsize=12.5, loc="left", color=col, fontweight="bold", pad=6)
     fp = "AP-1 absent in young, gained in both aged states" if sid == a.dynamic else "AP-1 present in all three conditions"
     ax.text(0.004, 0.96, f"{fp}    \u00b7    {gname} RNA {grna_a:+.2f} with age, {grna_e:+.2f} with exercise",

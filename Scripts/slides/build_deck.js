@@ -61,6 +61,9 @@ function FIG(slide, file, box) {
   slide.addImage({ path: F(file), x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h });
 }
 const BOX = { x: 0.55, y: 1.2, w: 12.2, h: 5.1 };
+// a slide that opens with a method band: the band sits under the title, the figure takes what is left
+const BAND = { x: 0.55, y: 1.05, w: 7.9, h: 1.1 };
+const BOXB = { x: 0.55, y: 2.22, w: 12.2, h: 4.0 };
 
 function statRow(slide, items, y, h = 1.25) {
   const n = items.length, gap = 0.3, w = (12.2 - gap * (n - 1)) / n;
@@ -110,65 +113,61 @@ s.addNotes("The two definitions pick out largely different sites. Report every r
 
 // ================================================================== 3 method schematic
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Design" });
-s.addText("What we did to every site", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/s1_method_schematic.png", BOX);
-takeaway(s, "3,678 sites \u00d7 364 edits each, every edit read as the change in predicted accessibility over the surrounding 170 bp");
+s.addText("What one site looks like", { placeholder: "title" });
+FIG(s, "Analysis/slide_figures/s0_element.png", { x: 0.55, y: 1.25, w: 12.2, h: 3.85 });
+statRow(s, [
+  { v: "3,678", l: "cardiomyocyte AP-1 sites" },
+  { v: "364", l: "edits of each one" },
+  { v: "170 bp", l: "the window every effect is read over", c: "C2551C" },
+], 5.3, 0.95);
+takeaway(s, "each experiment that follows is introduced where its result appears");
 s.addNotes("The 131 kb window is what AlphaGenome takes as input; we only ever edit the middle 600 bp. Each tile is 3 replicate random replacements, averaged. Effects are log2(edited / native).");
 
 // ================================================================== 4 the null
 pres.addSection({ title: "Findings" });
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Most of the difference is chromatin, not sequence", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/s2_matched_null.png", BOX);
+FIG(s, "Analysis/slide_figures/d_block.png", BAND);
+FIG(s, "Analysis/slide_figures/s2_matched_null.png", BOXB);
 takeaway(s, "the motif and the whole peak behave the same once context is matched; a residual 170 bp difference survives, and the next slide shows what it is");
-s.addNotes("Raw, Dynamic sites lose less to every wide edit. After matching on predicted accessibility, peak width and TSS distance, nothing survives. A classifier on the whole response profile is at chance, AUC 0.49.");
+s.addNotes("Raw, Dynamic sites lose less to every wide edit. Matching now holds measured snATAC accessibility constant as well as the predicted value, peak width and TSS distance; that removes most of the gap but not all of it. What survives is confined to the 170 bp scale: the motif and the whole peak are worth the same to both classes.");
 
 // ================================================================== 4 partners
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Both classes lean on the same partners", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/s8_partners.png", { x: 0.55, y: 1.2, w: 9.0, h: 5.0 });
-s.addText([
-  { text: "2.49 million", options: { bold: true, fontSize: 22, color: "C2551C", breakLine: true } },
-  { text: "footprinted cardiomyocyte TFBS mapped onto the scan", options: { fontSize: 14, color: "595959", breakLine: true, paraSpaceAfter: 14 } },
-  { text: "The ranking is the validation: MEF2, GATA, NFI and TEAD come out on top, and the model was never told any of them.", options: { fontSize: 14.5, breakLine: true, paraSpaceAfter: 12 } },
-  { text: "The class split is the question, and the answer is no. Not one family matters more to a Dynamic site than to its matched Stable partner.", options: { fontSize: 14.5, breakLine: true, paraSpaceAfter: 12 } },
-  { text: "Whatever makes a site responsive, it is not a different cast of neighbours.", options: { fontSize: 14.5, color: "595959", italic: true } },
-], { isTextBox: true, x: 9.75, y: 1.5, w: 3.0, h: 4.4, margin: 0 });
-takeaway(s, "the cast of partners is identical in both classes — what differs is how the dependence is spread across them");
-s.addNotes("Importance is the loss from replacing a 10 bp tile over that factor's footprint, measured against the site's own footprint-free tiles, holding under five adjustments. The class comparison is at site level inside the 442 matched pairs; nothing survives BH correction. AP-1's own footprints are the one uncorrected p < 0.05, and Dynamic sites lean slightly MORE on them.");
+FIG(s, "Analysis/slide_figures/d_tile.png", BAND);
+FIG(s, "Analysis/slide_figures/s8_partners.png", { x: 0.55, y: 2.15, w: 12.2, h: 4.15 });
+takeaway(s, "the ranking is the validation \u2014 MEF2, GATA, NFI, TEAD, none of it told to the model; the class split is the question, and no class leans on a different partner");
+s.addNotes("2.49 million footprinted cardiomyocyte TFBS mapped onto the scan. Dynamic is split into its four directional classes because a gain and a loss could cancel in the pooled comparison. The one comparison that survives correction does so only before matching: Age Up sites lean more on KLF/SP neighbours, FDR 0.04 raw and 0.26 matched, so it is context rather than class.");
 
 // ================================================================== 5 spacing
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("The partner that matters is the one that sits closest", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/s7_spacing.png", BOX);
-takeaway(s, "MEF2 is 2.67\u00d7 enriched immediately beside the motif (FDR 0.004); KLF/SP, the commonest factor, is not");
-s.addNotes("MEF2 is enriched 2.67x at 11-25 bp against 1.47x for KLF/SP, modal spacing 14 bp between centres. No 10-11 bp repeat survives correction, so no fixed protein-protein register.");
+s.addText("Age-gained sites are missing their closest MEF2", { placeholder: "title" });
+FIG(s, "Analysis/slide_figures/s7_spacing.png", { x: 0.55, y: 1.25, w: 12.2, h: 4.9 });
+takeaway(s, "MEF2 sits 2.67\u00d7 more often right beside the motif than chance, and it is the age-gained sites that lack one (FDR 0.03)");
+s.addNotes("Left panel counts every MEF2 footprint, important or not: it is occurrence, not importance. Middle panel is importance, measured against footprint-free tiles at the same distance, so the general fall-off with distance is removed. Right panel: 5.6% of Age Up sites carry a MEF2 footprint within 25 bp against 13.7% of their matched Stable controls (Fisher p 0.004, FDR 0.03); Exercise Down is similar but weaker. No 10-11 bp repeat survives correction, so no fixed protein-protein register.");
 
 // ================================================================== 6 example
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("One locus, two architectures", { placeholder: "title" });
+s.addText("Two promoters, one stable and one age-gained", { placeholder: "title" });
 FIG(s, "Analysis/example_track/example_scan_track.png", { x: 0.55, y: 1.15, w: 12.2, h: 5.2 });
-takeaway(s, "at the age-gained site every cardiac cofactor is bound in all three conditions — only AP-1 switches");
-s.addNotes("Top: a Stable site, 85% of its dependence on the AP-1 motif. Bottom: an age-gained site where the AP-1 motif is worth -0.18 and the strongest other window -1.48. Tnfaip8 rises with age, matching the AP-1 gain.");
+takeaway(s, "the same motif in the same kind of promoter is worth \u22121.00 where binding is stable and \u22120.58 where it is age-gained");
+s.addNotes("Both are promoters a few hundred bp from a TSS, matched on predicted accessibility (0.96 vs 1.12) and peak width (1359 vs 1329 bp). At the Sqstm1 promoter AP-1 is bound in all three conditions, the motif window is worth -1.00 and 81% of the loss sits within 85 bp. At the Psmd11 promoter AP-1 is absent in young and gained in both aged states, the motif is still the strongest window but only -0.58, and the loss is smeared over 114 bp against 83. Psmd11 rises with age, matching the AP-1 gain; the exercise direction does not match, so do not claim it.");
 
 // ================================================================== 7 diffuse
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Responsive sites spread their dependence out", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/s3_dependence.png", BOX);
+FIG(s, "Analysis/slide_figures/d_base.png", BAND);
+FIG(s, "Analysis/slide_figures/s3_dependence.png", BOXB);
 takeaway(s, "this is the part that survives matching: a responsive site has no single anchor holding it open");
 s.addNotes("10 of 16 scan features separate Dynamic from matched Stable. Share of dependence within 85 bp 0.63 vs 0.74, spread 94 vs 86 bp, largest single-base effect 0.74 vs 0.90. Age Up is the most diffuse class of all.");
 
 // ================================================================== 8 titration
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Motif strength is a switch; position is a dial", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/s4_titration.png", { x: 0.55, y: 1.2, w: 12.2, h: 3.75 });
-statRow(s, [
-  { v: "−0.45", l: "cost of changing one core base" },
-  { v: "−0.56", l: "cost of changing all seven" },
-  { v: "−0.29", l: "destroyed, re-inserted nearby" },
-  { v: "±20–40 bp", l: "where a motif works best", c: "C2551C" },
-], 5.15, 1.15);
-takeaway(s, "a motif moved elsewhere recovers only a third of what destroying it cost \u2014 position matters, not just presence");
+FIG(s, "Analysis/slide_figures/d_titr.png", BAND);
+FIG(s, "Analysis/slide_figures/s4_titration.png", { x: 0.55, y: 2.15, w: 12.2, h: 4.15 });
+takeaway(s, "one wrong base costs \u22120.45 of the \u22120.56 total and a moved motif recovers only a third \u2014 but every class titrates the same way");
 s.addNotes("The dose-response slope tracks core quality measured independently from the genome sequence, rho 0.30. Orientation is irrelevant, as expected for a near-palindrome.");
 
 // ================================================================== 9 age-gained
