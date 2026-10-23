@@ -85,6 +85,14 @@ def insert_into_background(codes, seq, rng):
     return e, (a, b)
 
 
+def native_for(nat_ts, width, prefix):
+    """A site's own native values over the region that becomes the element at this width (its 170 bp, or its whole peak),
+    renamed to <prefix>_atac_insert*, so swapped and native are read over matching intervals at both widths."""
+    src = "atac_170" if width == "170" else "atac_peak"
+    return {f"{prefix}_atac_insert{k[len(src):]}": v for k, v in nat_ts.items()
+            if k.startswith(src) and (len(k) == len(src) or k[len(src)] == "_")}
+
+
 def read_row(pred_ts, insert, regs, cfg):
     """Readouts with the inserted element in place of the motif window: atac_insert* / atac_170* / atac_peak*."""
     r = L.readout(pred_ts, {"motif": insert, "w170": regs["w170"], "peak": regs["peak"], "mid": regs["mid"]}, None, cfg)
@@ -118,7 +126,10 @@ def selftest():
 
     e, ins = insert_into_background(codes, donor170, rng)
     assert ins == (mid - 85, mid + 85) and (e[ins[0]:ins[1]] == donor170).all()
-    print(f"selftest OK: 170 swap, peak swap (donor narrower/equal/wider), background insertion")
+    natd = {"atac_motif": 1.0, "atac_170": 2.0, "atac_peak": 3.0, "atac_170_YS": 20.0, "atac_peak_YS": 30.0, "rna_mean50kb": 9.0}
+    assert native_for(natd, "170", "donor_native") == {"donor_native_atac_insert": 2.0, "donor_native_atac_insert_YS": 20.0}
+    assert native_for(natd, "peak", "donor_native") == {"donor_native_atac_insert": 3.0, "donor_native_atac_insert_YS": 30.0}
+    print(f"selftest OK: 170 swap, peak swap (donor narrower/equal/wider), background insertion, width-matched natives")
 
 
 def load_sites(cfg, genome, size, sites):
@@ -173,7 +184,7 @@ def main():
         preds = ag.predict([S[s]["codes"] for s in part])
         for s, p in zip(part, preds):
             reg = S[s]["reg"]
-            nat[s] = {ts: read_row(p[ts], reg["w170"], reg, cfg) for ts in ag.tracksets}
+            nat[s] = {ts: L.readout(p[ts], reg, None, cfg) for ts in ag.tracksets}
     print(f"native predictions done in {time.time() - t0:.0f}s", flush=True)
 
     if args.experiment == "swap":
@@ -198,8 +209,8 @@ def main():
                     rows.append({"recipient_id": rid, "recipient_class": R["class"], "donor_id": did, "donor_class": S[did]["class"],
                                  "width": w, "self_swap": did == rid, "insert_bp": ins[1] - ins[0], "trackset": ts,
                                  **read_row(pred[ts], ins, R["reg"], cfg),
-                                 **{f"donor_native_{k}": v for k, v in nat[did][ts].items()},
-                                 **{f"recipient_native_{k}": v for k, v in nat[rid][ts].items()}})
+                                 **native_for(nat[did][ts], w, "donor_native"),
+                                 **native_for(nat[rid][ts], w, "recipient_native")})
             L.append_rows(out, rows)
             print(f"{n + 1}/{len(recips)} recipients, {(time.time() - t0) / (n + 1):.1f} s/recipient", flush=True)
     else:
@@ -233,7 +244,7 @@ def main():
                 for ts in ag.tracksets:
                     rows.append({"donor_id": did, "donor_class": S[did]["class"], "host_id": hid, "width": w, "kind": kind,
                                  "insert_bp": ins[1] - ins[0], "trackset": ts, **read_row(pred[ts], ins, regs, cfg),
-                                 **{f"donor_native_{k}": v for k, v in nat[did][ts].items()}})
+                                 **native_for(nat[did][ts], w, "donor_native")})
             L.append_rows(out, rows)
             print(f"{n + 1}/{len(els)} elements, {(time.time() - t0) / (n + 1):.1f} s/element", flush=True)
     print(f"done in {time.time() - t0:.0f}s -> {out}")

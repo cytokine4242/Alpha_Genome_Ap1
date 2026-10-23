@@ -65,6 +65,29 @@ bash submit_all.sh dynamics            # both
 Total about 42 GPU-hours for the scan and 13 for the titration; with the private account's ~13 concurrent tasks that is about 3 to 4 hours of wall time. Both are resumable (sites already in the output are skipped). `python scripts/15_scan_titrate.py --selftest` checks every edit on synthetic sequence without a GPU. Analysis (after copying `results/` back): `python Scripts/35_scan_titrate_analysis.py` writes `Analysis/scan_titrate/`.
 Each output row has `group`, `condition`, `kind`, `pos` (offset in bp, or the number of core bases changed), `alt`, `rep`, the usual readouts and `atac_target` (mean ATAC over the 11 bp at the offset for duplicate/control/move). `native_core` and `core_found` record the site's core sequence and whether an exact TGA[C/G]TCA was present (otherwise the central 7 bp are used).
 
+## Fine-tuned 1 bp ATAC head (results_ft/)
+`FT=1` before any `submit_all.sh` mode reads the same experiment with the fine-tuned head instead of the built-in ones: `config_ft.json`
+(`config_ft_cm_only.json` for scan/titrate), outputs in `results_ft/` under the same file names, job names prefixed `ft_`.
+`AG_FT_CHECKPOINT=<file.delta.pth>` overrides the head in the config (used to smoke-test with the pilot checkpoint).
+Every trackset is read from one forward pass: `CM` / `FB` are the fine-tuned head averaged over the four conditions, with per-condition
+columns (`atac_peak_YS`, ...), and `CM_builtin` / `FB_builtin` are the built-in heads for comparison. A head without a 1 bp output is
+refused: its motif and 170 bp readouts would only be 128 bp bins.
+
+| mode | what | output |
+|---|---|---|
+| `ft_eval` | native predictions at every CM and FB site, plus a check that reading the head on the shared forward pass equals the fine-tuned model's own pass | `results_ft/eval_*` |
+| `rerun_all` | every experiment the analyses read (`rerun_sites` then `rerun_dynamics`) | `results_ft/*` |
+
+## Fibroblast priorities (`FT=1 bash submit_all.sh fb_priority`)
+1. **Shuffle arm** (`phase1_fb`): 5,018 FB sites x 31 passes.
+2. **Tile scan** (`fb_scan`): `data/fb_subset_scan.csv` = all 1,180 Dynamic sites + 1,180 Stable drawn at random (not matched), 364 passes/site.
+3. **Element swaps** (`fb_swap`, `fb_background`): `data/fb_swap_sites.csv` = 50 sites per binding class (Stable, Age Up, Age Down,
+   Exercise Up, Exercise Down; each site drawn for one class only, rarest first). Every donor element goes into every recipient location,
+   at 170 bp and whole-peak width; for the peak width the recipient's own peak is fully removed (bases the donor does not cover are
+   dinucleotide-shuffled). Self-swaps are the control and must reproduce the native prediction. The same elements also go into quiet host
+   windows (`Finetune: bash submit.sh backgrounds` -> closed in every heart cell type, GC-matched to the elements) with a shuffled copy as
+   the control. `python scripts/18_fb_swap.py --selftest` checks every edit without a GPU; analysis: `python3 Scripts/47_fb_swap_analysis.py`.
+
 ## Site labels (in every site table and output)
 Three views of the same binding calls, so ageing, exercise and their combination can be tested separately.
 YS = young sedentary, MAS = aged sedentary, MAE = aged + exercise.
