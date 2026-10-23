@@ -99,7 +99,8 @@ BG_FILE=${BG_FILE:-/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/close
 p5_swap()     { sub -J 0-39 -N ag_fb_swap "EXPERIMENT=swap,PREFIX=swap_,NCHUNKS=40" pbs/18_fb_swap.pbs; }
 p5_bg()       { sub -J 0-7 -N ag_fb_bg "EXPERIMENT=background,PREFIX=bg_,NCHUNKS=8,BACKGROUNDS=$BG_FILE" pbs/18_fb_swap.pbs; }
 # fibroblast tile scan: all 1,180 Dynamic sites + 1,180 Stable drawn at random (data/fb_subset_scan.csv), 364 passes/site
-p5_fbscan()   { sub -J 0-39 -l walltime=04:00:00 -N ag_scan_fb "EXPERIMENT=scan,PREFIX=scan_,SITES=fb,NCHUNKS=40,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
+FB_SCAN_CHUNKS=${FB_SCAN_CHUNKS:-80}
+p5_fbscan()   { sub -J 0-$((FB_SCAN_CHUNKS-1)) -l walltime=02:00:00 -N ag_scan_fb "EXPERIMENT=scan,PREFIX=scan_,SITES=fb,NCHUNKS=$FB_SCAN_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_pilot()    { sub -m ae -l walltime=01:00:00 -N ag_scan_fb_pilot "EXPERIMENT=scan,PREFIX=pilot_,SITES=fb,NCHUNKS=1,LIMIT=4,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs
                 sub -m ae -l walltime=01:00:00 -N ag_fb_swap_pilot "EXPERIMENT=swap,PREFIX=pilot_swap_,NCHUNKS=1,LIMIT=10" pbs/18_fb_swap.pbs
                 sub -m ae -l walltime=01:00:00 -N ag_fb_bg_pilot "EXPERIMENT=background,PREFIX=pilot_bg_,NCHUNKS=1,LIMIT=6,BACKGROUNDS=$BG_FILE" pbs/18_fb_swap.pbs; }
