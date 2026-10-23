@@ -53,8 +53,8 @@ FP = pd.read_csv(ROOT / "Analysis/partners/tables/footprints_near_sites.csv")
 fp = FP[(FP.site_id == a.site) & (~FP.own_ap1) & (FP.family.isin(FCOL)) &
         (((FP.rel_start + FP.rel_end) / 2).abs() < 290)].copy()
 
-fig, (ax, axf) = plt.subplots(2, 1, figsize=(12.0, 3.1), sharex=True,
-                              gridspec_kw={"height_ratios": [3.0, 1.25], "hspace": 0.0})
+fig, (ax, axf) = plt.subplots(2, 1, figsize=(12.0, 3.5), sharex=True,
+                              gridspec_kw={"height_ratios": [2.7, 1.6], "hspace": 0.0})
 on_motif = w.centre.abs() <= 6
 ax.bar(w.centre[~on_motif], w.eff[~on_motif], width=9, color=GREY, zorder=3)
 ax.bar(w.centre[on_motif], w.eff[on_motif], width=9, color=GOLD, ec=INK, lw=0.8, zorder=4)
@@ -64,22 +64,31 @@ ax.set_ylim(w.eff.min() * 1.14, max(0.12, w.eff.max() * 1.5))
 ax.set_ylabel("Loss of predicted\naccessibility (log2FC)", fontsize=10)
 ax.tick_params(labelbottom=False)
 
-lanes: list[float] = []                                        # stack footprints that would otherwise overlap
-for r in fp.sort_values("rel_start").itertuples():
-    k = next((i for i, end in enumerate(lanes) if r.rel_start > end + 42), len(lanes))
+# Footprints are drawn at their true extent -- 6 to 39 bp, median 11 -- so nothing is inflated to fit its label.
+# Labels sit in stacked rows beneath the rail with a leader line back to the chip they belong to.
+RAILY, ROW = 0.0, 0.30
+label_rows: list[float] = []
+for r in fp.sort_values(["rel_start", "rel_end"]).itertuples():
     nm = r.family.split(" (")[0].split(" /")[0]
-    wid = max(r.rel_end - r.rel_start, 7.6 * len(nm) + 10)
     cx = (r.rel_start + r.rel_end) / 2
-    if k == len(lanes):
-        lanes.append(cx + wid / 2)
+    half = 3.9 * len(nm)                                        # half the label's width in bp at this scale
+    k = next((i for i, end in enumerate(label_rows) if cx - half > end + 8), len(label_rows))
+    if k == len(label_rows):
+        label_rows.append(cx + half)
     else:
-        lanes[k] = cx + wid / 2
+        label_rows[k] = cx + half
     c = FCOL[r.family]
-    axf.add_patch(plt.Rectangle((cx - wid / 2, -k - 0.40), wid, 0.62, color=c, ec="none", zorder=3))
-    axf.text(cx, -k - 0.09, nm, ha="center", va="center", fontsize=8.2, color="white", fontweight="bold", zorder=4)
-axf.add_patch(plt.Rectangle((-26, 0.35), 52, 0.56, color=GOLD, ec=INK, lw=1.0, zorder=4))
-axf.text(0, 0.63, "AP-1", ha="center", va="center", fontsize=8.6, color=INK, fontweight="bold", zorder=5)
-axf.set_ylim(-max(len(lanes), 1) - 0.1, 1.05)
+    y = RAILY - 0.22 - k * ROW
+    axf.add_patch(plt.Rectangle((r.rel_start, RAILY - 0.07), max(r.rel_end - r.rel_start, 3), 0.20,
+                                color=c, ec="none", zorder=4))
+    axf.plot([cx, cx], [RAILY - 0.08, y + 0.07], color=c, lw=0.7, alpha=0.8, zorder=3)
+    axf.text(cx, y, nm, ha="center", va="top", fontsize=7.8, color=c, fontweight="bold", zorder=5)
+axf.plot([-305, 305], [RAILY, RAILY], color=MUTED, lw=0.9, zorder=2)
+mw = 11                                                         # the called motif is 11 bp, drawn to scale
+axf.add_patch(plt.Rectangle((-mw / 2, RAILY + 0.17), mw, 0.22, color=GOLD, ec=INK, lw=0.9, zorder=5))
+axf.annotate("AP-1 motif, 11 bp", xy=(mw / 2, RAILY + 0.28), xytext=(64, RAILY + 0.62), fontsize=8.2,
+             color="#9a7d0a", fontweight="bold", arrowprops=dict(arrowstyle="->", color="#9a7d0a", lw=0.9))
+axf.set_ylim(RAILY - 0.22 - max(len(label_rows), 1) * ROW - 0.08, RAILY + 0.86)
 axf.set_yticks([])
 axf.grid(False)
 axf.set_ylabel("footprinted\nmotifs", fontsize=9, color=MUTED)
@@ -90,4 +99,4 @@ fig.subplots_adjust(left=0.088, right=0.995, top=0.985, bottom=0.155)
 fig.savefig(PAN / "s11_method_locus.png", facecolor=SURF)
 plt.close(fig)
 print(f"{a.site}: {len(w)} windows, motif window {w.eff[on_motif].min():+.2f}, "
-      f"{len(fp)} footprints of {fp.family.nunique()} families in {len(lanes)} lanes")
+      f"{len(fp)} footprints of {fp.family.nunique()} families, widths {fp.rel_end.sub(fp.rel_start).min()}-{fp.rel_end.sub(fp.rel_start).max()} bp")

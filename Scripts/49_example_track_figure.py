@@ -49,7 +49,7 @@ FCOL = {"MEF2": "#c0392b", "GATA": "#8e44ad", "NFI (Nfia/b/c/x)": "#16a085", "TE
 
 # ---------------------------------------------------------------- figure
 fig = plt.figure(figsize=(16.4, 7.4))
-gs = fig.add_gridspec(5, 1, height_ratios=[3.0, 0.9, 0.55, 3.0, 0.9], hspace=0.16)
+gs = fig.add_gridspec(5, 1, height_ratios=[3.0, 1.25, 0.45, 3.0, 1.25], hspace=0.16)
 GE = pd.read_csv(ROOT / "Data/derived/cm_sites_nearest_gene_mast.csv").set_index("site_id")
 SL = pd.read_csv(ROOT / "Data/derived/cm_sites_nearest_gene_mast.csv").set_index("site_id")
 CAT = pd.read_csv(ROOT / "Analysis/cm/qc/tables/site_level_table_cm.csv").set_index("site_id")
@@ -91,24 +91,25 @@ for sid, lab, col, row in panels:
 
     axf = fig.add_subplot(gs[row + 1], sharex=ax)
     w2 = M[(M.site_id == sid) & (M.family.isin(SHOW)) & (M.rs.abs() < 320)]
-    lanes = []
-    for r in w2.sort_values("rs").itertuples():
-        k = next((i for i, end in enumerate(lanes) if r.rs > end + 48), len(lanes))
-        if k == len(lanes):
-            lanes.append(r.re)
-        else:
-            lanes[k] = r.re
+    # footprints are drawn at their true extent (6-39 bp); the label goes beneath with a leader, never inflating the chip
+    rows_ = []
+    for r in w2.sort_values(["rs", "re"]).itertuples():
         c = FCOL.get(r.family, GREY)
         key = r.family in ("MEF2", "GATA", "NFI (Nfia/b/c/x)", "TEAD", "SRF / MADS", "NKX / homeobox cardiac")
         nm0 = r.family.split(" (")[0].split(" /")[0]
-        wmin = 7.5 * len(nm0) + 10                       # wide enough for the label, so chips never clip their own text
-        cx = (r.rs + r.re) / 2
-        wid = max(r.re - r.rs, wmin)
-        axf.add_patch(plt.Rectangle((cx - wid / 2, -k - 0.42), wid, 0.62, color=c, alpha=0.95 if key else 0.45,
-                                    ec=INK if key else "none", lw=1.1 if key else 0))
-        axf.text(cx, -k - 0.11, nm0, ha="center", va="center", fontsize=8.2 if key else 7.2,
-                 color="white" if key else INK, fontweight="bold" if key else "normal")
-    axf.set_ylim(-max(len(lanes), 1) - 0.1, 0.35)
+        cx, half = (r.rs + r.re) / 2, 4.1 * len(nm0)
+        k = next((i for i, end in enumerate(rows_) if cx - half > end + 8), len(rows_))
+        if k == len(rows_):
+            rows_.append(cx + half)
+        else:
+            rows_[k] = cx + half
+        axf.add_patch(plt.Rectangle((r.rs, -0.09), max(r.re - r.rs, 3), 0.20, color=c,
+                                    alpha=1.0 if key else 0.55, ec="none", zorder=4))
+        axf.plot([cx, cx], [-0.10, -0.30 - k * 0.30 + 0.07], color=c, lw=0.7, alpha=0.8, zorder=3)
+        axf.text(cx, -0.30 - k * 0.30, nm0, ha="center", va="top", fontsize=7.8, color=c,
+                 fontweight="bold" if key else "normal", zorder=5)
+    axf.plot([-305, 305], [0, 0], color=MUTED, lw=0.9, zorder=2)
+    axf.set_ylim(-0.30 - max(len(rows_), 1) * 0.30 - 0.10, 0.30)
     axf.set_xlim(-305, 305)
     axf.set_yticks([])
     axf.grid(False)
