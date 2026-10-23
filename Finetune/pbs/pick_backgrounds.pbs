@@ -13,4 +13,4 @@ python scripts/pick_closed_backgrounds.py --genome /srv/scratch/wonglab/useful/g
     --bigwigs $FT/bigwigs_1bp/*.insertions.bw $RAW/*_YS_merged.SeqDepthNorm.bw \
     --peaks $RAW/*.narrowPeak \
     --gc-from ../Katana/data/fb_swap_sites.csv \
-    --out $FT/closed_backgrounds.csv --n ${N_BG:-20}
+    --out $FT/closed_backgrounds.csv --n ${N_BG:-20} --tries ${TRIES:-20000} --pool-frac ${POOL_FRAC:-0.2}
