@@ -25,7 +25,8 @@ case "$1" in
     if [ "$N" -gt 1 ]; then J="-J 0-$((N-1))"; else J=""; fi   # a one-track manifest runs as a plain job (index 0)
     run $OC $J -N ft_bigwig -v "MANIFEST=$MANIFEST,CHROM_SIZES=$CHROM_SIZES,OUT_DIR=$OUT_DIR" pbs/make_bigwig.pbs ;;
   backgrounds)   # quiet host windows (closed in every heart cell type, GC-matched to the swap elements) for the insertion experiments
-    run $OC -N ft_backgrounds pbs/pick_backgrounds.pbs ;;
+    V="N_BG=${N_BG:-20},TRIES=${TRIES:-20000},POOL_FRAC=${POOL_FRAC:-0.2}"
+    run $OC -N ft_backgrounds -v "$V" pbs/pick_backgrounds.pbs ;;
   check_bigwigs)   # one CPU task per 1 bp insertion bigWig: per-peak sums and motif profiles against the fragment-level checks
     run $OC -J 0-7 -N ft_check_bw pbs/check_bigwigs.pbs ;;
   check_tn5)   # one CPU task per merged fragment file: are the ends already Tn5-shifted (sets make_insertion_bigwigs --offsets)
