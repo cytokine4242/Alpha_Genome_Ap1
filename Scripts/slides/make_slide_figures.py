@@ -627,15 +627,15 @@ def top_tile_odds():
                 if nm not in w.index:
                     continue
                 r = w.loc[nm]
-                ax.errorbar(r.odds_ratio, y + off, xerr=[[max(r.odds_ratio - r.or_lo, 0)], [max(r.or_hi - r.odds_ratio, 0)]],
+                lor = np.log2(r.odds_ratio)                      # log2, to match the fold changes used everywhere else
+                ax.errorbar(lor, y + off, xerr=[[max(lor - np.log2(r.or_lo), 0)], [max(np.log2(r.or_hi) - lor, 0)]],
                             fmt="o", ms=7, color=col, lw=1.8, capsize=0, zorder=4)
-        ax.axvline(1, color=INK, lw=1.2, ls=":")
-        ax.set_xscale("log")
-        ax.set_xticks([0.25, 0.5, 1, 2, 4], ["0.25", "0.5", "1", "2", "4"])
+        ax.axvline(0, color=INK, lw=1.2, ls=":")
+        ax.set_xticks([t for t in (-2, -1, 0, 1, 2) if xlim[0] <= t <= xlim[1]])
         ax.set_xlim(*xlim)
         ax.set_yticks(ys, [n.replace("Exercise ", "Ex ").replace(" (all)", "") for n in order], fontsize=10.5)
         ax.set_ylim(-0.6, len(order) - 0.4)
-        ax.set_xlabel("Odds ratio (95% CI)", fontsize=10.5)
+        ax.set_xlabel("log2 odds ratio (95% CI)", fontsize=10.5)
         fig.subplots_adjust(left=0.265, right=0.985, top=0.97, bottom=0.165)
         fig.savefig(PAN / fname, facecolor=SURF, bbox_inches="tight")
         plt.close(fig)
@@ -644,11 +644,11 @@ def top_tile_odds():
         forest(f"s10_mef2_{tag}.png",
                [({"family": "MEF2", "mode": mode, "conditioning": "unconditional"}, ORANGE, -0.17),
                 ({"family": "MEF2", "mode": mode, "conditioning": "given present"}, STABLE_GREY, 0.17)],
-               (0.18, 6.0))
+               (-2.6, 2.6))
     forest("s10_ap1.png",
            [({"family": "AP-1 (Fos/Jun/Atf/Batf)", "mode": "all sites", "conditioning": "unconditional"}, ORANGE, -0.17),
             ({"family": "AP-1 (Fos/Jun/Atf/Batf)", "mode": "all sites", "conditioning": "given present"}, STABLE_GREY, 0.17)],
-           (0.45, 3.2))
+           (-1.3, 1.8))
     print("  wrote s10 odds panels")
 
 

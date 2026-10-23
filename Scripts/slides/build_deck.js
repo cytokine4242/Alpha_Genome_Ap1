@@ -217,9 +217,9 @@ FIG(s, "Analysis/slide_figures/panels/s10_mef2_all.png", { x: 1.5, y: 2.06, w: 5
 s.addText("A second AP-1 footprint", { isTextBox: true, x: 7.0, y: 1.72, w: 5.0, h: 0.28, fontSize: 13.5, bold: true, color: "111111", margin: 0, objectName: "or-t2" });
 FIG(s, "Analysis/slide_figures/panels/s10_ap1.png", { x: 7.0, y: 2.06, w: 5.0, h: 3.3 });
 legendRow(s, [["does the element have one at all", "C2551C"], ["when it has one, is it ranked top", "4F4F4F"]], 1.5, 5.5);
-s.addText("odds ratio against all Stable sites with a 95% CI; dotted line = no difference.   "
-  + "MEF2, does it have one: Age Up 0.45, Exercise Down 0.56, Dynamic 0.58, all FDR \u2264 0.005.   "
-  + "AP-1, when it has one: Dynamic 1.45, FDR 0.036.",
+s.addText("log2 odds ratio against all Stable sites with a 95% CI; dotted line = no difference, so \u22121 is half the odds and +1 is double.   "
+  + "MEF2, does it have one: Age Up OR 0.45, Exercise Down 0.56, Dynamic 0.58, all FDR \u2264 0.005.   "
+  + "AP-1, when it has one: Dynamic OR 1.45, FDR 0.036.",
   { isTextBox: true, x: 0.8, y: 5.88, w: 11.9, h: 0.5, fontSize: 9.5, color: "595959", margin: 0, objectName: "or-key" });
 takeaway(s, "the MEF2 deficit is about having one, not about how it is ranked \u2014 and responsive elements lean more on a second AP-1 site when they have one");
 s.addNotes("Presence vs rank is the point. MEF2, does the element have one: Dynamic OR 0.58, Age Up 0.45, Exercise Down 0.56, all surviving BH. Given a MEF2 is present, every class ranks it in the top three about equally often (0.87-2.03, nothing significant). AP-1 given present: Dynamic 1.45x, FDR 0.036, with the direction repeating in all four directional classes (1.43-1.62). CTCF is the reason to keep the matched analysis in the report even though it is off the slides: OR 3.0-6.5 here with FDR < 0.001, and exactly 1.0 once accessibility is matched.");
