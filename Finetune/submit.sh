@@ -2,6 +2,7 @@
 # Submit fine-tuning jobs from the Finetune/ folder on Katana (private account by default; DRY=1 prints the qsub commands instead).
 #   bash submit.sh check_fragments          # array: checks the 8 merged fragment files copied from Gadi (finetune_data/fragments) before they become 1 bp targets
 #   bash submit.sh check_tn5                # array: are those fragment ends already Tn5-shifted? (decides --offsets for the 1 bp bigWigs)
+#   bash submit.sh backgrounds              # quiet host windows for the insertion experiments -> $FT/closed_backgrounds.csv
 #   bash submit.sh check_bigwigs            # array: each 1 bp bigWig against the fragment checks (after bigwigs)
 #   bash submit.sh bigwigs                  # array: one task per (cell type, condition) of data/samples_manifest.tsv -> 1 bp insertion bigWigs  (needs MANIFEST, CHROM_SIZES, OUT_DIR)
 #   bash submit.sh probe|lora|lora_locon|full   # config chosen by KIND (10bp or 1bp, default 10bp), PILOT=1, RNA=1, SEQ (131072 default, or 1048576), FOLD (FOLD_3)
@@ -23,6 +24,8 @@ case "$1" in
     [ "$N" -gt 0 ] || { echo "$MANIFEST has no sample rows: add one row per library first"; exit 1; }
     if [ "$N" -gt 1 ]; then J="-J 0-$((N-1))"; else J=""; fi   # a one-track manifest runs as a plain job (index 0)
     run $OC $J -N ft_bigwig -v "MANIFEST=$MANIFEST,CHROM_SIZES=$CHROM_SIZES,OUT_DIR=$OUT_DIR" pbs/make_bigwig.pbs ;;
+  backgrounds)   # quiet host windows (closed in every heart cell type, GC-matched to the swap elements) for the insertion experiments
+    run $OC -N ft_backgrounds pbs/pick_backgrounds.pbs ;;
   check_bigwigs)   # one CPU task per 1 bp insertion bigWig: per-peak sums and motif profiles against the fragment-level checks
     run $OC -J 0-7 -N ft_check_bw pbs/check_bigwigs.pbs ;;
   check_tn5)   # one CPU task per merged fragment file: are the ends already Tn5-shifted (sets make_insertion_bigwigs --offsets)
@@ -39,5 +42,5 @@ case "$1" in
     if [ "$1" != probe ] && [ "$GPU" != H200 ] && [ -z "$BATCH" ]; then BATCH=1; ACCUM=${ACCUM:-32}; fi
     V="CONFIG=$CFG${BATCH:+,BATCH=$BATCH}${ACCUM:+,ACCUM=$ACCUM}"
     run $O -l select=1:ncpus=8:mem=${MEM:-62gb}:ngpus=1$SEL -l walltime=$W -N ft_${1}_${KIND}${PILOT:+_pilot} -v "$V" pbs/finetune.pbs ;;
-  *) echo "usage: bash submit.sh check_fragments|check_tn5|check_bigwigs|bigwigs|probe|lora|lora_locon|full"; exit 1 ;;
+  *) echo "usage: bash submit.sh check_fragments|backgrounds|check_tn5|check_bigwigs|bigwigs|probe|lora|lora_locon|full"; exit 1 ;;
 esac

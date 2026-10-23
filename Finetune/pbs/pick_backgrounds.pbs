@@ -1,0 +1,16 @@
+#!/bin/bash
+#PBS -N ft_backgrounds
+#PBS -l select=1:ncpus=2:mem=16gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+# Quiet (closed in every heart cell type) host windows for the insertion experiments: qsub pbs/pick_backgrounds.pbs   (see submit.sh backgrounds)
+cd $PBS_O_WORKDIR
+source ../Katana/pbs/queue_wait.sh 2>/dev/null   # queue wait and run time -> /srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv
+source ${FT_VENV:-/srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv}/bin/activate
+FT=/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data
+RAW=/srv/scratch/wonglab/rubj/beagle/rawData      # read-only: all cell types' called peaks and young-sedentary coverage
+python scripts/pick_closed_backgrounds.py --genome /srv/scratch/wonglab/useful/genomes/mm10.fa \
+    --bigwigs $FT/bigwigs_1bp/*.insertions.bw $RAW/*_YS_merged.SeqDepthNorm.bw \
+    --peaks $RAW/*.narrowPeak \
+    --gc-from ../Katana/data/fb_swap_sites.csv \
+    --out $FT/closed_backgrounds.csv --n ${N_BG:-20}
