@@ -94,7 +94,7 @@ def main():
     ap.add_argument("--window", type=int, default=131072, help="model window that must be inside the chromosome and N-free")
     ap.add_argument("--core", type=int, default=4096, help="central region whose measured density must be low")
     ap.add_argument("--max-rel", type=float, default=0.1, help="core density allowed, as a multiple of each track's genome-wide mean")
-    ap.add_argument("--min-dist-peak", type=int, default=25_000, help="minimum distance from the centre to any called peak")
+    ap.add_argument("--min-dist-peak", type=int, default=5_000, help="minimum distance from the centre to any called peak")
     ap.add_argument("--tries", type=int, default=20000)
     ap.add_argument("--seed", type=int, default=46)
     args = ap.parse_args()
@@ -108,7 +108,7 @@ def main():
 
     bws, means = {}, {}
     for f in args.bigwigs:
-        name = Path(f).name.split(".")[0].replace("_merged", "")
+        name = Path(f).name.replace(".bw", "").replace("_merged", "")   # keep the full stem: <cell>_<cond>.insertions vs <cell>_<cond>.SeqDepthNorm
         bw = pyBigWig.open(f)
         h = bw.header()
         means[name] = h["sumData"] / max(h["nBasesCovered"], 1)
@@ -123,15 +123,19 @@ def main():
     half, chalf = args.window // 2, args.core // 2
 
     kept = []
+    reject = {"near a peak": 0, "N in the core": 0}
+    loudest = []
     for _ in range(args.tries):
         c = chroms[rng.choice(len(chroms), p=w)]
         centre = int(rng.integers(half, sizes[c] - half))
         if distance_to_peak(peaks, c, centre) < args.min_dist_peak:
+            reject["near a peak"] += 1
             continue
         seq = fa[c][centre - chalf:centre + chalf]
         if "N" in seq:
+            reject["N in the core"] += 1
             continue
-        rel = {}
+        rel, worst = {}, None
         for name, bw in bws.items():
             if c not in bw.chroms():
                 rel = None
@@ -139,17 +143,26 @@ def main():
             v = bw.stats(c, centre - chalf, centre + chalf, type="mean")[0]
             rel[name] = 0.0 if v is None else float(v) / means[name]
             if rel[name] > args.max_rel:
+                worst = (name, rel[name])
                 rel = None
                 break
         if rel is None:
+            if worst:
+                reject[f"signal in {worst[0]}"] = reject.get(f"signal in {worst[0]}", 0) + 1
+                loudest.append(worst[1])
             continue
         kept.append({"chrom": c, "centre": centre, "window_start": centre - half, "window_end": centre + half,
                      "gc_core": (seq.count("G") + seq.count("C")) / len(seq),
                      "total_rel": sum(rel.values()), **{f"{k}_rel": v for k, v in rel.items()}})
     pool = pd.DataFrame(kept)
     print(f"{len(pool)} of {args.tries} candidate centres are quiet in all {len(bws)} tracks", flush=True)
+    print("rejected by:", dict(sorted(reject.items(), key=lambda kv: -kv[1])[:8]), flush=True)
+    if loudest:
+        q = np.percentile(loudest, [5, 25, 50])
+        print(f"of the candidates rejected on signal, the lowest offending levels were {q[0]:.2f}, {q[1]:.2f}, {q[2]:.2f} "
+              f"x the track mean (--max-rel is {args.max_rel})", flush=True)
     if pool.empty:
-        raise SystemExit("no quiet windows found: raise --max-rel or --tries, or lower --min-dist-peak")
+        raise SystemExit("no quiet windows found: raise --max-rel or --tries, or lower --min-dist-peak (the counts above say which filter to relax)")
 
     pool = pool.sort_values("total_rel").reset_index(drop=True)
     pool["n_free"] = [int("N" not in fa[r.chrom][r.window_start:r.window_end]) for r in pool.itertuples()]
