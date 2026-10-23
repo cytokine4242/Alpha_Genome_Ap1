@@ -167,6 +167,17 @@ takeaway(s, "every edit is read as the change in predicted accessibility over th
 s.addNotes("The 131 kb window is what AlphaGenome takes as input; we only ever edit the middle 600 bp. Each tile is 3 replicate random replacements, averaged. Effects are log2(edited / native).");
 
 // ================================================================== 4 the null
+// ================================================================== 3b the method at one real element
+s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Design" });
+s.addText("The same thing at one real element", { placeholder: "title" });
+s.addText("Every 10 bp window from \u2212300 to +300 bp is replaced by random bases in turn, three times, and the bar is what the prediction loses over the surrounding 170 bp. Gold is the called AP-1 motif. The lane below is every other footprinted motif TOBIAS calls in this element, which is what the windows are read against.",
+  { isTextBox: true, x: 0.8, y: 1.12, w: 11.9, h: 0.52, fontSize: 11.5, color: "595959", margin: 0, objectName: "ml-intro" });
+FIG(s, "Analysis/slide_figures/panels/s11_method_locus.png", { x: 0.55, y: 1.9, w: 12.2, h: 3.5 });
+s.addText("chr14:77,485,003 \u00b7 a Stable cardiomyocyte AP-1 site \u00b7 the motif window costs \u22121.71, the deepest of the 60",
+  { isTextBox: true, x: 0.8, y: 5.55, w: 11.9, h: 0.3, fontSize: 10.5, color: "111111", margin: 0, objectName: "ml-cap" });
+takeaway(s, "one element, 60 windows, five footprinted families \u2014 everything that follows is this, repeated over 3,678 sites");
+s.addNotes("A demonstration, not a result: this element was chosen for legibility, not because it is typical. The footprint lane is what lets a window be attributed to a factor; families are stacked into lanes only where their footprints would otherwise overlap. The same scan is also read over the 11 bp motif and over the whole peak, and the titration and single-base experiments run on the same 3,678 sites.");
+
 pres.addSection({ title: "Findings" });
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Responsive sites lose less to every edit of their element", { placeholder: "title" });
@@ -224,24 +235,6 @@ s.addText("log2 odds ratio against all Stable sites with a 95% CI; dotted line =
 takeaway(s, "the MEF2 deficit is about having one, not about how it is ranked \u2014 and responsive elements lean more on a second AP-1 site when they have one");
 s.addNotes("Presence vs rank is the point. MEF2, does the element have one: Dynamic OR 0.58, Age Up 0.45, Exercise Down 0.56, all surviving BH. Given a MEF2 is present, every class ranks it in the top three about equally often (0.87-2.03, nothing significant). AP-1 given present: Dynamic 1.45x, FDR 0.036, with the direction repeating in all four directional classes (1.43-1.62). CTCF is the reason to keep the matched analysis in the report even though it is off the slides: OR 3.0-6.5 here with FDR < 0.001, and exactly 1.0 once accessibility is matched.");
 
-// ================================================================== 5d AP-1 cluster locus
-s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("What the model leans on: its own motif, or a neighbour", { placeholder: "title" });
-s.addText("Two elements with comparable accessibility and a comparable set of neighbouring AP-1 footprints. Numbered circles mark the three most damaging windows, ranked; the dotted line drops from each to whatever lies beneath it. Gold is the called AP-1 motif, grey the other AP-1 footprints, merged where calls overlap.",
-  { isTextBox: true, x: 0.8, y: 1.1, w: 11.9, h: 0.5, fontSize: 11.5, color: "595959", margin: 0, objectName: "cl-intro" });
-s.addText([{ text: "Stable  ", options: { bold: true, fontSize: 13, color: "1F6FB2" } },
-           { text: "chr2:110,186,562 \u2014 windows 1 and 2 are the called motif; the seven AP-1 sites at +140 to +190 bp cost nothing", options: { fontSize: 12, color: "111111" } }],
-  { isTextBox: true, x: 0.8, y: 1.72, w: 11.9, h: 0.28, margin: 0, objectName: "cl-t1" });
-FIG(s, "Analysis/slide_figures/panels/s11_cluster_stable.png", { x: 0.55, y: 2.0, w: 12.2, h: 2.0 });
-s.addText([{ text: "Age-gained  ", options: { bold: true, fontSize: 13, color: "C2551C" } },
-           { text: "chr13:35,395,938 \u2014 windows 1 and 3 sit on a cluster of ten AP-1 sites at \u221265 bp; the called motif is only second", options: { fontSize: 12, color: "111111" } }],
-  { isTextBox: true, x: 0.8, y: 3.95, w: 11.9, h: 0.28, margin: 0, objectName: "cl-t2" });
-FIG(s, "Analysis/slide_figures/panels/s11_cluster_dynamic.png", { x: 0.55, y: 4.22, w: 12.2, h: 2.0 });
-s.addText("own motif \u22121.90 against strongest neighbour \u22121.18 at the Stable site; \u22121.56 against \u22122.05 at the age-gained one. 8 and 10 neighbouring AP-1 footprints respectively.",
-  { isTextBox: true, x: 0.8, y: 6.14, w: 11.9, h: 0.3, fontSize: 9.5, color: "595959", margin: 0, objectName: "cl-key" });
-takeaway(s, "one locus showing the 1.45\u00d7 result: when a responsive element has a second AP-1 site, that is what the model leans on");
-s.addNotes("Chosen to illustrate the odds-ratio result on the previous slide, not as evidence in itself: n = 2. The pair is matched on predicted accessibility (0.77 vs 0.74) and peak width (758 vs 803), and both carry a comparable number of neighbouring AP-1 footprints, so the difference is which window the model weights. The age-gained site is MAS only, meaning AP-1 is called in aged sedentary but not in young or aged exercise.");
-
 // ================================================================== 6 example
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("The same contrast at one pair of promoters", { placeholder: "title" });
@@ -252,12 +245,15 @@ s.addNotes("Both are promoters a few hundred bp from a TSS, matched on predicted
 // ================================================================== 7 diffuse
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Responsive sites spread their dependence out", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/panels/d_profile.png", { x: 0.55, y: 1.5, w: 2.5, h: 2.1 });
-s.addText("one site\u2019s sliding-window profile: each bar is a 10 bp window replaced, shaded band = within \u00b185 bp of the motif",
-  { isTextBox: true, x: 0.55, y: 3.65, w: 2.5, h: 0.9, fontSize: 9.5, color: "595959", margin: 0, objectName: "profile-caption" });
+s.addText("Where the dependence sits", { isTextBox: true, x: 0.55, y: 1.25, w: 3.0, h: 0.28, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "prof-t1" });
+FIG(s, "Analysis/slide_figures/panels/s12_profile_absolute.png", { x: 0.55, y: 1.56, w: 3.0, h: 1.85 });
+s.addText("...as a share of each site\u2019s own total", { isTextBox: true, x: 0.55, y: 3.5, w: 3.0, h: 0.28, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "prof-t2" });
+FIG(s, "Analysis/slide_figures/panels/s12_profile_shape.png", { x: 0.55, y: 3.81, w: 3.0, h: 1.85 });
+s.addText("median over sites, smoothed over 3 windows; gold band = the \u00b115 bp core. Stable sites peak highest at the core; Age Up, Exercise Down and Dynamic carry 1.2\u20131.3\u00d7 more of their total beyond \u00b185 bp.",
+  { isTextBox: true, x: 0.55, y: 5.72, w: 3.0, h: 0.6, fontSize: 8.5, color: "595959", margin: 0, objectName: "prof-cap" });
 classFigure(s, "s3_dependence", { x: 3.6, y: 1.25, w: 9.15, h: 4.9 });
-takeaway(s, "the same shift in every class and on all three measures \u2014 strongest in Age Up and Exercise Down, absent only in Age Down");
-s.addNotes("10 of 16 scan features separate Dynamic from matched Stable. Share of dependence within 85 bp 0.63 vs 0.74, spread 94 vs 86 bp, largest single-base effect 0.74 vs 0.90. Age Up is the most diffuse class of all.");
+takeaway(s, "Stable sites peak highest at the core; Age Up, Exercise Down and Dynamic carry more of their dependence out in the flanks \u2014 Age Down simply has less of everything");
+s.addNotes("The profiles on the left are what the four measures are read off. At the core (within 15 bp) every class loses less than Stable sites do: Age Down 0.73x, Exercise Up 0.76x, Exercise Down 0.78x, Dynamic 0.80x, Age Up 0.90x, all FDR <= 0.016. Normalised to each site\u2019s own total, the core share is barely different (0.93-1.00) but the flank share beyond 85 bp is higher in Age Up 1.31x, Exercise Down 1.29x and Dynamic 1.21x, all FDR <= 0.0002, while Age Down is 0.99x. So Age Down is not a redistribution, it is a weaker element throughout.");
 
 // ================================================================== 8 titration
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
