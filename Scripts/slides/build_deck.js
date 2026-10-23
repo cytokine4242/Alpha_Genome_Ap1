@@ -144,10 +144,17 @@ s.addNotes("2.49 million footprinted cardiomyocyte TFBS mapped onto the scan. Dy
 
 // ================================================================== 5 spacing
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("Age-gained sites have less MEF2 beside them", { placeholder: "title" });
+s.addText("MEF2 sits right beside the AP-1 motif, and it matters", { placeholder: "title" });
 FIG(s, "Analysis/slide_figures/s7_spacing.png", { x: 0.55, y: 1.25, w: 12.2, h: 4.9 });
-takeaway(s, "MEF2 sits 2.67\u00d7 more often right beside the motif than chance \u2014 and age-gained sites carry one far less often, 5.6% against 13.7% of matched controls");
+takeaway(s, "MEF2 is 2.67\u00d7 enriched at 11\u201325 bp and is worth \u22120.9 log2 there; KLF/SP is the commonest neighbour and is worth nothing anywhere");
 s.addNotes("Left panel counts every MEF2 footprint, important or not: it is occurrence, not importance. Middle panel is importance, measured against footprint-free tiles at the same distance, so the general fall-off with distance is removed. Right panel: 5.6% of Age Up sites carry a MEF2 footprint within 25 bp against 13.7% of their matched Stable controls (Fisher p 0.004, FDR 0.03); Exercise Down is similar but weaker. No 10-11 bp repeat survives correction, so no fixed protein-protein register.");
+
+// ================================================================== 5b MEF2 by class
+s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
+s.addText("Age-gained sites are short of that MEF2", { placeholder: "title" });
+FIG(s, "Analysis/slide_figures/s9_mef2_by_class.png", { x: 0.55, y: 1.15, w: 12.2, h: 5.05 });
+takeaway(s, "Age Up 3.2% against 10.5% of its matched controls, Exercise Down 1.2% against 9.8% \u2014 and the deficit is sharper when only the MEF2 the model uses is counted");
+s.addNotes("Matched tests are exact McNemar on the paired sites, raw tests are Fisher, BH across all 20. Surviving: Age Up on both definitions (FDR 0.021 leaned-on, 0.045 footprint-present) and Exercise Down on the leaned-on definition (FDR 0.026); Exercise Down footprint-present does not (FDR 0.12). Age Down and Exercise Up show nothing either way. An earlier quote of p = 0.003 and p = 0.0005 for these came from Fisher applied to the matched groups as if unpaired; McNemar is the right test and gives p = 0.0021 and p = 0.0013.");
 
 // ================================================================== 6 example
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
