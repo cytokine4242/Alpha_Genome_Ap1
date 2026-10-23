@@ -611,6 +611,48 @@ def mef2_by_class():
     emit_class_figure("s9_mef2_by_class", M, class_prop_panel, KEY_PROP)
 
 
+# ================================================================ 10. presence vs rank, from the top-window odds
+def top_tile_odds():
+    """Bare forest panels. Is the MEF2 effect about having one, or about how it is ranked when there is one --
+    asked against all Stable sites and against matched controls, since the two carry different information."""
+    D = pd.read_csv(ROOT / "Analysis/top_tile_odds/tables/top3_tile_odds_by_class.csv")
+    order = [nm for nm, _, _, _ in GROUPS]
+
+    def forest(fname, rows, xlim):
+        """rows: (filter dict, colour, offset) triples, each drawn as one series down the five classes."""
+        fig, ax = plt.subplots(figsize=(4.3, 3.2))
+        ys = np.arange(len(order))[::-1]
+        for filt, col, off in rows:
+            w = D[np.logical_and.reduce([D[k] == v for k, v in filt.items()])].set_index("class")
+            for y, nm in zip(ys, order):
+                if nm not in w.index:
+                    continue
+                r = w.loc[nm]
+                ax.errorbar(r.odds_ratio, y + off, xerr=[[max(r.odds_ratio - r.or_lo, 0)], [max(r.or_hi - r.odds_ratio, 0)]],
+                            fmt="o", ms=7, color=col, lw=1.8, capsize=0, zorder=4)
+        ax.axvline(1, color=INK, lw=1.2, ls=":")
+        ax.set_xscale("log")
+        ax.set_xticks([0.25, 0.5, 1, 2, 4], ["0.25", "0.5", "1", "2", "4"])
+        ax.set_xlim(*xlim)
+        ax.set_yticks(ys, [n.replace("Exercise ", "Ex ").replace(" (all)", "") for n in order], fontsize=10.5)
+        ax.set_ylim(-0.6, len(order) - 0.4)
+        ax.set_xlabel("Odds ratio (95% CI)", fontsize=10.5)
+        fig.subplots_adjust(left=0.265, right=0.985, top=0.97, bottom=0.165)
+        fig.savefig(PAN / fname, facecolor=SURF, bbox_inches="tight")
+        plt.close(fig)
+
+    for mode, tag in (("all sites", "all"), ("matched", "matched")):
+        forest(f"s10_mef2_{tag}.png",
+               [({"family": "MEF2", "mode": mode, "conditioning": "unconditional"}, ORANGE, -0.17),
+                ({"family": "MEF2", "mode": mode, "conditioning": "given present"}, STABLE_GREY, 0.17)],
+               (0.18, 6.0))
+    forest("s10_ap1.png",
+           [({"family": "AP-1 (Fos/Jun/Atf/Batf)", "mode": "all sites", "conditioning": "given present"}, GREEN_D, -0.17),
+            ({"family": "AP-1 (Fos/Jun/Atf/Batf)", "mode": "matched", "conditioning": "given present"}, CTRL_GREY, 0.17)],
+           (0.45, 5.0))
+    print("  wrote s10 odds panels")
+
+
 print("building slide figures")
-element_panel(); bands(); matched_null(); dependence(); titration(); age_gained(); mpra(); spacing(); partners(); mef2_by_class()
+element_panel(); bands(); matched_null(); dependence(); titration(); age_gained(); mpra(); spacing(); partners(); mef2_by_class(); top_tile_odds()
 print("done ->", OUT)

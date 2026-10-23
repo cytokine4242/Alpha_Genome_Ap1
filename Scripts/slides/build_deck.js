@@ -210,6 +210,26 @@ classFigure(s, "s9_mef2_by_class", { x: 2.2, y: 1.1, w: 9.4, h: 5.1 });
 takeaway(s, "Age Up 3.2% against 10.5% of its matched controls, Exercise Down 1.2% against 9.8% \u2014 and the deficit is sharper when only the MEF2 the model uses is counted");
 s.addNotes("Matched tests are exact McNemar on the paired sites, raw tests are Fisher, BH across all 20. Surviving: Age Up on both definitions (FDR 0.021 leaned-on, 0.045 footprint-present) and Exercise Down on the leaned-on definition (FDR 0.026); Exercise Down footprint-present does not (FDR 0.12). Age Down and Exercise Up show nothing either way. An earlier quote of p = 0.003 and p = 0.0005 for these came from Fisher applied to the matched groups as if unpaired; McNemar is the right test and gives p = 0.0021 and p = 0.0013.");
 
+// ================================================================== 5c presence vs rank
+s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
+s.addText("Is the partner missing, or just worth less?", { placeholder: "title" });
+s.addText("Rank the 60 windows within each element, take the three most damaging, and ask whether any covers that family\u2019s footprint. A within-element question, so a class with less total dependence is not penalised for it.",
+  { isTextBox: true, x: 0.8, y: 1.1, w: 11.9, h: 0.46, fontSize: 11.5, color: "595959", margin: 0, objectName: "or-intro" });
+s.addText("MEF2, all sites", { isTextBox: true, x: 0.8, y: 1.66, w: 3.7, h: 0.28, fontSize: 13, bold: true, color: "111111", margin: 0, objectName: "or-t1" });
+FIG(s, "Analysis/slide_figures/panels/s10_mef2_all.png", { x: 0.8, y: 2.0, w: 3.7, h: 3.0 });
+s.addText("MEF2, context-matched", { isTextBox: true, x: 4.85, y: 1.66, w: 3.7, h: 0.28, fontSize: 13, bold: true, color: "111111", margin: 0, objectName: "or-t2" });
+FIG(s, "Analysis/slide_figures/panels/s10_mef2_matched.png", { x: 4.85, y: 2.0, w: 3.7, h: 3.0 });
+legendRow(s, [["does the element have one at all", "C2551C"], ["when it has one, is it ranked top", "4F4F4F"]], 0.8, 5.08);
+s.addText("A second AP-1 footprint, when present", { isTextBox: true, x: 8.95, y: 1.66, w: 3.8, h: 0.28, fontSize: 13, bold: true, color: "111111", margin: 0, objectName: "or-t3" });
+FIG(s, "Analysis/slide_figures/panels/s10_ap1.png", { x: 8.95, y: 2.0, w: 3.8, h: 3.0 });
+legendRow(s, [["all sites", "2E7D32"], ["matched", "B3B2AE"]], 8.95, 5.08);
+s.addText("odds ratio against all Stable sites or against each class\u2019s own matched controls, with 95% CI; dotted line = no difference.   "
+  + "MEF2 unconditional on all sites: Age Up 0.45, Exercise Down 0.56, Dynamic 0.58, all FDR \u2264 0.005.   "
+  + "AP-1 given present, all sites: Dynamic 1.45, FDR 0.036.",
+  { isTextBox: true, x: 0.8, y: 5.45, w: 11.9, h: 0.6, fontSize: 9.5, color: "595959", margin: 0, objectName: "or-key" });
+takeaway(s, "the MEF2 deficit is about having one, not about how it is ranked \u2014 and responsive elements lean more on a second AP-1 site when they have one");
+s.addNotes("Presence vs rank is the point. MEF2 unconditional on all sites: Dynamic OR 0.58, Age Up 0.45, Exercise Down 0.56, all surviving BH; given a MEF2 is present, every class ranks it in the top three about equally often (OR 0.87-2.03, nothing significant). The same split holds under matching but with much less power (0.54 and 0.53 unconditional, p 0.008 and 0.026; 0.82 and 0.62 given present). The AP-1 panel is the one new finding: given a second AP-1 footprint is present, Dynamic elements rank it top 1.45x more often than Stable, FDR 0.036 on all sites, and the direction repeats in all four directional classes (1.43-1.62) though only the pooled comparison survives correction. Under matching it is 1.54-2.54 and nothing survives. CTCF is the design control: OR 3.0-6.5 with FDR < 0.001 on all sites, 1.03-1.07 and p = 1.0 matched.");
+
 // ================================================================== 6 example
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("The same contrast at one pair of promoters", { placeholder: "title" });

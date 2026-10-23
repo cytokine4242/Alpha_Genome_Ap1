@@ -95,9 +95,12 @@ for nm, col, val in GROUPS:
                 a_ = sum(i in intop[fam] for i in Ax); b_ = sum(i in intop[fam] for i in Bx)
                 tab = [[a_, len(Ax) - a_], [b_, len(Bx) - b_]]
                 orr, p = fisher_exact(tab)
+                h = np.array(tab, float) + 0.5                   # Haldane-Anscombe, so a zero cell still gives an interval
+                lo_or = np.exp(np.log(h[0, 0] * h[1, 1] / (h[0, 1] * h[1, 0])) - 1.96 * np.sqrt((1 / h).sum()))
+                hi_or = np.exp(np.log(h[0, 0] * h[1, 1] / (h[0, 1] * h[1, 0])) + 1.96 * np.sqrt((1 / h).sum()))
                 rows.append({"class": nm, "family": fam, "mode": mode, "conditioning": cond,
                              "n_class": len(Ax), "n_ctrl": len(Bx), "pct_class": 100 * a_ / len(Ax),
-                             "pct_ctrl": 100 * b_ / len(Bx), "odds_ratio": orr, "p": p})
+                             "pct_ctrl": 100 * b_ / len(Bx), "odds_ratio": orr, "or_lo": lo_or, "or_hi": hi_or, "p": p})
 D = pd.DataFrame(rows)
 for (m_, c_), g in D.groupby(["mode", "conditioning"]):
     o = np.argsort(g.p.values); r = np.empty(len(g)); r[o] = np.arange(1, len(g) + 1)
