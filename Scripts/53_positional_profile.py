@@ -58,8 +58,10 @@ for nm, col, val, _c in GROUPS:
     ids = set(sl.index[sl[col] == val])
     w = T[T.site_id.isin(ids)]
     for metric in ("loss", "share"):
-        g = w.groupby("centre")[metric].median()
-        rows += [{"class": nm, "metric": metric, "centre": c, "median": v, "n_sites": len(ids)} for c, v in g.items()]
+        # the MEAN, not the median: summed over the windows it equals the per-site totals the dot panels show,
+        # so the area under the curve and the summary measures are the same quantity
+        g = w.groupby("centre")[metric].mean()
+        rows += [{"class": nm, "metric": metric, "centre": c, "mean": v, "n_sites": len(ids)} for c, v in g.items()]
 P = pd.DataFrame(rows)
 P.to_csv(OUT / "tables" / "positional_profile_by_class.csv", index=False)
 
@@ -81,13 +83,13 @@ o = np.argsort(S_.p.values); r = np.empty(len(S_)); r[o] = np.arange(1, len(S_) 
 S_["fdr"] = np.minimum(S_.p.values * len(S_) / r, 1)
 S_.to_csv(OUT / "tables" / "core_vs_flank_by_class.csv", index=False)
 
-for metric, ylab, fname in (("loss", "Median loss at that window (log2FC)", "s12_profile_absolute.png"),
-                            ("share", "Share of the site's total loss", "s12_profile_shape.png")):
+for metric, ylab, fname in (("loss", "Mean loss at that window (log2FC)", "s12_profile_absolute.png"),
+                            ("share", "Mean share of the site's total loss", "s12_profile_shape.png")):
     fig, ax = plt.subplots(figsize=(7.8, 2.45))
     for nm, _col, _val, c in GROUPS:
         g = P[(P["class"] == nm) & (P.metric == metric)].sort_values("centre")
-        y = g["median"].rolling(3, center=True, min_periods=1).mean()   # 3-window smoothing; the tails are noisy
-        ax.plot(g.centre, y, color=c, lw=2.8 if nm == "Stable" else 1.8, zorder=4 if nm == "Stable" else 3)
+        y = g["mean"].rolling(3, center=True, min_periods=1).mean()     # 3-window smoothing; the tails are noisy
+        ax.plot(g.centre, y, color=c, lw=2.4 if nm == "Stable" else 1.9, zorder=4 if nm == "Stable" else 3)
     ax.axvspan(-15, 15, color="#C9961F", alpha=0.13, lw=0, zorder=1)
     ax.set_xlim(-305, 305)
     ax.set_xlabel("Window position relative to the motif (bp)", fontsize=9.5)
