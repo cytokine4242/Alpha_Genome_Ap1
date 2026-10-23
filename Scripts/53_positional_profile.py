@@ -83,8 +83,8 @@ o = np.argsort(S_.p.values); r = np.empty(len(S_)); r[o] = np.arange(1, len(S_) 
 S_["fdr"] = np.minimum(S_.p.values * len(S_) / r, 1)
 S_.to_csv(OUT / "tables" / "core_vs_flank_by_class.csv", index=False)
 
-for metric, ylab, fname in (("loss", "Mean loss at that window (log2FC)", "s12_profile_absolute.png"),
-                            ("share", "Mean share of the site's total loss", "s12_profile_shape.png")):
+for metric, ylab, fname in (("loss", "Mean loss per window (log2FC)", "s12_profile_absolute.png"),
+                            ("share", "Mean share of the site's total", "s12_profile_shape.png")):
     fig, ax = plt.subplots(figsize=(7.8, 2.45))
     for nm, _col, _val, c in GROUPS:
         g = P[(P["class"] == nm) & (P.metric == metric)].sort_values("centre")
@@ -94,8 +94,8 @@ for metric, ylab, fname in (("loss", "Mean loss at that window (log2FC)", "s12_p
     ax.set_xlim(-305, 305)
     ax.set_xlabel("Window position relative to the motif (bp)", fontsize=9.5)
     ax.set_ylabel(ylab, fontsize=9.5)
-    fig.subplots_adjust(left=0.115, right=0.995, top=0.97, bottom=0.195)
-    fig.savefig(PAN / fname, facecolor=SURF)
+    fig.subplots_adjust(left=0.135, right=0.975, top=0.97, bottom=0.195)
+    fig.savefig(PAN / fname, facecolor=SURF, bbox_inches="tight")
     plt.close(fig)
 
 pd.set_option("display.width", 210)

@@ -11,7 +11,7 @@
   },
   {
    "title": "Spread along the element",
-   "subtitle": "SD of window position, weighted by loss"
+   "subtitle": "SD of window position, weighting each window by its share of the loss"
   }
  ],
  "rows": [

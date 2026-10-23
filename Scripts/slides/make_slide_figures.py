@@ -438,7 +438,7 @@ def dependence():
                       far_abs_170=SCF.total_dependence_170 * (1 - SCF.share_within_85_170))
     M = [("near_abs_170", "Dependence near the motif", "loss summed over windows within \u00b185 bp", "Summed loss within \u00b185 bp (log2)"),
          ("far_abs_170", "Dependence out in the context", "loss summed over windows beyond that", "Summed loss beyond \u00b185 bp (log2)"),
-         ("spread_170", "Spread along the element", "SD of window position, weighted by loss", "Spread of the loss (bp)")]
+         ("spread_170", "Spread along the element", "SD of window position, weighting each window by its share of the loss", "Spread of the loss (bp)")]
     d = S.join(SCF2[[m[0] for m in M]], how="inner")
     cols, panels, made, allps = [], [], [], []
     for ci, (col, title, sub, xlab) in enumerate(M):
