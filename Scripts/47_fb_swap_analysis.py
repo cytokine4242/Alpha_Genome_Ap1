@@ -97,8 +97,9 @@ def load(prefix):
 
 
 def lg(x):
-    """log2 with a floor, so a zero prediction cannot dominate."""
-    return np.log2(np.asarray(x, float).clip(min=1e-3))
+    """log2 with a floor, so a zero prediction cannot dominate. A Series keeps its index, so groupby and quantiles still work."""
+    v = np.log2(np.asarray(x, dtype=np.float64).clip(min=1e-3))
+    return pd.Series(v, index=x.index) if isinstance(x, pd.Series) else v
 
 
 def bh(p):
@@ -128,9 +129,10 @@ for w in WIDTHS:
     if len(d) < 20:
         continue
     y, x1, x2 = lg(d.atac_insert), lg(d.donor_native_atac_insert), lg(d.recipient_native_atac_insert)
-    X = np.column_stack([np.ones(len(d)), x1, x2])
+    X = np.column_stack([np.ones(len(d)), np.asarray(x1, np.float64), np.asarray(x2, np.float64)])
+    y = np.asarray(y, np.float64)
     coef, *_ = np.linalg.lstsq(X, y, rcond=None)
-    pred = X @ coef
+    pred = X.dot(coef)
     ss = 1 - ((y - pred) ** 2).sum() / ((y - y.mean()) ** 2).sum()
     rows.append({"width": w, "n_swaps": len(d), "intercept": coef[0], "beta_donor_sequence": coef[1],
                  "beta_recipient_location": coef[2], "r2": ss,
