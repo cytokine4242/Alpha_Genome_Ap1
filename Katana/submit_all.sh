@@ -7,6 +7,8 @@
 #   FT=1 bash submit_all.sh <mode>   the same experiment read with the fine-tuned 1 bp ATAC head: config_ft.json (config_ft_cm_only.json for scan/titrate),
 #                                    outputs in results_ft/ with the same file names, job names prefixed ft_. AG_FT_CHECKPOINT=<.delta.pth> overrides the head.
 #   FT=1 bash submit_all.sh ft_eval  native predictions of the fine-tuned head at every CM and FB site + equivalence check -> results_ft/eval_*  (do this first)
+#   FT=1 bash submit_all.sh fb_swap_all   fibroblast element swaps: every donor element into every recipient location (170 bp and peak widths,
+#                                         250 sites = 50 per binding class) + the same elements in quiet host windows -> results_ft/swap_fb_*, bg_fb_*
 #   bash submit_all.sh rerun_all     every experiment the analyses read: rerun_sites (phase1 + phase2 + controls + mpra_neutral) then rerun_dynamics (scan/titrate + rest); use with FT=1
 #   Extra experiments (cardiomyocyte sites unless noted; all resumable):
 #     controls       offset (matched-control) shuffles + width titration of the shuffle     -> results/controls_*   (61 passes/site)
@@ -89,6 +91,13 @@ p4_titrate_rest() { sub -J 0-39 -l walltime=02:00:00 -N ag_titrate_rest "EXPERIM
 p4_titrate()  { sub -J 0-39 -l walltime=02:00:00 -N ag_titrate_cm "EXPERIMENT=titrate,PREFIX=titrate_,NCHUNKS=40" pbs/15_scan_titrate.pbs; }
 p4_pilot()    { for e in scan titrate; do sub -m ae -l walltime=01:00:00 -N ag_${e}_pilot "EXPERIMENT=$e,PREFIX=pilot_${e}_,NCHUNKS=1,LIMIT=6" pbs/15_scan_titrate.pbs; done; }
 p3_mpran()    { sub -J 0-7 -N ag_mpra_neutral "NCHUNKS=8" pbs/14_mpra_neutral.pbs; }
+# fibroblast element swaps (250 sites, 50 per binding class): every donor element into every recipient location at 170 bp and peak width,
+# and the same elements into quiet host windows. Needs the fine-tuned head (FT=1) and, for the backgrounds, closed_backgrounds.csv.
+BG_FILE=${BG_FILE:-/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/closed_backgrounds.csv}
+p5_swap()     { sub -J 0-39 -N ag_fb_swap "EXPERIMENT=swap,PREFIX=swap_,NCHUNKS=40" pbs/18_fb_swap.pbs; }
+p5_bg()       { sub -J 0-7 -N ag_fb_bg "EXPERIMENT=background,PREFIX=bg_,NCHUNKS=8,BACKGROUNDS=$BG_FILE" pbs/18_fb_swap.pbs; }
+p5_pilot()    { sub -m ae -l walltime=01:00:00 -N ag_fb_swap_pilot "EXPERIMENT=swap,PREFIX=pilot_swap_,NCHUNKS=1,LIMIT=10" pbs/18_fb_swap.pbs
+                sub -m ae -l walltime=01:00:00 -N ag_fb_bg_pilot "EXPERIMENT=background,PREFIX=pilot_bg_,NCHUNKS=1,LIMIT=6,BACKGROUNDS=$BG_FILE" pbs/18_fb_swap.pbs; }
 p3_human()    { sub -J 0-4 -N ag_human_sens "PREFIX=human_,KINDS=shuffle,SITES=cm,NCHUNKS=5,LIMIT=100" pbs/11_perturb.pbs; }
 p3_context()  { for w in 16384 65536 262144; do sub -N ag_ctx_$w "PREFIX=ctx${w}_,KINDS=shuffle,SITES=cm,NCHUNKS=1,LIMIT=60,AG_WINDOW=$w" pbs/11_perturb.pbs; done; }
 
@@ -117,6 +126,10 @@ case "$1" in
   rerun_all)     bash "$0" rerun_sites && bash "$0" rerun_dynamics ;;   # two calls so each half gets its own config
   rerun_sites)   p1_cm; p1_fb; p1_other; p2_cm; p2_fb; p3_controls; p3_mpran ;;
   rerun_dynamics) p4_scan; p4_titrate; p4_scan_rest; p4_titrate_rest ;;
+  fb_swap)       p5_swap ;;
+  fb_background) p5_bg ;;
+  fb_swap_all)   p5_swap; p5_bg ;;
+  fb_swap_pilot) p5_pilot ;;
   scan)          p4_scan ;;
   titrate)       p4_titrate ;;
   dynamics)      p4_scan; p4_titrate ;;
@@ -136,5 +149,5 @@ case "$1" in
   phase2)        p2_cm; p2_fb ;;
   phase2_cm)     p2_cm ;;
   phase2_fb)     p2_fb ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|ft_eval|ft_eval_pilot|rerun_all|rerun_sites|rerun_dynamics|controls|satmut|scan|titrate|dynamics|dynamics_pilot|scan_rest|titrate_rest|dynamics_rest|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|ft_eval|ft_eval_pilot|fb_swap|fb_background|fb_swap_all|fb_swap_pilot|rerun_all|rerun_sites|rerun_dynamics|controls|satmut|scan|titrate|dynamics|dynamics_pilot|scan_rest|titrate_rest|dynamics_rest|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
 esac

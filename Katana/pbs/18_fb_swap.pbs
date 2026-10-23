@@ -1,0 +1,10 @@
+#!/bin/bash
+#PBS -N ag_fb_swap
+#PBS -l select=1:ncpus=6:mem=62gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+# Array job: qsub -J 0-N-1 -v EXPERIMENT=swap|background,NCHUNKS=N,PREFIX=... (see submit_all.sh). Fine-tuned fibroblast head (config_ft.json).
+source "$PBS_O_WORKDIR/pbs/common.sh"
+CHUNK=${PBS_ARRAY_INDEX:-0}
+python 18_fb_swap.py --experiment ${EXPERIMENT} --sites ${SITES_FILE:-../data/fb_swap_sites.csv} --out ../${RESULTS_DIR:-results_ft}/${PREFIX}fb \
+    --chunk $CHUNK --n-chunks ${NCHUNKS:-1} ${BACKGROUNDS:+--backgrounds $BACKGROUNDS} ${LIMIT:+--limit $LIMIT}
