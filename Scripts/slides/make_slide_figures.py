@@ -148,6 +148,13 @@ def class_dot_panel(ax, v, ylab, mode, minn=15):
     return ps
 
 
+TEST_KEY = ("grey line and band in the top row: the median of all Stable sites with its 95% bootstrap CI.   "
+            "grey dots in the bottom row: that class's own matched Stable controls.\n"
+            "stars test the class against that reference \u2014 top row Mann\u2013Whitney on all sites, bottom row paired "
+            "Wilcoxon on matched pairs \u2014 BH-corrected across all {n} tests on this figure.   "
+            "*** p < 0.001    ** p < 0.01    * p < 0.05    ns \u2265 0.05")
+
+
 def mark_fdr(axes, allps):
     """BH across every class-by-measure test on the figure, drawn in each panel's top margin."""
     flat = [(i, nm, p) for i, d in enumerate(allps) for nm, p in d.items()]
@@ -290,10 +297,10 @@ def matched_null():
                          fontsize=11, color=INK, linespacing=1.5)
     h = [axes[0, 0].plot([], [], "o", color=col, ms=9, label=nm)[0] for nm, _, _, col in GROUPS]
     h.append(axes[0, 0].plot([], [], "o", color=CTRL_GREY, ms=9, label="Stable (all, or matched controls)")[0])
-    fig.subplots_adjust(left=0.115, right=0.99, top=0.855, bottom=0.165, wspace=0.34, hspace=0.26)
-    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.5, 0.005))
-    fig.text(0.55, 0.055, "stars are BH-corrected across all 40 class-by-edit tests on this figure",
-             ha="center", fontsize=10.5, color=MUTED)
+    fig.subplots_adjust(left=0.115, right=0.99, top=0.875, bottom=0.265, wspace=0.34, hspace=0.26)
+    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.5, 0.008))
+    fig.text(0.55, 0.145, TEST_KEY.format(n=sum(len(d) for d in allps)), ha="center", va="top",
+             fontsize=10, color=MUTED, linespacing=1.6)
     save(fig, "s2_matched_null")
 
 
@@ -329,10 +336,10 @@ def dependence():
                          fontsize=11, color=INK, linespacing=1.5)
     h = [axes[0, 0].plot([], [], "o", color=col, ms=9, label=nm)[0] for nm, _, _, col in GROUPS]
     h.append(axes[0, 0].plot([], [], "o", color=CTRL_GREY, ms=9, label="Stable (all, or matched controls)")[0])
-    fig.subplots_adjust(left=0.125, right=0.99, top=0.84, bottom=0.165, wspace=0.33, hspace=0.30)
-    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.5, 0.005))
-    fig.text(0.56, 0.055, "stars are BH-corrected across all 30 class-by-measure tests on this figure",
-             ha="center", fontsize=10.5, color=MUTED)
+    fig.subplots_adjust(left=0.125, right=0.99, top=0.86, bottom=0.265, wspace=0.33, hspace=0.30)
+    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.5, 0.008))
+    fig.text(0.56, 0.145, TEST_KEY.format(n=sum(len(d) for d in allps)), ha="center", va="top",
+             fontsize=10, color=MUTED, linespacing=1.6)
     save(fig, "s3_dependence")
 
 
