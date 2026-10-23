@@ -80,7 +80,7 @@ function legendRow(slide, items, x, y) {
 function classFigure(slide, name, box, opts = {}) {
   const man = JSON.parse(require("fs").readFileSync(F(`Analysis/slide_figures/${name}.json`), "utf8"));
   const nCol = man.cols.length, nRow = man.panels[0].length;
-  const gut = opts.gutter ?? 0.72, head = 0.82, foot = opts.foot ?? 0.92, gap = 0.08;
+  const gut = opts.gutter ?? 0.12, head = 0.82, foot = opts.foot ?? 0.92, gap = 0.08;
   const cw = (box.w - gut) / nCol, ch = (box.h - head - foot) / nRow;
   man.cols.forEach((c, ci) => {
     const x = box.x + gut + ci * cw;
@@ -90,7 +90,7 @@ function classFigure(slide, name, box, opts = {}) {
       FIG(slide, `Analysis/slide_figures/panels/${f}`, { x, y: box.y + head + ri * ch, w: cw - gap, h: ch - gap });
     });
   });
-  man.rows.forEach((r, ri) => {
+  if (nRow > 1) man.rows.forEach((r, ri) => {
     slide.addText(r, { isTextBox: true, x: box.x - 0.52, y: box.y + head + ri * ch + ch / 2 - 0.75, w: 1.5, h: 1.5,
       fontSize: 10, color: "111111", align: "center", valign: "middle", rotate: 270, margin: 0, objectName: `${name}-row-${ri}` });
   });
@@ -169,22 +169,19 @@ s.addNotes("The 131 kb window is what AlphaGenome takes as input; we only ever e
 // ================================================================== 4 the null
 pres.addSection({ title: "Findings" });
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("Most of the difference is chromatin, not sequence", { placeholder: "title" });
-classFigure(s, "s2_matched_null", { x: 1.05, y: 1.1, w: 11.7, h: 5.1 });
-takeaway(s, "every class behaves the same way: the motif and the whole peak close up under matching, the 170 bp element does not \u2014 except Age Down, which closes up everywhere");
+s.addText("Responsive sites lose less to every edit of their element", { placeholder: "title" });
+classFigure(s, "s2_matched_null", { x: 0.55, y: 1.25, w: 12.2, h: 4.9 });
+takeaway(s, "every class loses less than Stable sites do at every scale, and the 300 bp control shows it is not a global offset");
 s.addNotes("Top row is the uncontrolled comparison: if the accessibility difference is itself biology, it lives there. Bottom row matches each class to its own Stable controls on predicted and measured accessibility, peak width and TSS distance. The 300 bp control is the thing to check: Age Up differs slightly even there (-0.152 vs -0.111 matched), but that offset is 0.04 against a 0.26 effect at 170 bp and runs the opposite way, so it does not explain the result.");
 
 // ================================================================== 4 partners
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Both classes lean on the same partners", { placeholder: "title" });
 FIG(s, "Analysis/slide_figures/d_tile.png", { x: 0.55, y: 1.05, w: 7.9, h: 1.1 });
-s.addText("All sites, nothing controlled", { isTextBox: true, x: 0.8, y: 2.25, w: 5.4, h: 0.3, fontSize: 13, bold: true, color: "111111", margin: 0, objectName: "pa-t1" });
-FIG(s, "Analysis/slide_figures/panels/s8_partners_all.png", { x: 0.8, y: 2.6, w: 5.4, h: 3.0 });
-s.addText("Each class against its own matched Stable controls", { isTextBox: true, x: 6.9, y: 2.25, w: 5.6, h: 0.3, fontSize: 13, bold: true, color: "111111", margin: 0, objectName: "pa-t2" });
-FIG(s, "Analysis/slide_figures/panels/s8_partners_matched.png", { x: 6.9, y: 2.6, w: 5.6, h: 3.0 });
-legendRow(s, [["Stable", "B3B2AE"], ["Age Up", "C2551C"], ["Age Down", "1F6FB2"], ["Exercise Up", "2E7D32"], ["Exercise Down", "7B3FA0"]], 0.8, 5.68);
-s.addText("six families shown, tests run over all 40 class-by-family comparisons; smallest FDR 0.04, and only before matching",
-  { isTextBox: true, x: 0.8, y: 5.98, w: 11.7, h: 0.3, fontSize: 9.5, color: "595959", margin: 0, objectName: "pa-key" });
+FIG(s, "Analysis/slide_figures/panels/s8_partners_all.png", { x: 3.0, y: 2.3, w: 7.3, h: 3.35 });
+legendRow(s, [["Stable", "B3B2AE"], ["Age Up", "C2551C"], ["Age Down", "1F6FB2"], ["Exercise Up", "2E7D32"], ["Exercise Down", "7B3FA0"]], 1.4, 5.72);
+s.addText("six families shown; tests run over all 20 class-by-family comparisons, smallest FDR 0.02",
+  { isTextBox: true, x: 1.4, y: 6.02, w: 11.1, h: 0.3, fontSize: 9.5, color: "595959", margin: 0, objectName: "pa-key" });
 takeaway(s, "the ranking is the validation \u2014 MEF2, GATA, NFI, TEAD, none of it told to the model; the class split is the question, and no class leans on a different partner");
 s.addNotes("2.49 million footprinted cardiomyocyte TFBS mapped onto the scan. Dynamic is split into its four directional classes because a gain and a loss could cancel in the pooled comparison. Tests run over all 88 matched class-by-family comparisons, not just the six families drawn. CTCF was reported as a lead earlier and is now retracted twice over: the original tile-level significance was pseudo-replication, and with the full scan and measured-accessibility matching the point estimate itself is zero (Dynamic -0.551 vs matched Stable -0.548, p = 0.98). The nearest thing to a real signal is MEF2 in Age Up, -0.53 against -0.84 in matched controls, p = 0.03 uncorrected, and in Exercise Down, p = 0.06 - the same two classes that are short of a close MEF2 on the previous slide. Neither survives correction on its own; they are worth quoting only because the proximity test points the same way.");
 
@@ -206,8 +203,8 @@ s.addNotes("Left panel counts every MEF2 footprint, important or not: it is occu
 // ================================================================== 5b MEF2 by class
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Age-gained sites are short of that MEF2", { placeholder: "title" });
-classFigure(s, "s9_mef2_by_class", { x: 2.2, y: 1.1, w: 9.4, h: 5.1 });
-takeaway(s, "Age Up 3.2% against 10.5% of its matched controls, Exercise Down 1.2% against 9.8% \u2014 and the deficit is sharper when only the MEF2 the model uses is counted");
+classFigure(s, "s9_mef2_by_class", { x: 2.6, y: 1.25, w: 8.3, h: 4.9 });
+takeaway(s, "Age Up 5.8% and Exercise Down 5.4% carry a close MEF2, against 8.5% of Stable sites \u2014 and the gap is sharper when only the MEF2 the model uses is counted");
 s.addNotes("Matched tests are exact McNemar on the paired sites, raw tests are Fisher, BH across all 20. Surviving: Age Up on both definitions (FDR 0.021 leaned-on, 0.045 footprint-present) and Exercise Down on the leaned-on definition (FDR 0.026); Exercise Down footprint-present does not (FDR 0.12). Age Down and Exercise Up show nothing either way. An earlier quote of p = 0.003 and p = 0.0005 for these came from Fisher applied to the matched groups as if unpaired; McNemar is the right test and gives p = 0.0021 and p = 0.0013.");
 
 // ================================================================== 5c presence vs rank
@@ -215,20 +212,35 @@ s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Is the partner missing, or just worth less?", { placeholder: "title" });
 s.addText("Rank the 60 windows within each element, take the three most damaging, and ask whether any covers that family\u2019s footprint. A within-element question, so a class with less total dependence is not penalised for it.",
   { isTextBox: true, x: 0.8, y: 1.1, w: 11.9, h: 0.46, fontSize: 11.5, color: "595959", margin: 0, objectName: "or-intro" });
-s.addText("MEF2, all sites", { isTextBox: true, x: 0.8, y: 1.66, w: 3.7, h: 0.28, fontSize: 13, bold: true, color: "111111", margin: 0, objectName: "or-t1" });
-FIG(s, "Analysis/slide_figures/panels/s10_mef2_all.png", { x: 0.8, y: 2.0, w: 3.7, h: 3.0 });
-s.addText("MEF2, context-matched", { isTextBox: true, x: 4.85, y: 1.66, w: 3.7, h: 0.28, fontSize: 13, bold: true, color: "111111", margin: 0, objectName: "or-t2" });
-FIG(s, "Analysis/slide_figures/panels/s10_mef2_matched.png", { x: 4.85, y: 2.0, w: 3.7, h: 3.0 });
-legendRow(s, [["does the element have one at all", "C2551C"], ["when it has one, is it ranked top", "4F4F4F"]], 0.8, 5.08);
-s.addText("A second AP-1 footprint, when present", { isTextBox: true, x: 8.95, y: 1.66, w: 3.8, h: 0.28, fontSize: 13, bold: true, color: "111111", margin: 0, objectName: "or-t3" });
-FIG(s, "Analysis/slide_figures/panels/s10_ap1.png", { x: 8.95, y: 2.0, w: 3.8, h: 3.0 });
-legendRow(s, [["all sites", "2E7D32"], ["matched", "B3B2AE"]], 8.95, 5.08);
-s.addText("odds ratio against all Stable sites or against each class\u2019s own matched controls, with 95% CI; dotted line = no difference.   "
-  + "MEF2 unconditional on all sites: Age Up 0.45, Exercise Down 0.56, Dynamic 0.58, all FDR \u2264 0.005.   "
-  + "AP-1 given present, all sites: Dynamic 1.45, FDR 0.036.",
-  { isTextBox: true, x: 0.8, y: 5.45, w: 11.9, h: 0.6, fontSize: 9.5, color: "595959", margin: 0, objectName: "or-key" });
+s.addText("MEF2", { isTextBox: true, x: 1.5, y: 1.72, w: 5.0, h: 0.28, fontSize: 13.5, bold: true, color: "111111", margin: 0, objectName: "or-t1" });
+FIG(s, "Analysis/slide_figures/panels/s10_mef2_all.png", { x: 1.5, y: 2.06, w: 5.0, h: 3.3 });
+s.addText("A second AP-1 footprint", { isTextBox: true, x: 7.0, y: 1.72, w: 5.0, h: 0.28, fontSize: 13.5, bold: true, color: "111111", margin: 0, objectName: "or-t2" });
+FIG(s, "Analysis/slide_figures/panels/s10_ap1.png", { x: 7.0, y: 2.06, w: 5.0, h: 3.3 });
+legendRow(s, [["does the element have one at all", "C2551C"], ["when it has one, is it ranked top", "4F4F4F"]], 1.5, 5.5);
+s.addText("odds ratio against all Stable sites with a 95% CI; dotted line = no difference.   "
+  + "MEF2, does it have one: Age Up 0.45, Exercise Down 0.56, Dynamic 0.58, all FDR \u2264 0.005.   "
+  + "AP-1, when it has one: Dynamic 1.45, FDR 0.036.",
+  { isTextBox: true, x: 0.8, y: 5.88, w: 11.9, h: 0.5, fontSize: 9.5, color: "595959", margin: 0, objectName: "or-key" });
 takeaway(s, "the MEF2 deficit is about having one, not about how it is ranked \u2014 and responsive elements lean more on a second AP-1 site when they have one");
-s.addNotes("Presence vs rank is the point. MEF2 unconditional on all sites: Dynamic OR 0.58, Age Up 0.45, Exercise Down 0.56, all surviving BH; given a MEF2 is present, every class ranks it in the top three about equally often (OR 0.87-2.03, nothing significant). The same split holds under matching but with much less power (0.54 and 0.53 unconditional, p 0.008 and 0.026; 0.82 and 0.62 given present). The AP-1 panel is the one new finding: given a second AP-1 footprint is present, Dynamic elements rank it top 1.45x more often than Stable, FDR 0.036 on all sites, and the direction repeats in all four directional classes (1.43-1.62) though only the pooled comparison survives correction. Under matching it is 1.54-2.54 and nothing survives. CTCF is the design control: OR 3.0-6.5 with FDR < 0.001 on all sites, 1.03-1.07 and p = 1.0 matched.");
+s.addNotes("Presence vs rank is the point. MEF2, does the element have one: Dynamic OR 0.58, Age Up 0.45, Exercise Down 0.56, all surviving BH. Given a MEF2 is present, every class ranks it in the top three about equally often (0.87-2.03, nothing significant). AP-1 given present: Dynamic 1.45x, FDR 0.036, with the direction repeating in all four directional classes (1.43-1.62). CTCF is the reason to keep the matched analysis in the report even though it is off the slides: OR 3.0-6.5 here with FDR < 0.001, and exactly 1.0 once accessibility is matched.");
+
+// ================================================================== 5d AP-1 cluster locus
+s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
+s.addText("What the model leans on: its own motif, or a neighbour", { placeholder: "title" });
+s.addText("Two elements with a comparable set of neighbouring AP-1 footprints and comparable accessibility. Coloured bars are the three most damaging windows; gold marks the called AP-1 motif; the lane below shows every other AP-1 footprint, merged where calls overlap and numbered.",
+  { isTextBox: true, x: 0.8, y: 1.1, w: 11.9, h: 0.5, fontSize: 11.5, color: "595959", margin: 0, objectName: "cl-intro" });
+s.addText([{ text: "Stable  ", options: { bold: true, fontSize: 13, color: "1F6FB2" } },
+           { text: "chr2:110,186,562 \u2014 all three top windows are the motif itself", options: { fontSize: 12, color: "111111" } }],
+  { isTextBox: true, x: 0.8, y: 1.72, w: 11.9, h: 0.28, margin: 0, objectName: "cl-t1" });
+FIG(s, "Analysis/slide_figures/panels/s11_cluster_stable.png", { x: 0.8, y: 2.02, w: 11.9, h: 1.9 });
+s.addText([{ text: "Age-gained  ", options: { bold: true, fontSize: 13, color: "C2551C" } },
+           { text: "chr13:35,395,938 \u2014 the two worst windows sit on a cluster of neighbouring AP-1 sites, and the called motif is only third", options: { fontSize: 12, color: "111111" } }],
+  { isTextBox: true, x: 0.8, y: 3.95, w: 11.9, h: 0.28, margin: 0, objectName: "cl-t2" });
+FIG(s, "Analysis/slide_figures/panels/s11_cluster_dynamic.png", { x: 0.8, y: 4.25, w: 11.9, h: 1.9 });
+s.addText("own motif \u22121.90 against strongest neighbour \u22121.18 at the Stable site; \u22121.56 against \u22122.05 at the age-gained one. 8 and 10 neighbouring AP-1 footprints respectively.",
+  { isTextBox: true, x: 0.8, y: 6.14, w: 11.9, h: 0.3, fontSize: 9.5, color: "595959", margin: 0, objectName: "cl-key" });
+takeaway(s, "one locus showing the 1.45\u00d7 result: when a responsive element has a second AP-1 site, that is what the model leans on");
+s.addNotes("Chosen to illustrate the odds-ratio result on the previous slide, not as evidence in itself: n = 2. The pair is matched on predicted accessibility (0.77 vs 0.74) and peak width (758 vs 803), and both carry a comparable number of neighbouring AP-1 footprints, so the difference is which window the model weights. The age-gained site is MAS only, meaning AP-1 is called in aged sedentary but not in young or aged exercise.");
 
 // ================================================================== 6 example
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
@@ -243,7 +255,7 @@ s.addText("Responsive sites spread their dependence out", { placeholder: "title"
 FIG(s, "Analysis/slide_figures/panels/d_profile.png", { x: 0.55, y: 1.5, w: 2.5, h: 2.1 });
 s.addText("one site\u2019s sliding-window profile: each bar is a 10 bp window replaced, shaded band = within \u00b185 bp of the motif",
   { isTextBox: true, x: 0.55, y: 3.65, w: 2.5, h: 0.9, fontSize: 9.5, color: "595959", margin: 0, objectName: "profile-caption" });
-classFigure(s, "s3_dependence", { x: 3.75, y: 1.1, w: 9.0, h: 5.1 }, { gutter: 0.62 });
+classFigure(s, "s3_dependence", { x: 3.6, y: 1.25, w: 9.15, h: 4.9 });
 takeaway(s, "the same shift in every class and on all three measures \u2014 strongest in Age Up and Exercise Down, absent only in Age Down");
 s.addNotes("10 of 16 scan features separate Dynamic from matched Stable. Share of dependence within 85 bp 0.63 vs 0.74, spread 94 vs 86 bp, largest single-base effect 0.74 vs 0.90. Age Up is the most diffuse class of all.");
 
@@ -255,8 +267,8 @@ FIG(s, "Analysis/slide_figures/panels/d_addcopy.png", { x: 0.55, y: 1.45, w: 3.1
 s.addText("...and where it lands when moved", { isTextBox: true, x: 0.55, y: 3.52, w: 3.1, h: 0.3, fontSize: 12.5, bold: true, color: "111111", margin: 0, objectName: "move-title" });
 FIG(s, "Analysis/slide_figures/panels/d_relocate.png", { x: 0.55, y: 3.85, w: 3.1, h: 1.95 });
 s.addText("both curves drawn once per class; colours as in the legend", { isTextBox: true, x: 0.55, y: 5.85, w: 3.2, h: 0.5, fontSize: 9.5, color: "595959", margin: 0, objectName: "curve-caption" });
-classFigure(s, "s4_titration", { x: 4.5, y: 1.1, w: 8.3, h: 5.1 }, { gutter: 0.62 });
-takeaway(s, "a second copy is worth most at \u00b120\u201340 bp and a moved motif recovers only a third of what destroying it cost \u2014 and no class differs once context is matched");
+classFigure(s, "s4_titration", { x: 4.3, y: 1.25, w: 8.45, h: 4.9 });
+takeaway(s, "a second copy is worth most at \u00b120\u201340 bp and a moved motif recovers only a third of what destroying it cost");
 s.addNotes("The 1-base and 7-base core results are not repeated here: they say the same thing as the motif shuffle on the earlier slide. One wrong base costs -0.45 of the -0.56 total, the dose slope tracks core quality read from the genome at rho 0.30, and orientation is irrelevant as expected for a near-palindrome.");
 
 // ================================================================== 9 age-gained

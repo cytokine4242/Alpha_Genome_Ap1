@@ -1,4 +1,4 @@
 {
- "n_tests": 40,
- "min_fdr": 0.037
+ "n_tests": 20,
+ "min_fdr": 0.019
 }

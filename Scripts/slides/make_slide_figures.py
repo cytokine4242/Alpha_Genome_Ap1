@@ -108,13 +108,11 @@ def class_pairs(nm):
     return _PAIRS[nm]
 
 
-KEY_DOT = ("grey line and band (top row): all Stable sites, median with 95% bootstrap CI.   "
-           "grey dots (bottom row): that class's own matched Stable controls.   "
-           "Stars test the class against that reference \u2014 Mann\u2013Whitney on all sites, paired Wilcoxon on matched pairs "
-           "\u2014 BH across all {n} tests.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05")
-KEY_PROP = ("grey line and band (top row): all Stable sites with a 95% bootstrap CI.   grey dots (bottom row): "
-            "that class's own matched controls.   Fisher on all sites, exact McNemar on matched pairs, BH across all {n} tests.   "
-            "*** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05")
+KEY_DOT = ("grey line and band: all 2,907 Stable sites, median with a 95% bootstrap CI.   "
+           "Each class is every site carrying that call, tested against that reference by Mann\u2013Whitney, "
+           "BH across all {n} tests on this figure.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05")
+KEY_PROP = ("grey line and band: all 2,907 Stable sites with a 95% bootstrap CI.   Fisher's exact test against that "
+            "reference, BH across all {n} tests on this figure.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05")
 
 
 PAN = OUT / "panels"
@@ -125,12 +123,13 @@ def emit_class_figure(name, measures, panel_fn, test_note):
     """Emit one bare PNG per measure x mode plus a JSON manifest. Nothing but axes, ticks, axis labels and the
     significance marks goes in the image; every title, legend and caption is left for the slide to place as real text,
     so a wording change never means regenerating a figure."""
+    MODES = ("all",)                      # accessibility is part of the biology, so the deck shows the uncontrolled view
     cols, panels, made, allps = [], [], [], []
     for ci, (v, title, sub, ylab) in enumerate(measures):
         cols.append({"title": title, "subtitle": sub})
         rowfiles = []
-        for ri, mode in enumerate(("all", "matched")):
-            fig, ax = plt.subplots(figsize=(3.7, 2.35))
+        for ri, mode in enumerate(MODES):
+            fig, ax = plt.subplots(figsize=(3.3, 3.0))
             allps.append(panel_fn(ax, v, ylab, mode))
             f = f"{name}_c{ci}_r{ri}.png"
             made.append((fig, ax, f))
@@ -142,9 +141,9 @@ def emit_class_figure(name, measures, panel_fn, test_note):
         fig.savefig(PAN / f, facecolor=SURF)
         plt.close(fig)
     man = {"name": name, "cols": cols,
-           "rows": ["all sites, nothing controlled", "each class against its own matched Stable controls"],
+           "rows": ["every site of that class against all Stable sites"],
            "panels": panels,
-           "legend": [[nm, col] for nm, _, _, col in GROUPS] + [["Stable (all, or matched controls)", CTRL_GREY]],
+           "legend": [[nm, col] for nm, _, _, col in GROUPS] + [["Stable (all 2,907 sites)", CTRL_GREY]],
            "key": test_note.format(n=sum(len(d) for d in allps))}
     (OUT / f"{name}.json").write_text(json.dumps(man, indent=1))
     print("  wrote", name, f"({sum(len(r) for r in panels)} panels)")
@@ -559,7 +558,7 @@ def partners():
     matched = {nm: class_pairs(nm) for nm, _, _, _ in GROUPS if nm != "Dynamic (all)"}
     pooled_ctrl = set().union(*[set(P.control) for P in matched.values()])
     tests = []
-    for mode, fname in (("all", "s8_partners_all.png"), ("matched", "s8_partners_matched.png")):
+    for mode, fname in (("all", "s8_partners_all.png"),):
         fig, ax = plt.subplots(figsize=(5.0, 3.6))
         ys = np.arange(len(FAM))[::-1]
         lim = 0.0
@@ -641,15 +640,15 @@ def top_tile_odds():
         fig.savefig(PAN / fname, facecolor=SURF, bbox_inches="tight")
         plt.close(fig)
 
-    for mode, tag in (("all sites", "all"), ("matched", "matched")):
+    for mode, tag in (("all sites", "all"),):
         forest(f"s10_mef2_{tag}.png",
                [({"family": "MEF2", "mode": mode, "conditioning": "unconditional"}, ORANGE, -0.17),
                 ({"family": "MEF2", "mode": mode, "conditioning": "given present"}, STABLE_GREY, 0.17)],
                (0.18, 6.0))
     forest("s10_ap1.png",
-           [({"family": "AP-1 (Fos/Jun/Atf/Batf)", "mode": "all sites", "conditioning": "given present"}, GREEN_D, -0.17),
-            ({"family": "AP-1 (Fos/Jun/Atf/Batf)", "mode": "matched", "conditioning": "given present"}, CTRL_GREY, 0.17)],
-           (0.45, 5.0))
+           [({"family": "AP-1 (Fos/Jun/Atf/Batf)", "mode": "all sites", "conditioning": "unconditional"}, ORANGE, -0.17),
+            ({"family": "AP-1 (Fos/Jun/Atf/Batf)", "mode": "all sites", "conditioning": "given present"}, STABLE_GREY, 0.17)],
+           (0.45, 3.2))
     print("  wrote s10 odds panels")
 
 

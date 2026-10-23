@@ -19,25 +19,20 @@
   }
  ],
  "rows": [
-  "all sites, nothing controlled",
-  "each class against its own matched Stable controls"
+  "every site of that class against all Stable sites"
  ],
  "panels": [
   [
-   "s3_dependence_c0_r0.png",
-   "s3_dependence_c0_r1.png"
+   "s3_dependence_c0_r0.png"
   ],
   [
-   "s3_dependence_c1_r0.png",
-   "s3_dependence_c1_r1.png"
+   "s3_dependence_c1_r0.png"
   ],
   [
-   "s3_dependence_c2_r0.png",
-   "s3_dependence_c2_r1.png"
+   "s3_dependence_c2_r0.png"
   ],
   [
-   "s3_dependence_c3_r0.png",
-   "s3_dependence_c3_r1.png"
+   "s3_dependence_c3_r0.png"
   ]
  ],
  "legend": [
@@ -62,9 +57,9 @@
    "#7B3FA0"
   ],
   [
-   "Stable (all, or matched controls)",
+   "Stable (all 2,907 sites)",
    "#B3B2AE"
   ]
  ],
- "key": "grey line and band (top row): all Stable sites, median with 95% bootstrap CI.   grey dots (bottom row): that class's own matched Stable controls.   Stars test the class against that reference \u2014 Mann\u2013Whitney on all sites, paired Wilcoxon on matched pairs \u2014 BH across all 40 tests.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05"
+ "key": "grey line and band: all 2,907 Stable sites, median with a 95% bootstrap CI.   Each class is every site carrying that call, tested against that reference by Mann\u2013Whitney, BH across all 20 tests on this figure.   *** p<0.001   ** p<0.01   * p<0.05   ns \u2265 0.05"
 }
