@@ -30,12 +30,18 @@ plt.rcParams.update({"font.size": 10, "axes.facecolor": SURF, "figure.facecolor"
                      "axes.labelcolor": INK, "text.color": INK, "xtick.color": MUTED, "ytick.color": MUTED,
                      "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True, "grid.color": GRID,
                      "grid.linewidth": 0.6, "axes.axisbelow": True, "savefig.dpi": 300})
+# every named family is shown; only the two catch-all bins are dropped, so the lane is the real footprint density
+DROP = {"Other", "Zinc finger, other"}
 FCOL = {"MEF2": "#C0392B", "GATA": "#8E44AD", "NFI (Nfia/b/c/x)": "#16A085", "TEAD": "#D68910",
         "NKX / homeobox cardiac": "#2980B9", "TBX": "#7F8C8D", "CTCF / cohesin": "#2C3E50",
-        "SRF / MADS": "#E67E22", "AP-1 (Fos/Jun/Atf/Batf)": "#555555", "RUNX": "#95A5A6",
-        "ETS": "#95A5A6", "KLF / SP": "#95A5A6"}
+        "SRF / MADS": "#E67E22", "AP-1 (Fos/Jun/Atf/Batf)": "#555555", "RUNX": "#8E6E53",
+        "ETS": "#B9770E", "KLF / SP": "#7D6608", "MYC / MAX": "#117A65", "NF-kB / Rel": "#A04000",
+        "E-box bHLH (Myod/Tcf/Neuro)": "#5B2C6F", "STAT / IRF": "#1A5276", "SOX": "#148F77",
+        "FOX": "#7E5109", "RFX": "#4A235A", "NFAT": "#873600", "Smad / Tgfb": "#196F3D",
+        "TALE homeodomain (Meis/Pknox/Tgif/Pbx)": "#633974", "Nuclear receptor (Esrr/Nr/Ppar/Thr)": "#145A32",
+        "Heat shock / stress": "#6E2C00", "CEBP": "#512E5F", "YY / Gli / Pax": "#154360"}
 ap = argparse.ArgumentParser()
-ap.add_argument("--site", default="chr14-77485003-77485014")
+ap.add_argument("--site", default="chr2-167698004-167698015")
 a = ap.parse_args()
 
 sc = pd.concat([pd.read_csv(f, usecols=["site_id", "kind", "pos", "atac_170", "trackset"])
@@ -50,8 +56,16 @@ w["eff"] = np.log2((w.atac_170 + pc) / (nat + pc))
 w = w.groupby("pos", as_index=False).eff.mean()
 w["centre"] = w.pos + 5
 FP = pd.read_csv(ROOT / "Analysis/partners/tables/footprints_near_sites.csv")
-fp = FP[(FP.site_id == a.site) & (~FP.own_ap1) & (FP.family.isin(FCOL)) &
+fp = FP[(FP.site_id == a.site) & (~FP.own_ap1) & (~FP.family.isin(DROP)) &
         (((FP.rel_start + FP.rel_end) / 2).abs() < 290)].copy()
+merged = []                                                     # overlapping calls of one family are one footprint
+for fam, g in fp.groupby("family"):
+    for st, en in sorted(zip(g.rel_start, g.rel_end)):
+        if merged and merged[-1][0] == fam and st <= merged[-1][2] + 4:
+            merged[-1] = (fam, merged[-1][1], max(merged[-1][2], en), merged[-1][3] + 1)
+        else:
+            merged.append((fam, st, en, 1))
+fp = pd.DataFrame(merged, columns=["family", "rel_start", "rel_end", "n_calls"])
 
 fig, (ax, axf) = plt.subplots(2, 1, figsize=(12.0, 3.5), sharex=True,
                               gridspec_kw={"height_ratios": [2.7, 1.6], "hspace": 0.0})
@@ -69,7 +83,7 @@ ax.tick_params(labelbottom=False)
 RAILY, ROW = 0.0, 0.30
 label_rows: list[float] = []
 for r in fp.sort_values(["rel_start", "rel_end"]).itertuples():
-    nm = r.family.split(" (")[0].split(" /")[0]
+    nm = r.family.split(" (")[0].split(" /")[0] + (f" \u00d7{r.n_calls}" if r.n_calls > 1 else "")
     cx = (r.rel_start + r.rel_end) / 2
     half = 3.9 * len(nm)                                        # half the label's width in bp at this scale
     k = next((i for i, end in enumerate(label_rows) if cx - half > end + 8), len(label_rows))
@@ -99,4 +113,4 @@ fig.subplots_adjust(left=0.088, right=0.995, top=0.985, bottom=0.155)
 fig.savefig(PAN / "s11_method_locus.png", facecolor=SURF)
 plt.close(fig)
 print(f"{a.site}: {len(w)} windows, motif window {w.eff[on_motif].min():+.2f}, "
-      f"{len(fp)} footprints of {fp.family.nunique()} families, widths {fp.rel_end.sub(fp.rel_start).min()}-{fp.rel_end.sub(fp.rel_start).max()} bp")
+      f"{len(fp)} merged footprints of {fp.family.nunique()} families")

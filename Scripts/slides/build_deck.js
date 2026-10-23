@@ -183,10 +183,10 @@ s.addText("The same thing at one real element", { placeholder: "title" });
 s.addText("Every 10 bp window from \u2212300 to +300 bp is replaced by random bases in turn, three times, and the bar is what the prediction loses over the surrounding 170 bp. Gold is the called AP-1 motif. The lane below is every other footprinted motif TOBIAS calls in this element, which is what the windows are read against.",
   { isTextBox: true, x: 0.8, y: 1.12, w: 11.9, h: 0.52, fontSize: 11.5, color: "595959", margin: 0, objectName: "ml-intro" });
 FIG(s, "Analysis/slide_figures/panels/s11_method_locus.png", { x: 0.55, y: 1.9, w: 12.2, h: 3.5 });
-s.addText("chr14:77,485,003 \u00b7 a Stable cardiomyocyte AP-1 site \u00b7 the motif window costs \u22121.71, the deepest of the 60",
+s.addText("chr2:167,698,004 \u00b7 the motif window costs \u22120.56 against a median of \u22120.66 across all 3,678 sites, and the deepest window is a neighbour \u2014 as it is at 69% of sites",
   { isTextBox: true, x: 0.8, y: 5.55, w: 11.9, h: 0.3, fontSize: 10.5, color: "111111", margin: 0, objectName: "ml-cap" });
-takeaway(s, "one element, 60 windows, five footprinted families \u2014 everything that follows is this, repeated over 3,678 sites");
-s.addNotes("A demonstration, not a result: this element was chosen for legibility, not because it is typical. The footprint lane is what lets a window be attributed to a factor; families are stacked into lanes only where their footprints would otherwise overlap. The same scan is also read over the 11 bp motif and over the whole peak, and the titration and single-base experiments run on the same 3,678 sites.");
+takeaway(s, "the motif is one window among sixty, and usually not the deepest \u2014 everything that follows is this, repeated over 3,678 sites");
+s.addNotes("A demonstration, not a result, but chosen to be typical rather than striking: the motif window, the total dependence and the deepest-neighbour pattern all sit near the median. An earlier version used a site in the top 8% for motif depth, which made the motif look far more dominant than it is. The footprint lane is every named family TOBIAS calls here, with overlapping calls of one family merged and counted; only the two catch-all bins (Other, Zinc finger other) are dropped. The same scan is also read over the 11 bp motif and over the whole peak, and the titration and single-base experiments run on the same 3,678 sites.");
 
 pres.addSection({ title: "Findings" });
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
