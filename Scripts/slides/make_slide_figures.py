@@ -27,6 +27,7 @@ rng = np.random.default_rng(50)
 INK, MUTED, SURF, GRID = "#0b0b0b", "#52514e", "#ffffff", "#e4e3df"
 BLUE, ORANGE, GREY, GREEN = "#1F6FB2", "#C2551C", "#9a9993", "#1baf7a"
 STABLE_GREY, GREEN_D, PURPLE_D = "#4F4F4F", "#2E7D32", "#7B3FA0"
+CTRL_GREY = "#B3B2AE"          # the matched controls sit behind the classes, so they are the lighter mark
 plt.rcParams.update({"font.size": 12.5, "axes.facecolor": SURF, "figure.facecolor": SURF, "axes.edgecolor": MUTED, "axes.labelcolor": INK,
                      "text.color": INK, "xtick.color": MUTED, "ytick.color": MUTED, "axes.spines.top": False, "axes.spines.right": False,
                      "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.7, "axes.axisbelow": True,
@@ -86,6 +87,81 @@ def eyebrow(ax, x, y, text):
 
 
 SEQ, RAIL = "#d8d7d2", "#3f3e3b"
+
+# ---------------------------------------------------------------- the five classes, and one matched control set each
+GROUPS = [("Dynamic (all)", "stable_dynamic", "Dynamic", "#4F4F4F"), ("Age Up", "age_class", "Age Up", ORANGE),
+          ("Age Down", "age_class", "Age Down", BLUE), ("Exercise Up", "ex_class", "Exercise Up", GREEN_D),
+          ("Exercise Down", "ex_class", "Exercise Down", PURPLE_D)]
+_STABLE = set(S.index[S.stable_dynamic == "Stable"])
+_PAIRS = {}
+
+
+def class_pairs(nm):
+    """Each class matched to Stable on its own, so a gain and a loss can never cancel and every class gets
+    controls it could actually be paired with. Cached: the matching is the slow part."""
+    if nm not in _PAIRS:
+        col, val = next((c, v) for n, c, v, _ in GROUPS if n == nm)
+        f = S.copy()
+        f["grp"] = np.where(f.index.isin(_STABLE), "Stable", np.where(f[col] == val, nm, ""))
+        _PAIRS[nm] = pairs(f[f.grp != ""], "grp", nm, "Stable")
+    return _PAIRS[nm]
+
+
+def class_dot_panel(ax, v, ylab, mode, minn=15):
+    """One measure, one mode. mode="all": every class against all Stable sites, nothing controlled -- if the
+    accessibility difference is real biology it lives here. mode="matched": every class against its own matched
+    Stable controls, paired. Both are shown for every result; neither is the privileged one."""
+    ps = {}
+    base_all = v.reindex(sorted(_STABLE)).dropna().values
+    if mode == "all":
+        lo, hi = boot(base_all, 400)
+        ax.axhspan(lo, hi, color=CTRL_GREY, alpha=0.30, lw=0, zorder=1)
+        ax.axhline(np.median(base_all), color=STABLE_GREY, lw=1.4, zorder=2)
+    for k, (nm, col_, val_, col) in enumerate(GROUPS):
+        if mode == "all":
+            a = v.reindex(sorted(S.index[S[col_] == val_])).dropna().values
+            b = base_all
+            if len(a) < minn:
+                continue
+            ps[nm] = mannwhitneyu(a, b).pvalue
+            series = [(a, col, 0.0)]
+        else:
+            P = class_pairs(nm)
+            x_, y_ = v.reindex(P.case).values, v.reindex(P.control).values
+            ok = ~(np.isnan(x_) | np.isnan(y_))
+            if ok.sum() < minn:
+                continue
+            a, b = x_[ok], y_[ok]
+            ps[nm] = wilcoxon(a - b).pvalue
+            series = [(b, CTRL_GREY, 0.19), (a, col, -0.19)]
+        for vals, c_, off in series:
+            lo, hi = boot(vals, 400)
+            ax.errorbar(k + off, np.median(vals), yerr=[[np.median(vals) - lo], [hi - np.median(vals)]],
+                        fmt="o", ms=9, color=c_, lw=2.2, capsize=0, zorder=4)
+    lo_, hi_ = ax.get_ylim()
+    ax.set_ylim(lo_, hi_ + (hi_ - lo_) * 0.16)
+    ax.set_xticks(range(len(GROUPS)), [n.replace("Exercise ", "Ex ").replace(" (all)", "") for n, _, _, _ in GROUPS],
+                  fontsize=10.5, rotation=20, ha="right")
+    ax.set_xlim(-0.6, len(GROUPS) - 0.4)
+    if ylab:
+        ax.set_ylabel(ylab, fontsize=11)
+    return ps
+
+
+def mark_fdr(axes, allps):
+    """BH across every class-by-measure test on the figure, drawn in each panel's top margin."""
+    flat = [(i, nm, p) for i, d in enumerate(allps) for nm, p in d.items()]
+    order = np.argsort([f[2] for f in flat])
+    fdr = np.empty(len(flat))
+    fdr[order] = np.minimum.accumulate(
+        (np.array([flat[j][2] for j in order]) * len(flat) / np.arange(1, len(flat) + 1))[::-1])[::-1]
+    for (i, nm, _p), q in zip(flat, fdr):
+        k = [n for n, _, _, _ in GROUPS].index(nm)
+        ax = axes[i]
+        ax.text(k, 0.985, ("***" if q < 1e-3 else "**" if q < 0.01 else "*" if q < 0.05 else "ns"),
+                transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=12,
+                color=INK if q < 0.05 else MUTED, fontweight="bold" if q < 0.05 else "normal")
+
 
 
 def element_panel():
@@ -189,88 +265,74 @@ def bands():
 
 # ================================================================ 2. the matched comparison, raw and matched together
 def matched_null():
-    """Both classes on the same axis, all sites beside context-matched pairs \u2014 the idiom of the report's profile figure,
-    cut down to the four edits that carry the argument."""
-    KEY = [("replace motif, read over motif", "Replace the 11 bp motif"),
-           ("replace 170 bp, read over 170 bp", "Replace the 170 bp element"),
-           ("replace peak, read over peak", "Replace the whole peak"),
-           ("170 bp shuffle \u00b1300 bp away, read over motif", "Edit 300 bp away  (control)")]
-    d = S.join(FD[[k for k, _ in KEY]])
-    P = pairs(d, "stable_dynamic", "Dynamic", "Stable")
-    fig, axes = plt.subplots(1, 2, figsize=(13.2, 5.8), sharey=True)
-    ys = np.arange(len(KEY))[::-1]
-    for ax, mode in zip(axes, ("all", "matched")):
-        for y, (col, _) in zip(ys, KEY):
-            if mode == "all":
-                vS, vD = d[d.stable_dynamic == "Stable"][col].dropna().values, d[d.stable_dynamic == "Dynamic"][col].dropna().values
-                p = mannwhitneyu(vS, vD).pvalue
-            else:
-                a, b = d[col].reindex(P.case).values, d[col].reindex(P.control).values
-                ok = ~(np.isnan(a) | np.isnan(b))
-                vS, vD = b[ok], a[ok]
-                p = wilcoxon(vD - vS).pvalue
-            for v, c, off in ((vS, BLUE, 0.17), (vD, ORANGE, -0.17)):
-                lo, hi = boot(v)
-                ax.errorbar(np.median(v), y + off, xerr=[[np.median(v) - lo], [hi - np.median(v)]],
-                            fmt="o", ms=10, color=c, lw=2.4, capsize=0, zorder=4)
-            ax.text(0.30, y, stars(p), ha="left", va="center", fontsize=14,
-                    color=INK if p < 0.05 else MUTED, fontweight="bold" if p < 0.05 else "normal")
-        ax.axvline(0, color=MUTED, lw=1.0)
-        ax.set_xlim(-2.25, 0.62)
-        ax.set_xticks([-2.0, -1.5, -1.0, -0.5, 0.0])
-        ax.set_ylim(-0.62, len(KEY) - 0.38)
-    axes[0].set_yticks(ys, [l for _, l in KEY], fontsize=13.5)
-    axes[0].set_title("All sites", fontsize=14.5, loc="left", pad=12)
-    axes[1].set_title(f"Context-matched pairs  (n = {len(P)})", fontsize=14.5, loc="left", pad=12)
-    h = [axes[0].plot([], [], "o", color=c, ms=10, label=l)[0] for c, l in ((BLUE, "Stable"), (ORANGE, "Dynamic"))]
-    fig.subplots_adjust(left=0.205, right=0.985, top=0.90, bottom=0.255, wspace=0.09)
-    fig.text(0.595, 0.155, "Median effect (log2FC);  more negative = more sensitive", ha="center", fontsize=13)
-    fig.legend(handles=h, frameon=False, fontsize=13, loc="lower center", ncol=2, bbox_to_anchor=(0.595, 0.055))
-    fig.text(0.595, 0.012, "each Dynamic site paired with a Stable site of the same measured and predicted accessibility, peak width and gene distance",
-             ha="center", fontsize=11.5, color=MUTED)
+    """The four edits that carry the argument, every directional class, shown both ways: against all Stable sites
+    and against each class's own matched controls. The scale-specific residual is the point -- the motif and the
+    whole peak close up under matching, the 170 bp element does not."""
+    KEY = [("replace motif, read over motif", "Replace the 11 bp motif", "the motif alone"),
+           ("replace 170 bp, read over 170 bp", "Replace the 170 bp element", "the element around it"),
+           ("replace peak, read over peak", "Replace the whole peak", "everything, read over the peak"),
+           ("170 bp shuffle \u00b1300 bp away, read over motif", "Edit 300 bp away", "the control: nothing at stake")]
+    d = S.join(FD[[k for k, _, _ in KEY]])
+    fig, axes = plt.subplots(2, 4, figsize=(16.0, 7.4), sharex=True)
+    allps, flat = [], []
+    for c_, (col, lab, defn) in enumerate(KEY):
+        for r_, mode in enumerate(("all", "matched")):
+            ax = axes[r_, c_]
+            allps.append(class_dot_panel(ax, d[col], "Effect on predicted\naccessibility (log2FC)" if c_ == 0 else "", mode))
+            flat.append(ax)
+            if r_ == 0:
+                ax.set_title(lab, fontsize=13, loc="left", pad=26)
+                ax.text(0.0, 1.015, defn, transform=ax.transAxes, ha="left", va="bottom", fontsize=10.5, color=MUTED)
+    mark_fdr(flat, allps)
+    for r_, txt in enumerate(("all sites, nothing controlled\n(grey band = all Stable sites)",
+                              "each class against its own\ncontext-matched Stable controls")):
+        axes[r_, 0].text(-0.42, 0.5, txt, transform=axes[r_, 0].transAxes, rotation=90, ha="center", va="center",
+                         fontsize=11, color=INK, linespacing=1.5)
+    h = [axes[0, 0].plot([], [], "o", color=col, ms=9, label=nm)[0] for nm, _, _, col in GROUPS]
+    h.append(axes[0, 0].plot([], [], "o", color=CTRL_GREY, ms=9, label="Stable (all, or matched controls)")[0])
+    fig.subplots_adjust(left=0.115, right=0.99, top=0.855, bottom=0.165, wspace=0.34, hspace=0.26)
+    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.5, 0.005))
+    fig.text(0.55, 0.055, "stars are BH-corrected across all 40 class-by-edit tests on this figure",
+             ha="center", fontsize=10.5, color=MUTED)
     save(fig, "s2_matched_null")
 
 
 # ================================================================ 3. dependence shape, raw and matched
 def dependence():
-    """Three measures of where a site's sequence dependence sits, each defined on the figure: a slide is no place for a
-    name the audience has to take on trust."""
+    """Three measures of where a site's dependence sits, each for every directional class, each shown twice:
+    against all Stable sites with nothing controlled, and against that class's own matched Stable controls."""
     M = [("share_within_85_170", "Concentrated near the motif",
-          "of all the accessibility a site loses across the 60 sliding\nwindows, the fraction lost in windows within \u00b185 bp",
-          "Share of the site's total loss\nfalling within \u00b185 bp", "{:.2f}"),
+          "of the accessibility a site loses across the 60 sliding windows,\nthe fraction lost within \u00b185 bp of the motif",
+          "Share of the loss\nwithin \u00b185 bp"),
          ("spread_170", "Spread along the element",
           "the standard deviation of window position, weighting each\nwindow by how much of the loss it accounts for",
-          "Spread of the loss (bp)", "{:.0f}"),
+          "Spread of the loss (bp)"),
          ("ism_max", "Depth of the single best base",
-          "the largest effect any single base change has, averaged\nover its three alternatives, anywhere in \u00b130 bp",
-          "Largest single-base effect\n(|log2FC|)", "{:.2f}")]
+          "the largest effect any single base change has, averaged over\nits three alternatives, anywhere in \u00b130 bp",
+          "Largest single-base\neffect (|log2FC|)")]
     d = S.join(SCF[[m[0] for m in M]], how="inner")
-    P = pairs(d, "stable_dynamic", "Dynamic", "Stable")
-    fig, axes = plt.subplots(1, 3, figsize=(13.4, 5.4))
-    for ax, (col, lab, defn, ylab, _f) in zip(axes, M):
-        for j_, mode in enumerate(("all sites", "matched")):
-            if mode == "all sites":
-                vs = [d[d.stable_dynamic == g][col].dropna().values for g in ("Stable", "Dynamic")]
-            else:
-                vs = [d[col].reindex(P.control).dropna().values, d[col].reindex(P.case).dropna().values]
-            for i_, (v, c) in enumerate(zip(vs, (BLUE, ORANGE))):
-                lo, hi = boot(v)
-                ax.errorbar(j_ + (i_ - 0.5) * 0.26, np.median(v), yerr=[[np.median(v) - lo], [hi - np.median(v)]],
-                            fmt="o", ms=11, color=c, lw=2.4, capsize=0)
-        a, b = d[col].reindex(P.case).values, d[col].reindex(P.control).values
-        ok = ~(np.isnan(a) | np.isnan(b))
-        p_ = wilcoxon(a[ok] - b[ok]).pvalue
-        ax.set_xticks([0, 1], ["all sites", "context-\nmatched"], fontsize=12)
-        ax.set_xlim(-0.45, 1.45)
-        ax.set_ylabel(ylab, fontsize=12.5)
-        ax.set_title(lab, fontsize=13.5, loc="left", pad=30)
-        ax.text(0.0, 1.015, defn, transform=ax.transAxes, ha="left", va="bottom", fontsize=10.5,
-                color=MUTED, linespacing=1.45)
-        ax.text(0.5, -0.195, f"matched p = {p_:.1g}" if p_ >= 1e-4 else "matched p < 0.0001",
-                transform=ax.transAxes, ha="center", fontsize=12, color=MUTED)
-    h = [axes[0].plot([], [], "o", color=c, ms=10, label=l)[0] for c, l in ((BLUE, "Stable"), (ORANGE, "Dynamic"))]
-    fig.subplots_adjust(left=0.075, right=0.99, top=0.80, bottom=0.25, wspace=0.42)
-    fig.legend(handles=h, frameon=False, fontsize=13, loc="lower center", ncol=2, bbox_to_anchor=(0.5, 0.005))
+    fig, axes = plt.subplots(2, 3, figsize=(14.8, 7.4), sharex=True)
+    allps, flat = [], []
+    for c_, (col, lab, defn, ylab) in enumerate(M):
+        for r_, mode in enumerate(("all", "matched")):
+            ax = axes[r_, c_]
+            allps.append(class_dot_panel(ax, d[col], ylab if c_ >= 0 else "", mode))
+            flat.append(ax)
+            if r_ == 0:
+                ax.set_title(lab, fontsize=13.5, loc="left", pad=32)
+                ax.text(0.0, 1.015, defn, transform=ax.transAxes, ha="left", va="bottom",
+                        fontsize=10.5, color=MUTED, linespacing=1.45)
+    mark_fdr(flat, allps)
+    for r_, txt in enumerate(("all sites, nothing controlled\n(grey band = all Stable sites)",
+                              "each class against its own\ncontext-matched Stable controls")):
+        axes[r_, 0].text(-0.37, 0.5, txt, transform=axes[r_, 0].transAxes, rotation=90, ha="center", va="center",
+                         fontsize=11, color=INK, linespacing=1.5)
+    h = [axes[0, 0].plot([], [], "o", color=col, ms=9, label=nm)[0] for nm, _, _, col in GROUPS]
+    h.append(axes[0, 0].plot([], [], "o", color=CTRL_GREY, ms=9, label="Stable (all, or matched controls)")[0])
+    fig.subplots_adjust(left=0.125, right=0.99, top=0.84, bottom=0.165, wspace=0.33, hspace=0.30)
+    fig.legend(handles=h, frameon=False, fontsize=11.5, loc="lower center", ncol=6, bbox_to_anchor=(0.5, 0.005))
+    fig.text(0.56, 0.055, "stars are BH-corrected across all 30 class-by-measure tests on this figure",
+             ha="center", fontsize=10.5, color=MUTED)
     save(fig, "s3_dependence")
 
 
@@ -520,7 +582,8 @@ def spacing():
     ax.set_xticks(range(len(CLS)), labs, fontsize=11.5, rotation=18, ha="right")
     ax.set_ylabel("Sites with a MEF2 footprint\nwithin 25 bp of the motif (%)", fontsize=11.5)
     ax.set_title("And does it differ by class? Yes", fontsize=13.5, loc="left", pad=30)
-    ax.text(0.0, 1.015, "coloured = the class, grey = its own context-matched\nStable controls. Age-gained sites are short of a close MEF2.",
+    ax.text(0.0, 1.015, "coloured = the class, grey = its own context-matched Stable controls.\n"
+                        "This counts footprints; restricting to MEF2 the model leans on gives 3.6% vs 10.9% (p = 0.003).",
             transform=ax.transAxes, ha="left", va="bottom", fontsize=10.5, color=MUTED, linespacing=1.45)
     ax.set_xlim(-0.6, len(CLS) - 0.4)
     ax.set_ylim(0, 21)

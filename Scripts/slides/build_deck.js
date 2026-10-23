@@ -130,10 +130,9 @@ s.addNotes("The 131 kb window is what AlphaGenome takes as input; we only ever e
 pres.addSection({ title: "Findings" });
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Most of the difference is chromatin, not sequence", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/d_block.png", BAND);
-FIG(s, "Analysis/slide_figures/s2_matched_null.png", BOXB);
-takeaway(s, "the motif and the whole peak behave the same once context is matched; a residual 170 bp difference survives, and the next slide shows what it is");
-s.addNotes("Raw, Dynamic sites lose less to every wide edit. Matching now holds measured snATAC accessibility constant as well as the predicted value, peak width and TSS distance; that removes most of the gap but not all of it. What survives is confined to the 170 bp scale: the motif and the whole peak are worth the same to both classes.");
+FIG(s, "Analysis/slide_figures/s2_matched_null.png", { x: 0.55, y: 1.15, w: 12.2, h: 5.05 });
+takeaway(s, "every class behaves the same way: the motif and the whole peak close up under matching, the 170 bp element does not \u2014 except Age Down, which closes up everywhere");
+s.addNotes("Top row is the uncontrolled comparison: if the accessibility difference is itself biology, it lives there. Bottom row matches each class to its own Stable controls on predicted and measured accessibility, peak width and TSS distance. The 300 bp control is the thing to check: Age Up differs slightly even there (-0.152 vs -0.111 matched), but that offset is 0.04 against a 0.26 effect at 170 bp and runs the opposite way, so it does not explain the result.");
 
 // ================================================================== 4 partners
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
@@ -145,9 +144,9 @@ s.addNotes("2.49 million footprinted cardiomyocyte TFBS mapped onto the scan. Dy
 
 // ================================================================== 5 spacing
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("Age-gained sites are missing their closest MEF2", { placeholder: "title" });
+s.addText("Age-gained sites have less MEF2 beside them", { placeholder: "title" });
 FIG(s, "Analysis/slide_figures/s7_spacing.png", { x: 0.55, y: 1.25, w: 12.2, h: 4.9 });
-takeaway(s, "MEF2 sits 2.67\u00d7 more often right beside the motif than chance, and it is the age-gained sites that lack one (FDR 0.03)");
+takeaway(s, "MEF2 sits 2.67\u00d7 more often right beside the motif than chance \u2014 and age-gained sites carry one far less often, 5.6% against 13.7% of matched controls");
 s.addNotes("Left panel counts every MEF2 footprint, important or not: it is occurrence, not importance. Middle panel is importance, measured against footprint-free tiles at the same distance, so the general fall-off with distance is removed. Right panel: 5.6% of Age Up sites carry a MEF2 footprint within 25 bp against 13.7% of their matched Stable controls (Fisher p 0.004, FDR 0.03); Exercise Down is similar but weaker. No 10-11 bp repeat survives correction, so no fixed protein-protein register.");
 
 // ================================================================== 6 example
@@ -160,9 +159,8 @@ s.addNotes("Both are promoters a few hundred bp from a TSS, matched on predicted
 // ================================================================== 7 diffuse
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
 s.addText("Responsive sites spread their dependence out", { placeholder: "title" });
-FIG(s, "Analysis/slide_figures/d_base.png", BAND);
-FIG(s, "Analysis/slide_figures/s3_dependence.png", BOXB);
-takeaway(s, "this is the part that survives matching: a responsive site has no single anchor holding it open");
+FIG(s, "Analysis/slide_figures/s3_dependence.png", { x: 0.55, y: 1.15, w: 12.2, h: 5.05 });
+takeaway(s, "the same shift in every class and on all three measures \u2014 strongest in Age Up and Exercise Down, absent only in Age Down");
 s.addNotes("10 of 16 scan features separate Dynamic from matched Stable. Share of dependence within 85 bp 0.63 vs 0.74, spread 94 vs 86 bp, largest single-base effect 0.74 vs 0.90. Age Up is the most diffuse class of all.");
 
 // ================================================================== 8 titration
