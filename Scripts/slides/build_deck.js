@@ -97,18 +97,21 @@ s = pres.addSlide({ masterName: "TITLE_BODY", sectionTitle: "Design" });
 s.addText("Two ways to call a site responsive, and they disagree", { placeholder: "title" });
 s.addText([
   { text: "Threshold (binary call)", options: { bold: true, fontSize: 19, breakLine: true } },
-  { text: "The TOBIAS footprint is absent in young and called in aged. 396 Age Up sites, 179 Age Down. Stable = called in all three conditions.", options: { breakLine: true, paraSpaceAfter: 14 } },
+  { text: "The TOBIAS footprint crosses the calling threshold between conditions. Age Up 396, Age Down 179, Exercise Up 186, Exercise Down 276. Stable = called in all three conditions, 2,907 sites.", options: { breakLine: true, paraSpaceAfter: 14 } },
   { text: "Δscore (graded)", options: { bold: true, fontSize: 19, breakLine: true } },
   { text: "The top fifth of the change in binding score, whether or not the call ever crossed the line. 736 sites each way.", options: { breakLine: true, paraSpaceAfter: 14 } },
   { text: "Only 22% of Δscore-Up sites ever cross the threshold, and 40% of threshold-Stable sites show a large score change.", options: { color: "595959" } },
 ], { isTextBox: true, x: 0.55, y: 1.35, w: 6.3, h: 4.0, fontSize: 17, color: "111111", margin: 0 });
 statRow(s, [
-  { v: "0.57", l: "Δscore vs measured snATAC change (age)", c: "C2551C" },
-  { v: "0.31", l: "threshold class vs measured change", c: "1F6FB2" },
+  { v: "ρ 0.57", l: "Δscore vs the measured snATAC change with age", c: "C2551C" },
+  { v: "ρ 0.31", l: "threshold class vs the same measured change", c: "1F6FB2" },
 ], 5.55, 1.35);
 s.addText("Every comparison below matches each responsive site to a Stable site on predicted accessibility, peak width, TSS distance and measured accessibility.",
   { isTextBox: true, x: 7.1, y: 1.5, w: 5.65, h: 1.5, fontSize: 15, color: "111111", fill: { color: "F2F2F2" }, margin: 12, objectName: "matching-note" });
-s.addText("The Δscore definition tracks the measured data about twice as well.", { isTextBox: true, x: 7.1, y: 3.25, w: 5.65, h: 0.9, fontSize: 15, italic: true, color: "595959", margin: 0 });
+s.addText([
+  { text: "Which to believe?", options: { bold: true, fontSize: 17, breakLine: true } },
+  { text: "Δscore tracks the measured snATAC change about twice as well, so it is the better description of what actually changed. The threshold call is what the field reports, so both are carried through and every result below is labelled with the one it comes from.", options: { fontSize: 15, color: "595959" } },
+], { isTextBox: true, x: 7.1, y: 3.25, w: 5.65, h: 2.1, margin: 0 });
 s.addNotes("The two definitions pick out largely different sites. Report every result labelled by which definition it comes from.");
 
 // ================================================================== 3 method schematic
@@ -118,9 +121,9 @@ FIG(s, "Analysis/slide_figures/s0_element.png", { x: 0.55, y: 1.25, w: 12.2, h: 
 statRow(s, [
   { v: "3,678", l: "cardiomyocyte AP-1 sites" },
   { v: "364", l: "edits of each one" },
-  { v: "170 bp", l: "the window every effect is read over", c: "C2551C" },
+  { v: "772 / 2,907", l: "Dynamic against Stable sites", c: "C2551C" },
 ], 5.3, 0.95);
-takeaway(s, "each experiment that follows is introduced where its result appears");
+takeaway(s, "every edit is read as the change in predicted accessibility over the surrounding 170 bp");
 s.addNotes("The 131 kb window is what AlphaGenome takes as input; we only ever edit the middle 600 bp. Each tile is 3 replicate random replacements, averaged. Effects are log2(edited / native).");
 
 // ================================================================== 4 the null
@@ -149,9 +152,9 @@ s.addNotes("Left panel counts every MEF2 footprint, important or not: it is occu
 
 // ================================================================== 6 example
 s = pres.addSlide({ masterName: "TITLE_FIGURE", sectionTitle: "Findings" });
-s.addText("Two promoters, one stable and one age-gained", { placeholder: "title" });
+s.addText("The same contrast at one pair of promoters", { placeholder: "title" });
 FIG(s, "Analysis/example_track/example_scan_track.png", { x: 0.55, y: 1.15, w: 12.2, h: 5.2 });
-takeaway(s, "the same motif in the same kind of promoter is worth \u22121.00 where binding is stable and \u22120.58 where it is age-gained");
+takeaway(s, "the stable site has MEF2 abutting its AP-1 motif at 19 bp; the age-gained site has no MEF2 anywhere in the element");
 s.addNotes("Both are promoters a few hundred bp from a TSS, matched on predicted accessibility (0.96 vs 1.12) and peak width (1359 vs 1329 bp). At the Sqstm1 promoter AP-1 is bound in all three conditions, the motif window is worth -1.00 and 81% of the loss sits within 85 bp. At the Psmd11 promoter AP-1 is absent in young and gained in both aged states, the motif is still the strongest window but only -0.58, and the loss is smeared over 114 bp against 83. Psmd11 rises with age, matching the AP-1 gain; the exercise direction does not match, so do not claim it.");
 
 // ================================================================== 7 diffuse
@@ -198,13 +201,15 @@ s = pres.addSlide({ masterName: "TITLE_BODY", sectionTitle: "Conclusion" });
 s.addText("What this changes", { placeholder: "title" });
 s.addText([
   { text: "A responsive AP-1 site is a marginal one, not a differently-built one", options: { bold: true, fontSize: 19, breakLine: true } },
-  { text: "Weaker AP-1 motif, fewer AP-1 motifs around it, sparser and less MEF2-rich neighbourhood, dependence spread thinly across the element. Nothing about how it responds to mutation differs.", options: { breakLine: true, paraSpaceAfter: 16 } },
+  { text: "Weaker AP-1 motif, fewer AP-1 motifs around it, and its dependence spread thinly across the element instead of anchored on the motif. The same partners matter, in the same order, in every class.", options: { breakLine: true, paraSpaceAfter: 15 } },
+  { text: "Two things survive matching, and only two", options: { bold: true, fontSize: 19, breakLine: true } },
+  { text: "Scale: the 11 bp motif and the whole peak are worth the same to both classes, but replacing the 170 bp element costs a Dynamic site 0.24 less — what you expect when the dependence is spread wider. Partner: age-gained sites lack a MEF2 abutting the motif, 5.6% against 13.7% of matched controls.", options: { breakLine: true, paraSpaceAfter: 15 } },
   { text: "That is why it fluctuates", options: { bold: true, fontSize: 19, breakLine: true } },
-  { text: "A weak motif in a poorly-supported enhancer sits near the occupancy threshold, so its binding tracks how much AP-1 protein is available — which is what ageing changes.", options: { breakLine: true, paraSpaceAfter: 16 } },
+  { text: "A weak motif with no close MEF2 to hold it sits near the occupancy threshold, so its binding tracks how much AP-1 protein is available — which is what ageing changes.", options: { breakLine: true, paraSpaceAfter: 15 } },
   { text: "Gain and loss are different events", options: { bold: true, fontSize: 19, breakLine: true } },
-  { text: "Age-gained sites have better cores and read dosage more sharply. Age-lost sites are MEF2-rich, high-scoring sites drifting down, with no sequence signature of their own.", options: {} },
-], { placeholder: "body", w: 12.2, h: 4.6 });
-s.addNotes("The negative result is well controlled and is itself the point: responsiveness is not encoded in local sequence architecture.");
+  { text: "Age-gained sites have better cores and read AP-1 dosage more sharply. Age-lost sites show no sequence signature of their own.", options: {} },
+], { placeholder: "body", w: 12.2, h: 5.1 });
+s.addNotes("The mutation-response profile is a null and a well-controlled one: given the same chromatin, the two classes lose the same amount to the same kind of edit. What is not null is the scale at which that is true and the one missing partner.");
 
 // ================================================================== 12 next
 s = pres.addSlide({ masterName: "TITLE_BODY", sectionTitle: "Conclusion" });

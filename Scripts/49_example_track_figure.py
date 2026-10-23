@@ -28,7 +28,7 @@ plt.rcParams.update({"font.size": 11, "axes.facecolor": SURF, "figure.facecolor"
                      "xtick.color": MUTED, "ytick.color": MUTED, "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
                      "grid.color": GRID, "grid.linewidth": 0.6, "axes.axisbelow": True, "savefig.dpi": 220})
 ap = argparse.ArgumentParser()
-ap.add_argument("--stable", default="chr11-50211071-50211082")       # Sqstm1 promoter, bound in all three conditions
+ap.add_argument("--stable", default="chr17-29095225-29095236")   # Cdkn1a promoter: AP-1 bound in all three, MEF2 abutting at 20 bp
 ap.add_argument("--dynamic", default="chr11-80428854-80428865")      # Psmd11 promoter, AP-1 gained in both aged states
 a = ap.parse_args()
 
@@ -73,10 +73,14 @@ for sid, lab, col, row in panels:
     chrom, s_, e_ = sid.split("-")
     g = GE.loc[sid]
     gname, gdist, grna_a, grna_e = g.gene, g.dist_gene / 1000, g.rna_age, g.rna_ex
-    ax.set_title(f"{lab}   ·   {chrom}:{int(s_):,}   ·   {gname} promoter, {gdist * 1000:.0f} bp from the TSS",
+    ax.set_title(f"{lab}   ·   {chrom}:{int(s_):,}   ·   {gname}, {gdist * 1000:,.0f} bp from its TSS",
                  fontsize=12.5, loc="left", color=col, fontweight="bold", pad=6)
     fp = "AP-1 absent in young, gained in both aged states" if sid == a.dynamic else "AP-1 present in all three conditions"
-    ax.text(0.004, 0.96, f"{fp}    \u00b7    {gname} RNA {grna_a:+.2f} with age, {grna_e:+.2f} with exercise",
+    rna = "" if pd.isna(grna_a) else f"    \u00b7    {gname} RNA {grna_a:+.2f} with age, {grna_e:+.2f} with exercise"
+    mf = M[(M.site_id == sid) & (M.family == "MEF2") & (M.rs.abs() < 320)]
+    mef = (f"    \u00b7    MEF2 footprint {int(((mf.rs + mf.re) / 2).abs().min())} bp from the motif" if len(mf)
+           else "    \u00b7    no MEF2 footprint anywhere in the element")
+    ax.text(0.004, 0.96, f"{fp}{rna}{mef}",
             transform=ax.transAxes, ha="left", va="top", fontsize=10.5, color=col, fontweight="bold")
     ax.text(0.996, 0.035, f"AP-1 motif window {f.own_motif_170:.2f}   \u00b7   strongest other {f.best_partner_170:.2f}   \u00b7   "
                           f"{f.share_within_85_170:.0%} of the loss within \u00b185 bp",
