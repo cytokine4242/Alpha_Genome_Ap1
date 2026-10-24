@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -N ag_swap_ci
+#PBS -l select=1:ncpus=8:mem=64gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+# CPU-only: cluster-bootstrap CIs for the sequence-vs-location regression: qsub pbs/22_swap_regression_ci.pbs
+cd $PBS_O_WORKDIR
+source pbs/queue_wait.sh 2>/dev/null
+source /srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv/bin/activate
+cd ..
+python Scripts/55_fb_swap_regression_ci.py --boot 2000
