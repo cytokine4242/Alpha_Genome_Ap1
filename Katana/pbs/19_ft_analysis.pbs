@@ -1,0 +1,15 @@
+#!/bin/bash
+#PBS -N ag_ft_analysis
+#PBS -l select=1:ncpus=4:mem=48gb
+#PBS -l walltime=02:00:00
+#PBS -j oe
+# CPU-only analysis of the fine-tuned fibroblast results (no GPU, general queue): qsub pbs/19_ft_analysis.pbs
+cd $PBS_O_WORKDIR
+source pbs/queue_wait.sh 2>/dev/null   # queue wait and run time -> /srv/scratch/wonglab/jack/AlphaGenome_Ap1/queue_waits.tsv
+source /srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv/bin/activate
+cd ..
+echo "########## 48_ft_fibroblast_results (shuffle arm, head comparison, per-condition)"
+python Scripts/48_ft_fibroblast_results.py
+echo
+echo "########## 47_fb_swap_analysis (element swaps + host insertions)"
+python Scripts/47_fb_swap_analysis.py
