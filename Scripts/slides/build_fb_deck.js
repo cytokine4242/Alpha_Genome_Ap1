@@ -74,13 +74,15 @@ function FIG(slide, file, box) {
 }
 
 // title / figure / takeaway, with the takeaway in an accent rule so the eye lands on it last
-function resultSlide({ title, figure, method, takeaway, notes }) {
+function resultSlide({ title, figure, method, takeaway, caveat, notes }) {
   const s = pres.addSlide({ masterName: "RESULT" });
   s.addText(title, { placeholder: "title" });
-  s.addText(method, { isTextBox: true, x: 0.55, y: 1.08, w: 12.2, h: 0.32, fontSize: 13, italic: true, color: "595959", margin: 0 });
-  FIG(s, figure, { x: 1.1, y: 1.5, w: 11.1, h: 4.1 });
-  s.addShape(pres.ShapeType.rect, { x: 0.55, y: 5.82, w: 0.055, h: 0.95, fill: { color: "C2551C" }, line: { width: 0 } });
-  s.addText(takeaway, { isTextBox: true, x: 0.82, y: 5.82, w: 11.9, h: 0.95, fontSize: 17, color: "111111", valign: "middle", margin: 0 });
+  s.addText(method, { isTextBox: true, x: 0.55, y: 1.06, w: 12.2, h: 0.34, fontSize: 12.5, italic: true, color: "595959", margin: 0 });
+  FIG(s, figure, { x: 1.1, y: 1.46, w: 11.1, h: caveat ? 3.9 : 4.22 });
+  const y0 = caveat ? 5.52 : 5.80;
+  s.addShape(pres.ShapeType.rect, { x: 0.55, y: y0, w: 0.055, h: caveat ? 0.8 : 0.95, fill: { color: "C2551C" }, line: { width: 0 } });
+  s.addText(takeaway, { isTextBox: true, x: 0.82, y: y0, w: 11.9, h: caveat ? 0.8 : 0.95, fontSize: 17, color: "111111", valign: "middle", margin: 0 });
+  if (caveat) s.addText(caveat, { isTextBox: true, x: 0.82, y: 6.40, w: 11.9, h: 0.66, fontSize: 13, color: "595959", valign: "top", margin: 0 });
   s.addNotes(notes);
   return s;
 }
@@ -126,8 +128,8 @@ const bullets = (items) => items.map((t) => (typeof t === "string"
 // ================================================================== 3. transplant
 resultSlide({
   title: "A Stable element opens closed chromatin on its own",
-  method: "Each element moved into 20 closed backgrounds, against the same sequence shuffled. 50 Stable and 200 Dynamic donors, whole-peak width.",
-  figure: "Analysis/slide_figures/s_fb_transplant.png",
+  method: "Each element moved into 20 closed backgrounds and scored against the same sequence shuffled; one point per donor, whole-peak width. Black, median with a bootstrap 95% CI; Mann–Whitney.",
+  figure: "Analysis/slide_figures/r_fb_transplant.png",
   takeaway: "Stable AP-1 elements carry enough sequence to build their own accessible site. Dynamic ones do not — "
     + "they need the neighbourhood they came from. That is \"context, not sequence autonomy\", shown by moving the sequence.",
   notes: "Per-donor medians over 20 hosts: Stable +4.65 log2 (25x), Dynamic +2.35 (5.1x), p = 4e-5.\n\n"
@@ -138,13 +140,14 @@ resultSlide({
     + "The 47 matched pairs point the same way (+0.99) but are underpowered (p = 0.13). "
     + "So: direction solid, magnitude about a third to a half of the raw gap. Do not defend 25x vs 5x as a sequence effect.\n\n"
     + "Also worth knowing: 0 of 50 Stable donors lack a measured ATAC peak, against 5-8 per Dynamic class.",
+  caveat: "Stable donors also come from more accessible loci. Holding that constant (measured ATAC, 224 donors) a Stable element still gains 1.8× more than a Dynamic one, P = 0.005 — the direction holds, but about a third of the gap above is accessibility rather than sequence.",
 });
 
 // ================================================================== 4. scale
 resultSlide({
   title: "The element's identity lives at peak scale, not in 170 bp",
-  method: "Every element swapped into every other site's location: regression of the swapped site's accessibility on the donor element and on the recipient location.",
-  figure: "Analysis/slide_figures/s_fb_scale.png",
+  method: "Every element swapped into every other site's location: the swapped site's accessibility regressed on the donor element and on the recipient location. 62,250 swaps; 95% CI from a cluster bootstrap over the 250 donors.",
+  figure: "Analysis/slide_figures/r_fb_scale.png",
   takeaway: "At 170 bp an element mostly takes on the level of wherever you put it; at full peak width it imposes its own. "
     + "The information that opens chromatin is spread over the whole peak — which is why a 170 bp assay cannot see it.",
   notes: "62,250 swaps. 170 bp: beta(element) 0.24 vs beta(location) 0.61, R2 = 0.20. Whole peak: 0.71 vs 0.20, R2 = 0.46. "
@@ -159,8 +162,8 @@ resultSlide({
 // ================================================================== 5. specificity
 resultSlide({
   title: "Only the AP-1-losing sites let go — and only of AP-1",
-  method: "The site's own AP-1 motif and each partner motif shuffled separately inside the same window; partners net of a width- and distance-matched footprint-free control.",
-  figure: "Analysis/slide_figures/s_fb_specificity.png",
+  method: "The site's own AP-1 motif and each partner motif shuffled separately inside the same window; partners net of a width- and distance-matched footprint-free control. Violin, all 2,352 sites; point, median with a bootstrap 95% CI; Mann–Whitney.",
+  figure: "Analysis/slide_figures/r_fb_specificity.png",
   takeaway: "Sites that lose AP-1 binding with age were never strongly AP-1-driven: they depend 36% less on their own motif "
     + "while using every other motif exactly as much. Sites that gain AP-1 with age are indistinguishable from Stable.",
   notes: "2,352 sites. Own AP-1 motif: Stable -1.21 (n=1179), AP-1 gained -1.19 (n=605, p = 0.93 vs Stable), AP-1 lost -0.78 (n=209, p = 2.3e-5 vs Stable).\n\n"
@@ -175,8 +178,8 @@ resultSlide({
 // ================================================================== 6. AP-1 share
 resultSlide({
   title: "Stable sites are more AP-1-centric; Dynamic sites spread it around",
-  method: "Per site: |own AP-1| / (|own AP-1| + |partner motifs|). Both terms are AlphaGenome shuffle effects measured inside the same window, so accessibility cannot drive the comparison.",
-  figure: "Analysis/slide_figures/s_fb_share.png",
+  method: "Per site: |own AP-1| / (|own AP-1| + |partner motifs|). Both terms are AlphaGenome shuffle effects measured inside the same window, so accessibility cannot drive the comparison. Violin with box (median, IQR); Mann–Whitney.",
+  figure: "Analysis/slide_figures/r_fb_share.png",
   takeaway: "A Stable site puts 80% of its motif dependence on AP-1 itself; a Dynamic site 74%, with the rest spread across partner motifs. "
     + "Modest, but it is the AP-1-centric vs distributed picture, measured rather than inferred.",
   notes: "Stable 0.804 (n=1176) vs Dynamic 0.745 (n=1156), p = 7.5e-11. Every Dynamic class sits below Stable: "
