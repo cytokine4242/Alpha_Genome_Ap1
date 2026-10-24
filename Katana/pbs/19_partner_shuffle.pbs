@@ -1,0 +1,9 @@
+#!/bin/bash
+#PBS -N ag_pshuf_fb
+#PBS -l select=1:ncpus=6:mem=62gb:ngpus=1
+#PBS -l walltime=02:00:00
+#PBS -j oe
+# Array job: shuffle the site's own AP-1 motif and each footprinted partner, with width- and distance-matched controls.
+source "$PBS_O_WORKDIR/pbs/common.sh"
+python 19_partner_shuffle.py --sites ${SITES_FILE:-../data/fb_subset_scan.csv} --out ../${RESULTS_DIR:-results_ft}/${PREFIX}pshuf_fb \
+    --chunk ${PBS_ARRAY_INDEX:-0} --n-chunks ${NCHUNKS:-1} ${LIMIT:+--limit $LIMIT}

@@ -100,6 +100,9 @@ p5_swap()     { sub -J 0-39 -N ag_fb_swap "EXPERIMENT=swap,PREFIX=swap_,NCHUNKS=
 p5_bg()       { sub -J 0-7 -N ag_fb_bg "EXPERIMENT=background,PREFIX=bg_,NCHUNKS=8,BACKGROUNDS=$BG_FILE" pbs/18_fb_swap.pbs; }
 # fibroblast tile scan: all 1,180 Dynamic sites + 1,180 Stable drawn at random (data/fb_subset_scan.csv), 364 passes/site
 FB_SCAN_CHUNKS=${FB_SCAN_CHUNKS:-80}
+# is AP-1 special? the site's own motif and each footprinted partner shuffled in the same window, with matched controls (42 passes/site)
+p6_pshuf()    { sub -J 0-59 -N ag_pshuf_fb "NCHUNKS=60" pbs/19_partner_shuffle.pbs; }
+p6_titrate()  { sub -J 0-39 -l walltime=02:00:00 -N ag_titrate_fb "EXPERIMENT=titrate,PREFIX=titrate_,SITES=fb,NCHUNKS=40,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_fbscan()   { sub -J 0-$((FB_SCAN_CHUNKS-1)) -l walltime=02:00:00 -N ag_scan_fb "EXPERIMENT=scan,PREFIX=scan_,SITES=fb,NCHUNKS=$FB_SCAN_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_pilot()    { sub -m ae -l walltime=01:00:00 -N ag_scan_fb_pilot "EXPERIMENT=scan,PREFIX=pilot_,SITES=fb,NCHUNKS=1,LIMIT=4,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs
                 sub -m ae -l walltime=01:00:00 -N ag_fb_swap_pilot "EXPERIMENT=swap,PREFIX=pilot_swap_,NCHUNKS=1,LIMIT=10" pbs/18_fb_swap.pbs
@@ -132,6 +135,9 @@ case "$1" in
   rerun_all)     bash "$0" rerun_sites && bash "$0" rerun_dynamics ;;   # two calls so each half gets its own config
   rerun_sites)   p1_cm; p1_fb; p1_other; p2_cm; p2_fb; p3_controls; p3_mpran ;;
   rerun_dynamics) p4_scan; p4_titrate; p4_scan_rest; p4_titrate_rest ;;
+  fb_partner)    p6_pshuf ;;
+  fb_titrate)    p6_titrate ;;
+  fb_overnight)  p6_pshuf; p6_titrate ;;
   fb_scan)       p5_fbscan ;;
   fb_priority)   p1_fb; p5_fbscan; p5_swap; p5_bg ;;   # the three fibroblast priorities: shuffle, tile scan, element swaps + host insertions
   fb_swap)       p5_swap ;;
@@ -157,5 +163,5 @@ case "$1" in
   phase2)        p2_cm; p2_fb ;;
   phase2_cm)     p2_cm ;;
   phase2_fb)     p2_fb ;;
-  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|ft_eval|ft_eval_pilot|fb_scan|fb_priority|fb_swap|fb_background|fb_swap_all|fb_swap_pilot|rerun_all|rerun_sites|rerun_dynamics|controls|satmut|scan|titrate|dynamics|dynamics_pilot|scan_rest|titrate_rest|dynamics_rest|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
+  *) echo "usage: [GPU=H200|A100|...|any] [BATCH=N] [DRY=1] bash submit_all.sh check|benchmark|pilot|validate|ft_eval|ft_eval_pilot|fb_scan|fb_priority|fb_partner|fb_titrate|fb_overnight|fb_swap|fb_background|fb_swap_all|fb_swap_pilot|rerun_all|rerun_sites|rerun_dynamics|controls|satmut|scan|titrate|dynamics|dynamics_pilot|scan_rest|titrate_rest|dynamics_rest|mpra_neutral|human_sens|context|phase1[_cm|_fb|_other]|phase2[_cm|_fb]|full"; exit 1 ;;
 esac
