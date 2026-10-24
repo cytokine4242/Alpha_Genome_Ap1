@@ -161,6 +161,38 @@ fig.tight_layout()
 fig.savefig(OUT / "figures" / "w1_sequence_vs_location.png", bbox_inches="tight")
 plt.close(fig)
 
+# ---------------------------------------------------------------- a2) transfer fraction
+# How far does the swapped element sit between the location's own level and the element's own level?
+# 0 = the location keeps its level, 1 = the element imposes its level. Restricted to pairs whose two natives differ by
+# more than MIN_GAP log2, so the ratio is well defined; reported separately for elements weaker and stronger than their
+# new location, because a floor or ceiling effect would show up as a difference between those two.
+MIN_GAP = 1.0
+tf_rows = []
+for w in WIDTHS:
+    d = oth[oth.width == w].copy()
+    if d.empty:
+        continue
+    d["y"], d["dn"], d["rn"] = lg(d.atac_insert), lg(d.donor_native_atac_insert), lg(d.recipient_native_atac_insert)
+    d = d[(d.dn - d.rn).abs() > MIN_GAP]
+    if d.empty:
+        continue
+    d["transfer"] = (d.y - d.rn) / (d.dn - d.rn)
+    for lab, sub in (("all", d), ("element weaker than location", d[d.dn < d.rn]), ("element stronger than location", d[d.dn > d.rn])):
+        if len(sub) > 20:
+            tf_rows.append({"width": w, "subset": lab, "n_swaps": len(sub), "median_transfer": sub.transfer.median(),
+                            "q25": sub.transfer.quantile(.25), "q75": sub.transfer.quantile(.75)})
+    for dc in present:
+        for rc in present:
+            sub = d[(d.donor_class == dc) & (d.recipient_class == rc)]
+            if len(sub) > 20:
+                tf_rows.append({"width": w, "subset": f"{dc} element -> {rc} location", "n_swaps": len(sub),
+                                "median_transfer": sub.transfer.median(), "q25": sub.transfer.quantile(.25),
+                                "q75": sub.transfer.quantile(.75)})
+TF = pd.DataFrame(tf_rows)
+TF.to_csv(OUT / "tables" / "transfer_fraction.csv", index=False)
+print("\ntransfer fraction (0 = the location keeps its level, 1 = the element imposes its own):")
+print(TF[TF.subset.isin(["all", "element weaker than location", "element stronger than location"])].round(3).to_string(index=False))
+
 # ---------------------------------------------------------------- b) class pairs
 nat = pd.concat([sw[["donor_id", "donor_class", "width", "donor_native_atac_insert"]]
                  .rename(columns={"donor_id": "site_id", "donor_class": "swap_class", "donor_native_atac_insert": "native"})]).drop_duplicates(["site_id", "width"])
