@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -N ag_fb_titr
+#PBS -l select=1:ncpus=4:mem=64gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+# CPU-only: the fibroblast titration by class (no GPU, general queue): qsub pbs/21_fb_titration.pbs
+cd $PBS_O_WORKDIR
+source pbs/queue_wait.sh 2>/dev/null
+source /srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv/bin/activate
+cd ..
+python Scripts/54_fb_titration_by_class.py
