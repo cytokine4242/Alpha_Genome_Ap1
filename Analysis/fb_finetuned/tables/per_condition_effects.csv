@@ -1,0 +1,13 @@
+edit,condition,n_sites,median_effect
+shuffle the 11 bp motif,YS,5018,-1.161479236931653
+shuffle the 11 bp motif,MAS,5018,-1.1888288283943584
+shuffle the 11 bp motif,MAE,5018,-1.1645772511689274
+shuffle the 11 bp motif,YE,5018,-1.1662909376279889
+shuffle the 170 bp around it,YS,5018,-2.324876366956083
+shuffle the 170 bp around it,MAS,5018,-2.428295294676788
+shuffle the 170 bp around it,MAE,5018,-2.3825837709455095
+shuffle the 170 bp around it,YE,5018,-2.34885571289729
+shuffle the whole peak,YS,5017,-2.1965168081863182
+shuffle the whole peak,MAS,5017,-2.329802418730092
+shuffle the whole peak,MAE,5017,-2.266378078455755
+shuffle the whole peak,YE,5017,-2.234745867896025

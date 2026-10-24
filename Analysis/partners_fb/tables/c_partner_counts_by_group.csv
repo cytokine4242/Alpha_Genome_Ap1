@@ -1,0 +1,3 @@
+group,n_sites,median_footprints_per_site,median_families_per_site,median_tfs_per_site,p_families_vs_dynamic
+Dynamic,1180,26.0,7.0,25.0,
+Stable (random),1179,62.0,11.0,58.0,8.267604732228923e-120
