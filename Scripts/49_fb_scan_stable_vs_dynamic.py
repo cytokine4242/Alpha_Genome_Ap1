@@ -135,8 +135,19 @@ fig.savefig(OUT / "figures" / "s1_tile_profile_by_class.png", bbox_inches="tight
 plt.close(fig)
 
 # ---------------------------------------------------------------- 3. concentration of the dependence
-near = tile[tile.pos.abs() <= 25].groupby(["site_id", "group"]).eff.apply(lambda s: s.abs().sum()).rename("near")
-allt = tile.groupby(["site_id", "group"]).eff.apply(lambda s: s.abs().sum()).rename("all")
+# |effect| summed over tiles counts noise as signal, and the noise floor differs by class: Dynamic sites have about half
+# the native accessibility of Stable ones, so their log2 ratios are noisier and a raw sum makes their profiles look wider
+# and less concentrated than they are. Each site's own noise floor is estimated from its distal tiles (|pos| >= 200 bp,
+# where the median effect is ~0 in both classes) and subtracted before anything is summed.
+BASE_FROM = 200
+floor = tile[tile.pos.abs() >= BASE_FROM].assign(a=lambda t: t.eff.abs()).groupby("site_id").a.median().rename("floor")
+tile = tile.join(floor, on="site_id")
+tile["signal"] = (tile.eff.abs() - tile.floor).clip(lower=0)
+fl = tile.drop_duplicates("site_id").groupby("group").floor.median()
+print(f"\nnoise floor per site (median |effect| at |pos| >= {BASE_FROM} bp): " +
+      ", ".join(f"{k} {v:.4f}" for k, v in fl.items()) + "  <- subtracted below")
+near = tile[tile.pos.abs() <= 25].groupby(["site_id", "group"]).signal.sum().rename("near")
+allt = tile.groupby(["site_id", "group"]).signal.sum().rename("all")
 conc = pd.concat([near, allt], axis=1).reset_index()
 conc["share_within_25bp"] = conc.near / conc["all"].replace(0, np.nan)
 
@@ -144,19 +155,19 @@ conc["share_within_25bp"] = conc.near / conc["all"].replace(0, np.nan)
 def half_width(g):
     """Smallest distance containing half of a site's total tile importance."""
     s = g.sort_values("absdist")
-    c = s.eff.abs().cumsum() / s.eff.abs().sum()
+    c = s.signal.cumsum() / s.signal.sum()
     hit = s.absdist[c >= 0.5]
     return hit.iloc[0] if len(hit) else np.nan
 
 
 tile["absdist"] = tile.pos.abs()
-hw = tile.groupby(["site_id", "group"], group_keys=False)[["absdist", "eff"]].apply(half_width).rename("half_width_bp").reset_index()
+hw = tile.groupby(["site_id", "group"], group_keys=False)[["absdist", "signal"]].apply(half_width).rename("half_width_bp").reset_index()
 CONC = conc.merge(hw, on=["site_id", "group"])
 rows = []
 for metric in ("share_within_25bp", "half_width_bp", "all"):
     dy = CONC[CONC.group == "dynamic"][metric].dropna()
     st = CONC[CONC.group == "random_stable"][metric].dropna()
-    rows.append({"metric": {"all": "total importance (sum |log2| over tiles)"}.get(metric, metric),
+    rows.append({"metric": {"all": "total importance (noise-corrected)"}.get(metric, metric),
                  "n_dynamic": len(dy), "n_stable": len(st), "median_dynamic": dy.median(), "median_stable": st.median(),
                  "p": mannwhitneyu(dy, st).pvalue if len(dy) > 5 and len(st) > 5 else np.nan})
 CONCT = pd.DataFrame(rows)
