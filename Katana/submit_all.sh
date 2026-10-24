@@ -101,7 +101,7 @@ p5_bg()       { sub -J 0-7 -N ag_fb_bg "EXPERIMENT=background,PREFIX=bg_,NCHUNKS
 # fibroblast tile scan: all 1,180 Dynamic sites + 1,180 Stable drawn at random (data/fb_subset_scan.csv), 364 passes/site
 FB_SCAN_CHUNKS=${FB_SCAN_CHUNKS:-80}
 # is AP-1 special? the site's own motif and each footprinted partner shuffled in the same window, with matched controls (42 passes/site)
-p6_pshuf()    { sub -J 0-59 -N ag_pshuf_fb "NCHUNKS=60" pbs/19_partner_shuffle.pbs; }
+p6_pshuf()    { sub -J 0-19 -N ag_pshuf_fb "NCHUNKS=20" pbs/19_partner_shuffle.pbs; }
 p6_titrate()  { sub -J 0-39 -l walltime=02:00:00 -N ag_titrate_fb "EXPERIMENT=titrate,PREFIX=titrate_,SITES=fb,NCHUNKS=40,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_fbscan()   { sub -J 0-$((FB_SCAN_CHUNKS-1)) -l walltime=02:00:00 -N ag_scan_fb "EXPERIMENT=scan,PREFIX=scan_,SITES=fb,NCHUNKS=$FB_SCAN_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_pilot()    { sub -m ae -l walltime=01:00:00 -N ag_scan_fb_pilot "EXPERIMENT=scan,PREFIX=pilot_,SITES=fb,NCHUNKS=1,LIMIT=4,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs
