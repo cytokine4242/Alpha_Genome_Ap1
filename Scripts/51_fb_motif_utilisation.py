@@ -154,4 +154,49 @@ if "fdr_share_matched" in R:
     k2 = R[R.fdr_importance_matched < 0.05]
     print(f"families whose ABSOLUTE importance differs: {len(k2)} of {len(R)}"
           + ("" if k2.empty else ": " + ", ".join(k2.family)))
+# ---------------------------------------------------------------- unconditional: which family DOMINATES a site?
+# The test above conditions on a site carrying the family. This one does not: for every site the families are ranked by
+# importance and the top one (and the top three) recorded, then each family is asked whether it tops a different share of
+# Dynamic and of Stable sites (Fisher's exact). A site with no footprint of a family simply never has it on top, so
+# detection still contributes - the same test is therefore repeated on the accessibility-matched pairs.
+from scipy.stats import fisher_exact
+
+rank = per.sort_values("importance", ascending=False)
+top1 = rank.drop_duplicates("site_id").set_index("site_id").family
+top3 = rank.groupby("site_id").head(3).groupby("site_id").family.apply(set)
+
+
+def fisher_table(site_ids_d, site_ids_s, member, label):
+    rows = []
+    nd, ns = len(site_ids_d), len(site_ids_s)
+    for fam in fams:
+        ad = sum(1 for x in site_ids_d if fam in member.get(x, set()) or member.get(x) == fam)
+        as_ = sum(1 for x in site_ids_s if fam in member.get(x, set()) or member.get(x) == fam)
+        if ad + as_ < 10:
+            continue
+        odds, pv = fisher_exact([[ad, nd - ad], [as_, ns - as_]])
+        rows.append({"set": label, "family": fam, "n_dynamic": ad, "pct_dynamic": 100 * ad / nd,
+                     "n_stable": as_, "pct_stable": 100 * as_ / ns, "odds_ratio": odds, "p": pv})
+    r = pd.DataFrame(rows)
+    if not r.empty:
+        r["fdr"] = bh(r.p.values)
+    return r
+
+
+d_all = list(meta.index[meta.stable_dynamic == "Dynamic"])
+s_all = list(meta.index[meta.stable_dynamic == "Stable"])
+d_m, s_m = list(pair_of), list(pair_of.values())
+F = pd.concat([fisher_table(d_all, s_all, top1.to_dict(), "most important family, all sites"),
+               fisher_table(d_m, s_m, top1.to_dict(), "most important family, accessibility-matched"),
+               fisher_table(d_all, s_all, top3.to_dict(), "top three families, all sites"),
+               fisher_table(d_m, s_m, top3.to_dict(), "top three families, accessibility-matched")], ignore_index=True)
+F.to_csv(PART / "utilisation_top_family_fisher.csv", index=False)
+for lab in F.set.unique():
+    k = F[F.set == lab].sort_values("p")
+    print(f"\n=== {lab}  (Dynamic n={len(d_all) if 'all sites' in lab else len(d_m)}, "
+          f"Stable n={len(s_all) if 'all sites' in lab else len(s_m)})")
+    print(k.head(8)[["family", "pct_dynamic", "pct_stable", "odds_ratio", "p", "fdr"]].round(4).to_string(index=False))
+    sig = k[k.fdr < 0.05]
+    print(f"    families differing at FDR<0.05: {len(sig)} of {len(k)}" + ("" if sig.empty else ": " + ", ".join(sig.family)))
+
 print("\noutputs in", PART)
