@@ -11,5 +11,8 @@ cd ..
 echo "########## 48_ft_fibroblast_results (shuffle arm, head comparison, per-condition)"
 python Scripts/48_ft_fibroblast_results.py
 echo
+echo "########## 49_fb_scan_stable_vs_dynamic (tile scan + saturation mutagenesis by class)"
+python Scripts/49_fb_scan_stable_vs_dynamic.py
+echo
 echo "########## 47_fb_swap_analysis (element swaps + host insertions)"
 python Scripts/47_fb_swap_analysis.py
