@@ -139,4 +139,32 @@ if not P.empty:
     P.to_csv(OUT / "per_family_stable_vs_loss.csv", index=False)
     print("\n=== 4. per family: Stable vs AP-1-loss net effect (does any single family carry the difference?)")
     print(P.sort_values("p").round(4).to_string(index=False))
+# ---------------------------------------------------------------- 5. how AP-1-centric is each class?
+# The share of a site's measured motif dependence that sits on its own AP-1 motif rather than on its partners. Every
+# term is an AlphaGenome effect; TOBIAS only says where the partner spans are. Because partner detection needs signal,
+# Stable sites carry more detected partners, so the test is repeated inside each stratum of partner count.
+J["ap1_share"] = J.own_ap1.abs() / (J.own_ap1.abs() + J.partners_mean_net.abs())
+J["n_partners"] = J.site_id.map(net.groupby("site_id").family.nunique())
+J["sd"] = np.where(J.grp == "Stable", "Stable", "Dynamic")
+J.to_csv(OUT / "own_vs_partners_per_site.csv", index=False)
+print("\n=== 5. AP-1 share = |own AP-1| / (|own AP-1| + |partners, net|): how AP-1-centric is the site?")
+for g in GR:
+    w = J[J.grp == g].ap1_share.dropna()
+    if len(w) >= a.min_sites:
+        print(f"   {g:14s} n={len(w):5d}  {w.median():.3f}  (IQR {w.quantile(.25):.3f}-{w.quantile(.75):.3f})")
+S_, D_ = J[J.sd == "Stable"].ap1_share.dropna(), J[J.sd == "Dynamic"].ap1_share.dropna()
+print(f"   pooled Stable {S_.median():.3f} vs Dynamic {D_.median():.3f}  p={mannwhitneyu(S_, D_).pvalue:.3g}")
+print(f"   partners detected per site: Stable {J[J.sd == 'Stable'].n_partners.mean():.2f} vs "
+      f"Dynamic {J[J.sd == 'Dynamic'].n_partners.mean():.2f} - so the same test within each stratum:")
+rows = []
+for n, g in J.groupby("n_partners"):
+    x, y = g[g.sd == "Stable"].ap1_share.dropna(), g[g.sd == "Dynamic"].ap1_share.dropna()
+    if min(len(x), len(y)) >= 20:
+        rows.append({"n_partners": int(n), "n_stable": len(x), "n_dynamic": len(y), "stable": x.median(),
+                     "dynamic": y.median(), "difference": y.median() - x.median(), "p": mannwhitneyu(x, y).pvalue})
+A = pd.DataFrame(rows)
+if not A.empty:
+    A.to_csv(OUT / "ap1_share_by_partner_count.csv", index=False)
+    print(A.round(4).to_string(index=False))
+
 print("\noutputs in", OUT)
