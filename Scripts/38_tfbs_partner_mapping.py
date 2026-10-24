@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Which transcription factor binding sites does AlphaGenome treat as important around an AP-1 site, and do different factors matter to different classes?
-Maps every footprinted cardiomyocyte TFBS of the FULL TOBIAS table onto the tile scan and saturation mutagenesis of 15_scan_titrate.py.
+Maps every footprinted TFBS of that cell type in the FULL TOBIAS table onto the tile scan and saturation mutagenesis of 15_scan_titrate.py.
+ --cell cm (default) uses the cardiomyocyte scan read with the built-in head; --cell fb uses the fibroblast scan read with the fine-tuned 1 bp head.
  A  tile importance per TF / family, adjusted for the site's overall sensitivity and for distance from the AP-1 motif (two-way median adjustment)
  B  base-resolution check: |effect| of single-base changes inside vs outside each factor's footprint (+/-30 bp window)
  C  do different factors matter to Dynamic and to context-matched Stable sites? (importance and prevalence)
 TOBIAS is used here for the LOCATION of bound motifs only; footprint scores are not used.   Inputs: Data/derived/tobias_cm_all_motifs.csv.gz (made by this script if missing), Katana/results/scan*_cm_chunk*.csv.
-Outputs Analysis/partners/{tables,figures}.   python3 38_tfbs_partner_mapping.py"""
+Outputs Analysis/partners[_fb]/{tables,figures}.   python3 38_tfbs_partner_mapping.py [--cell fb]"""
 from __future__ import annotations
 
+import argparse
 import glob
 import re
 import warnings
@@ -23,7 +25,13 @@ from scipy.stats import chi2, fisher_exact, mannwhitneyu
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "Analysis" / "partners"
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--cell", choices=["cm", "fb"], default="cm")
+CELL = _ap.parse_args().cell
+CELLTYPE = {"cm": "Cardiomyocyte", "fb": "Fibroblast"}[CELL]
+TRACKSET = {"cm": "CM", "fb": "FB"}[CELL]
+SCAN_GLOB = {"cm": "Katana/results/scan*_cm_chunk*.csv", "fb": "Katana/results_ft/scan_fb_chunk*.csv"}[CELL]
+OUT = ROOT / "Analysis" / ("partners" if CELL == "cm" else "partners_fb")
 (OUT / "tables").mkdir(parents=True, exist_ok=True)
 (OUT / "figures").mkdir(parents=True, exist_ok=True)
 rng = np.random.default_rng(38)
@@ -64,19 +72,19 @@ def family(name):
 
 
 # ---------------------------------------------------------------- inputs
-TOB = ROOT / "Data/derived/tobias_cm_all_motifs.csv.gz"
+TOB = ROOT / f"Data/derived/tobias_{CELL}_all_motifs.csv.gz"
 if not TOB.exists():
     cols = ["seqnames", "start", "end", "in_MAE", "in_MAS", "in_YS", "MAS_score", "MAE_score", "YS_score", "category", "CellType", "name", "peak_coord"]
     it = pd.read_csv(ROOT / "Data/Tobias_df_Classified_Full.csv.gz", usecols=cols, chunksize=1_000_000, dtype={"name": "category", "CellType": "category", "category": "category"})
-    pd.concat([c[c.CellType == "Cardiomyocyte"] for c in it], ignore_index=True).drop(columns=["CellType"]).to_csv(TOB, index=False, compression="gzip")
+    pd.concat([c[c.CellType == CELLTYPE] for c in it], ignore_index=True).drop(columns=["CellType"]).to_csv(TOB, index=False, compression="gzip")
 tob = pd.read_csv(TOB, usecols=["seqnames", "start", "end", "in_MAE", "in_MAS", "in_YS", "name"], dtype={"name": "category"})
 tob["family"] = tob.name.map(family).astype("category")
 
-sc = pd.concat([pd.read_csv(f) for f in sorted(glob.glob(str(ROOT / "Katana/results/scan*_cm_chunk*.csv")))], ignore_index=True)
-sc = sc[sc.trackset == "CM"]
+sc = pd.concat([pd.read_csv(f) for f in sorted(glob.glob(str(ROOT / SCAN_GLOB)))], ignore_index=True)
+sc = sc[sc.trackset == TRACKSET]
 n_pass = sc.groupby("site_id").size()
 sc = sc[sc.site_id.isin(n_pass.index[n_pass == n_pass.max()])]                    # complete sites only
-sites = pd.read_csv(ROOT / "Data/derived/cm_fos_sites.csv").set_index("site_id")
+sites = pd.read_csv(ROOT / f"Data/derived/{CELL}_fos_sites.csv").drop_duplicates("site_id").set_index("site_id")
 sc = sc.join(sites[["seqnames", "motif_mid"]], on="site_id")
 
 EFF = {}
@@ -86,7 +94,7 @@ for rd, col in (("170", "atac_170"), ("motif", "atac_motif")):
     e = sc[sc.kind != "native"].copy()
     e["eff"] = np.log2((e[col] + pc) / (e.site_id.map(nat) + pc))
     EFF[rd] = e
-print(f"scan: {sc.site_id.nunique()} complete sites; TOBIAS cardiomyocyte footprints: {len(tob):,} in {tob.name.nunique()} motifs, {tob.family.nunique()} families")
+print(f"scan: {sc.site_id.nunique()} complete sites; TOBIAS {CELLTYPE} footprints: {len(tob):,} in {tob.name.nunique()} motifs, {tob.family.nunique()} families")
 
 # ---------------------------------------------------------------- overlap: every footprint within +/-HALF bp of each site
 idx = {c: g.sort_values("start").reset_index(drop=True) for c, g in tob.groupby("seqnames", observed=True)}
@@ -191,14 +199,15 @@ B["fdr"] = bh(B.p)
 B.to_csv(OUT / "tables" / "b_base_importance_by_family.csv", index=False)
 
 # ---------------------------------------------------------------- C. Dynamic vs context-matched Stable
-G = {"dynamic": "Dynamic", "matched_stable": "Stable, context-matched"}
+STABLE_GROUP = "matched_stable" if CELL == "cm" else "random_stable"
+G = {"dynamic": "Dynamic", STABLE_GROUP: "Stable, context-matched" if CELL == "cm" else "Stable (random)"}
 rows = []
 for fam_, w in TP[TP.group.isin(G)].groupby("family", observed=True):
-    a, b_ = w[w.group == "dynamic"], w[w.group == "matched_stable"]
+    a, b_ = w[w.group == "dynamic"], w[w.group == STABLE_GROUP]
     if min(len(a), len(b_)) < 25:
         continue
     sa = set(H[(H.family == fam_) & ~H.own_ap1].site_id)
-    pa = meta[meta.group == "dynamic"].index.isin(list(sa)), meta[meta.group == "matched_stable"].index.isin(list(sa))
+    pa = meta[meta.group == "dynamic"].index.isin(list(sa)), meta[meta.group == STABLE_GROUP].index.isin(list(sa))
     tab = [[pa[0].sum(), (~pa[0]).sum()], [pa[1].sum(), (~pa[1]).sum()]]
     rows.append({"family": fam_, "n_tiles_dynamic": len(a), "n_tiles_stable": len(b_), "median_adj_dynamic": a.adj.median(), "median_adj_stable": b_.adj.median(),
                  "importance_diff": a.adj.median() - b_.adj.median(), "p_importance": mannwhitneyu(a.adj, b_.adj).pvalue,
@@ -218,25 +227,25 @@ for g, lab in G.items():
                  "median_tfs_per_site": h.groupby("site_id").name.nunique().reindex(s_).fillna(0).median()})
 D = pd.DataFrame(rows)
 _d = H[H.site_id.isin(meta[meta.group == "dynamic"].index) & ~H.own_ap1].groupby("site_id").family.nunique().reindex(meta[meta.group == "dynamic"].index).fillna(0)
-_s = H[H.site_id.isin(meta[meta.group == "matched_stable"].index) & ~H.own_ap1].groupby("site_id").family.nunique().reindex(meta[meta.group == "matched_stable"].index).fillna(0)
+_s = H[H.site_id.isin(meta[meta.group == STABLE_GROUP].index) & ~H.own_ap1].groupby("site_id").family.nunique().reindex(meta[meta.group == STABLE_GROUP].index).fillna(0)
 D["p_families_vs_dynamic"] = [np.nan, mannwhitneyu(_d, _s).pvalue]
 D.to_csv(OUT / "tables" / "c_partner_counts_by_group.csv", index=False)
 
 # ---------------------------------------------------------------- E. is the partner-count difference just detection? (footprints need signal)
 meas = pd.read_csv(ROOT / "Katana/data/measured_atac_sites.csv")
-meas = meas[meas.site_table == "cm"].set_index("site_id").cm_cpm_per_kb
+meas = meas[meas.site_table == CELL].set_index("site_id")[f"{CELL}_cpm_per_kb"]
 fams_per = H[~H.own_ap1].groupby("site_id").family.nunique()
 S = meta[meta.group.isin(G)].copy()
 S["n_families"] = fams_per.reindex(S.index).fillna(0)
 S["measured"] = meas.reindex(S.index)
 S["q"] = pd.qcut(S.measured, 4, labels=["Q1 lowest", "Q2", "Q3", "Q4 highest"])
-rows = [{"stratum": "all sites", "n_dynamic": int((S.group == "dynamic").sum()), "n_stable": int((S.group == "matched_stable").sum()),
-         "median_families_dynamic": S[S.group == "dynamic"].n_families.median(), "median_families_stable": S[S.group == "matched_stable"].n_families.median(),
-         "p": mannwhitneyu(S[S.group == "dynamic"].n_families, S[S.group == "matched_stable"].n_families).pvalue,
-         "median_measured_dynamic": S[S.group == "dynamic"].measured.median(), "median_measured_stable": S[S.group == "matched_stable"].measured.median(),
-         "p_measured": mannwhitneyu(S[S.group == "dynamic"].measured.dropna(), S[S.group == "matched_stable"].measured.dropna()).pvalue}]
+rows = [{"stratum": "all sites", "n_dynamic": int((S.group == "dynamic").sum()), "n_stable": int((S.group == STABLE_GROUP).sum()),
+         "median_families_dynamic": S[S.group == "dynamic"].n_families.median(), "median_families_stable": S[S.group == STABLE_GROUP].n_families.median(),
+         "p": mannwhitneyu(S[S.group == "dynamic"].n_families, S[S.group == STABLE_GROUP].n_families).pvalue,
+         "median_measured_dynamic": S[S.group == "dynamic"].measured.median(), "median_measured_stable": S[S.group == STABLE_GROUP].measured.median(),
+         "p_measured": mannwhitneyu(S[S.group == "dynamic"].measured.dropna(), S[S.group == STABLE_GROUP].measured.dropna()).pvalue}]
 for q, w in S.groupby("q", observed=True):
-    a, b_ = w[w.group == "dynamic"], w[w.group == "matched_stable"]
+    a, b_ = w[w.group == "dynamic"], w[w.group == STABLE_GROUP]
     rows.append({"stratum": f"measured accessibility {q}", "n_dynamic": len(a), "n_stable": len(b_), "median_families_dynamic": a.n_families.median(), "median_families_stable": b_.n_families.median(),
                  "p": mannwhitneyu(a.n_families, b_.n_families).pvalue if min(len(a), len(b_)) > 5 else np.nan,
                  "median_measured_dynamic": a.measured.median(), "median_measured_stable": b_.measured.median(), "p_measured": np.nan})
@@ -325,7 +334,7 @@ site_free = t_free.groupby("site_id").adj.median().rename("free_med")
 site_fam = site_fam.join(site_free, on="site_id").join(meta2[["group", "age_score_class"]], on="site_id")
 site_fam["vs_free"] = site_fam.site_med - site_fam.free_med                                                    # within-site contrast: this factor against that site's footprint-free tiles
 site_fam.to_csv(OUT / "tables" / "i_site_level_family_importance.csv", index=False)
-COMPARISONS = [("Dynamic vs context-matched Stable", "group", "dynamic", "matched_stable"),
+COMPARISONS = [("Dynamic vs " + G[STABLE_GROUP], "group", "dynamic", STABLE_GROUP),
                ("Dynamic vs high-accessibility Stable", "group", "dynamic", "high_stable"),
                ("Age Up (score) vs Unchanged", "age_score_class", "Age Up (score)", "Unchanged")]
 rows = []
@@ -346,7 +355,7 @@ I.to_csv(OUT / "tables" / "i_class_differences_site_level.csv", index=False)
 # CTCF: what drives the tile-level result?
 ct = site_fam[site_fam.family == "CTCF / cohesin"]
 ctr = []
-for g, lab in (("dynamic", "Dynamic"), ("matched_stable", "Stable, context-matched"), ("high_stable", "Stable, high accessibility")):
+for g, lab in [("dynamic", "Dynamic"), (STABLE_GROUP, G[STABLE_GROUP])] + ([("high_stable", "Stable, high accessibility")] if CELL == "cm" else []):
     w = ct[ct.group == g].vs_free.dropna()
     if len(w):
         ctr.append({"group": lab, "n_sites": len(w), "median_vs_free": w.median(), "q25": w.quantile(0.25), "q75": w.quantile(0.75),
@@ -362,11 +371,11 @@ prv = []
 for fam_ in ("MEF2", "GATA", "TEAD", "NFI (Nfia/b/c/x)", "CTCF / cohesin", "AP-1 (Fos/Jun/Atf/Batf)", "MYC / MAX", "Nuclear receptor (Esrr/Nr/Ppar/Thr)"):
     has = set(H[(H.family == fam_) & ~H.own_ap1].site_id)
     S2["has"] = S2.index.isin(has)
-    a_, b_ = S2[S2.group == "dynamic"], S2[S2.group == "matched_stable"]
+    a_, b_ = S2[S2.group == "dynamic"], S2[S2.group == STABLE_GROUP]
     row = {"family": fam_, "share_dynamic": a_.has.mean(), "share_stable": b_.has.mean(),
            "p_unstratified": fisher_exact([[a_.has.sum(), (~a_.has).sum()], [b_.has.sum(), (~b_.has).sum()]])[1]}
     tabs = [np.array([[w[w.group == "dynamic"].has.sum(), (~w[w.group == "dynamic"].has).sum()],
-                      [w[w.group == "matched_stable"].has.sum(), (~w[w.group == "matched_stable"].has).sum()]]) for _, w in S2.groupby("q", observed=True)]
+                      [w[w.group == STABLE_GROUP].has.sum(), (~w[w.group == STABLE_GROUP].has).sum()]]) for _, w in S2.groupby("q", observed=True)]
     num = sum(tb[0, 0] * tb[1, 1] / tb.sum() for tb in tabs if tb.sum())          # Mantel-Haenszel, stratified by measured accessibility
     den = sum(tb[0, 1] * tb[1, 0] / tb.sum() for tb in tabs if tb.sum())
     row["odds_ratio_stratified"] = num / den if den else np.nan
@@ -379,7 +388,7 @@ for fam_ in ("MEF2", "GATA", "TEAD", "NFI (Nfia/b/c/x)", "CTCF / cohesin", "AP-1
     for k in range(400):
         s_ = S2.sample(len(S2), replace=True, random_state=k)
         tb_ = [np.array([[w[w.group == "dynamic"].has.sum(), (~w[w.group == "dynamic"].has).sum()],
-                         [w[w.group == "matched_stable"].has.sum(), (~w[w.group == "matched_stable"].has).sum()]]) for _, w in s_.groupby("q", observed=True)]
+                         [w[w.group == STABLE_GROUP].has.sum(), (~w[w.group == STABLE_GROUP].has).sum()]]) for _, w in s_.groupby("q", observed=True)]
         n_ = sum(tb[0, 0] * tb[1, 1] / tb.sum() for tb in tb_ if tb.sum())
         d_ = sum(tb[0, 1] * tb[1, 0] / tb.sum() for tb in tb_ if tb.sum())
         if d_:
