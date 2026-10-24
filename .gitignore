@@ -15,3 +15,5 @@ Data/derived/tobias_cm_all_motifs.csv.gz
 Data/derived/tobias_fb_all_motifs.csv.gz
 Katana/results_ft/*
 !Katana/results_ft/.keep
+
+Scripts/slides/node_modules/
