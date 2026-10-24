@@ -31,6 +31,9 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--res", default=None)
 ap.add_argument("--track", default="FB")
 ap.add_argument("--caliper", type=float, default=0.1, help="matching tolerance in log10 native accessibility")
+ap.add_argument("--match-on", default="measured", choices=["measured", "predicted"],
+                help="measured = the donor site's own fibroblast ATAC CPM/kb, which the model never saw; "
+                     "predicted = the model's native call over the element, which partly IS the thing being measured")
 a = ap.parse_args()
 RES = Path(a.res) if a.res else ROOT / "Katana" / "results_ft"
 OUT = ROOT / "Analysis" / "fb_swap" / "tables"
@@ -52,6 +55,16 @@ piv = d.pivot_table(index=["donor_id", "donor_class", "host_id", "width"], colum
 piv.columns = [c[0] if not c[1] else f"{c[0]}__{c[1]}" for c in piv.columns]
 piv["lift"] = lg(piv["atac_insert__element"]) - lg(piv["atac_insert__shuffled"])
 piv["native"] = piv["donor_native_atac_insert__element"]
+if a.match_on == "measured":
+    meas = pd.read_csv(ROOT / "Katana" / "data" / "measured_atac_sites.csv")
+    meas = meas[meas.site_table == "fb"].drop_duplicates("site_id").set_index("site_id").fb_cpm_per_kb
+    piv["native"] = piv.donor_id.map(meas)
+    gone = piv[piv.native.isna()].drop_duplicates(["donor_id", "donor_class"]).donor_class.value_counts()
+    if len(gone):
+        print("donors with no measured fibroblast peak, dropped from the matched analysis: "
+              + ", ".join(f"{k} {v}" for k, v in gone.items()))
+    piv = piv[piv.native.notna()]
+print(f"matching on the {a.match_on} accessibility of the donor site")
 
 rows = []
 for width, W in piv.groupby("width"):
@@ -123,8 +136,9 @@ for width, W in piv.groupby("width"):
                  "gap_unmatched_mean": S.lift.mean() - D.lift.mean(),
                  "rho_lift_vs_native": rho_all, "n_pairs": len(pairs),
                  "gap_matched": (P.sta_lift.median() - P.dyn_lift.median()) if len(pairs) >= 10 else np.nan,
-                 "p_matched": p_matched, "gap_adjusted": beta[1], "se_adjusted": se[1], "p_adjusted": p_adj})
+                 "p_matched": p_matched, "gap_adjusted": beta[1], "se_adjusted": se[1], "p_adjusted": p_adj,
+                 "match_on": a.match_on})
 
 R = pd.DataFrame(rows)
-R.to_csv(OUT / "host_insertion_accessibility_matched.csv", index=False)
-print(f"\n{'=' * 96}\nwrote {OUT / 'host_insertion_accessibility_matched.csv'}")
+R.to_csv(OUT / f"host_insertion_accessibility_matched_{a.match_on}.csv", index=False)
+print(f"\n{'=' * 96}\nwrote {OUT / f'host_insertion_accessibility_matched_{a.match_on}.csv'}")

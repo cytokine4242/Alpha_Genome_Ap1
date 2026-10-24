@@ -1,0 +1,80 @@
+metric,description,grouping,class,n,median
+mm_slope,"dose-response slope, log2 per base of core weakened",stable_dynamic,Dynamic,1180,-0.01611972562037574
+mm_slope,"dose-response slope, log2 per base of core weakened",stable_dynamic,Stable,1179,-0.02227778840749973
+mm_slope,"dose-response slope, log2 per base of core weakened",age_class,Age Down,212,-0.010432920321309044
+mm_slope,"dose-response slope, log2 per base of core weakened",age_class,Age Up,613,-0.020026301636499523
+mm_slope,"dose-response slope, log2 per base of core weakened",age_class,Stable,1294,-0.021910033483950674
+mm_slope,"dose-response slope, log2 per base of core weakened",age_class,Unbound,240,-0.013001276270728558
+mm_slope,"dose-response slope, log2 per base of core weakened",ex_class,Exercise Down,359,-0.01722700422996
+mm_slope,"dose-response slope, log2 per base of core weakened",ex_class,Exercise Up,318,-0.012689729032138181
+mm_slope,"dose-response slope, log2 per base of core weakened",ex_class,Stable,1548,-0.022012624818915704
+mm_slope,"dose-response slope, log2 per base of core weakened",ex_class,Unbound,134,-0.008504983260609045
+mm1,one base of the core changed,stable_dynamic,Dynamic,1180,-0.8496673035849238
+mm1,one base of the core changed,stable_dynamic,Stable,1179,-0.8381244463229311
+mm1,one base of the core changed,age_class,Age Down,212,-0.6224167303774479
+mm1,one base of the core changed,age_class,Age Up,613,-0.8983743853284727
+mm1,one base of the core changed,age_class,Stable,1294,-0.8259007975545254
+mm1,one base of the core changed,age_class,Unbound,240,-0.9135074436525973
+mm1,one base of the core changed,ex_class,Exercise Down,359,-0.8289841896971103
+mm1,one base of the core changed,ex_class,Exercise Up,318,-0.9022113101723173
+mm1,one base of the core changed,ex_class,Stable,1548,-0.8617420017783295
+mm1,one base of the core changed,ex_class,Unbound,134,-0.5947848559514765
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),stable_dynamic,Dynamic,1180,-1.02451753131391
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),stable_dynamic,Stable,1179,-1.1172164357839787
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),age_class,Age Down,212,-0.7192852463945779
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),age_class,Age Up,613,-1.1124734859389498
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),age_class,Stable,1294,-1.069276567890024
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),age_class,Unbound,240,-1.032480141227953
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),ex_class,Exercise Down,359,-1.017621301385992
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),ex_class,Exercise Up,318,-1.0274273027501613
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),ex_class,Stable,1548,-1.1250450844877051
+mm_plateau,plateau: 5-7 bases changed (the motif is gone),ex_class,Unbound,134,-0.6819224302296718
+halfsite,only the first half-site kept,stable_dynamic,Dynamic,1180,-0.9973381749544677
+halfsite,only the first half-site kept,stable_dynamic,Stable,1179,-1.0611926913200327
+halfsite,only the first half-site kept,age_class,Age Down,212,-0.757757318876745
+halfsite,only the first half-site kept,age_class,Age Up,613,-1.107478311668027
+halfsite,only the first half-site kept,age_class,Stable,1294,-1.0329634853843648
+halfsite,only the first half-site kept,age_class,Unbound,240,-0.9865285127259682
+halfsite,only the first half-site kept,ex_class,Exercise Down,359,-1.0152614336484358
+halfsite,only the first half-site kept,ex_class,Exercise Up,318,-0.9760418913702877
+halfsite,only the first half-site kept,ex_class,Stable,1548,-1.065273585332853
+halfsite,only the first half-site kept,ex_class,Unbound,134,-0.6924917436604732
+motif_rc,the 11 bp motif reverse-complemented,stable_dynamic,Dynamic,1180,-0.036057217135763
+motif_rc,the 11 bp motif reverse-complemented,stable_dynamic,Stable,1179,-0.030745182943098505
+motif_rc,the 11 bp motif reverse-complemented,age_class,Age Down,212,-0.01926789966428516
+motif_rc,the 11 bp motif reverse-complemented,age_class,Age Up,613,-0.038003440525134574
+motif_rc,the 11 bp motif reverse-complemented,age_class,Stable,1294,-0.031292161261701305
+motif_rc,the 11 bp motif reverse-complemented,age_class,Unbound,240,-0.035357157963295416
+motif_rc,the 11 bp motif reverse-complemented,ex_class,Exercise Down,359,-0.036193580390597904
+motif_rc,the 11 bp motif reverse-complemented,ex_class,Exercise Up,318,-0.04538206754811938
+motif_rc,the 11 bp motif reverse-complemented,ex_class,Stable,1548,-0.03334893644581238
+motif_rc,the 11 bp motif reverse-complemented,ex_class,Unbound,134,-0.0015121094143961376
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),stable_dynamic,Dynamic,264,0.6586049718156526
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),stable_dynamic,Stable,236,0.5167985761093508
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),age_class,Age Down,41,0.5087144248813698
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),age_class,Age Up,144,0.6667126545601059
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),age_class,Stable,262,0.5220837815935551
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),age_class,Unbound,53,0.7437865101667427
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),ex_class,Exercise Down,92,0.6640536442139625
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),ex_class,Exercise Up,70,0.7107021359720807
+core_upgrade,imperfect core made perfect (sites without TGAGTCA),ex_class,Stable,314,0.543356921098522
+dup_net,"a second copy of the motif, net of a shuffled control",stable_dynamic,Dynamic,1180,0.7176157852060698
+dup_net,"a second copy of the motif, net of a shuffled control",stable_dynamic,Stable,1179,0.599897995213882
+dup_net,"a second copy of the motif, net of a shuffled control",age_class,Age Down,212,0.6533331174739021
+dup_net,"a second copy of the motif, net of a shuffled control",age_class,Age Up,613,0.7628209438207648
+dup_net,"a second copy of the motif, net of a shuffled control",age_class,Stable,1294,0.6014138197435497
+dup_net,"a second copy of the motif, net of a shuffled control",age_class,Unbound,240,0.7625109179188492
+dup_net,"a second copy of the motif, net of a shuffled control",ex_class,Exercise Down,359,0.7157712439480494
+dup_net,"a second copy of the motif, net of a shuffled control",ex_class,Exercise Up,318,0.7384514731696814
+dup_net,"a second copy of the motif, net of a shuffled control",ex_class,Stable,1548,0.6308144990393967
+dup_net,"a second copy of the motif, net of a shuffled control",ex_class,Unbound,134,0.5811681440171912
+move_net,"the motif relocated, net of a shuffled control",stable_dynamic,Dynamic,1180,0.6314856990815664
+move_net,"the motif relocated, net of a shuffled control",stable_dynamic,Stable,1179,0.7137504628832847
+move_net,"the motif relocated, net of a shuffled control",age_class,Age Down,212,0.46663574172838673
+move_net,"the motif relocated, net of a shuffled control",age_class,Age Up,613,0.6754614232031051
+move_net,"the motif relocated, net of a shuffled control",age_class,Stable,1294,0.7089250299104678
+move_net,"the motif relocated, net of a shuffled control",age_class,Unbound,240,0.6324262706408549
+move_net,"the motif relocated, net of a shuffled control",ex_class,Exercise Down,359,0.6839550830796423
+move_net,"the motif relocated, net of a shuffled control",ex_class,Exercise Up,318,0.6201508473616336
+move_net,"the motif relocated, net of a shuffled control",ex_class,Stable,1548,0.7044758520468692
+move_net,"the motif relocated, net of a shuffled control",ex_class,Unbound,134,0.42735348055858935

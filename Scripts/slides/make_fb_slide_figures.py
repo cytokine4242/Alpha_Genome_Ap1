@@ -80,9 +80,18 @@ for yi, cls in zip(y, ORDER):
         ax.text(0.12, yi, stars(p_vs_stable[cls]), va="center", ha="left", fontsize=11, color="#ffffff", zorder=6)
 ax.set_yticks(y, [LAB[c] for c in ORDER])
 ax.set_xlabel("opening of a closed site after the element is moved in  (log$_2$)")
-ax.set_xlim(0, 6.6)
+ax.set_xlim(0, 10.1)
+ax.set_xticks(np.arange(0, 6.1, 1))
 ax.set_ylim(-0.62, len(ORDER) - 0.42)
 ax.set_title("A   Stable elements open closed chromatin on their own", loc="left", fontsize=13.5, pad=10)
+# how much of the gap is the donors' own accessibility rather than their sequence (53_fb_host_insertion_matched.py)
+adj = pd.read_csv(SW / "host_insertion_accessibility_matched_measured.csv")
+adj = adj[adj.width == "peak"].iloc[0]
+ax.text(9.95, 1.0, "Stable donors also sit in\nmore accessible loci. Hold\nthat constant and a Stable\n"
+        f"element still gains {adj.gap_adjusted:+.1f} log$_2$\n({2 ** adj.gap_adjusted:.1f}$\\times$), "
+        f"p = {adj.p_adjusted:.3f}",
+        ha="right", va="center", fontsize=10.5, color=INK, linespacing=1.45,
+        bbox=dict(boxstyle="round,pad=0.45", facecolor="#f4f2ee", edgecolor=GRID))
 
 w = 0.36
 xs = np.arange(2)
