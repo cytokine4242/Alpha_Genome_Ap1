@@ -1,0 +1,18 @@
+#!/bin/bash
+#PBS -N ag_slides
+#PBS -l select=1:ncpus=4:mem=48gb
+#PBS -l walltime=01:30:00
+#PBS -j oe
+# CPU-only: the analyses behind the two lab-meeting slides (no GPU, general queue): qsub pbs/20_slides_analysis.pbs
+cd $PBS_O_WORKDIR
+source pbs/queue_wait.sh 2>/dev/null
+source /srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv/bin/activate
+cd ..
+echo "########## 52_fb_partner_shuffle_analysis (is AP-1 special? full 20-chunk run)"
+python Scripts/52_fb_partner_shuffle_analysis.py
+echo
+echo "########## 50_fb_scan_per_class (tile scan by binding class, accessibility-matched)"
+python Scripts/50_fb_scan_per_class.py
+echo
+echo "########## 47_fb_swap_analysis (element swaps + host insertions, transfer fraction)"
+python Scripts/47_fb_swap_analysis.py
