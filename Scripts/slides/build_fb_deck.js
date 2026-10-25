@@ -313,6 +313,9 @@ resultSlide({
     + "  Stable -1.21 (n=1179, reference) · Age Up -1.19 (n=605, FDR 0.93) · Age Down -0.78 (n=209, FDR 9.1e-5) · "
     + "Exercise Up -1.14 (n=233, FDR 0.49) · Exercise Down -0.96 (n=114, FDR 0.043)\n\n"
     + "Partner motifs, net of control: -0.20 / -0.25 / -0.22 / -0.23 / -0.33. Nothing survives BH (smallest adjusted 0.20), "
+    + "Split by FAMILY rather than pooled there is a backup slide: the same three families lead everywhere (C/EBP, NFI, "
+    + "E-box bHLH), and three isolated class differences appear, the solid one being heat-shock motifs in Exercise Down. "
+    + "That is a finer and far more multiply-tested question; it does not contradict the null here. "
     + "so the deficit is AP-1-specific in both losing classes. "
     + "So the deficit is AP-1-specific, not general weakness. No single partner family takes over: nothing survives FDR in the per-family split.\n\n"
     + "Agreement: pooled Stable vs Dynamic at the motif is a null, which matches the manuscript's core-scramble result (no class difference). "
@@ -472,6 +475,46 @@ diagramSlide({
     + "actually move, and the predicted cost is -0.03 log2 (p = 0.89). If that had come out large, nothing else here "
     + "would be trustworthy.",
 });
+
+// ================================================================== 12z. the partner families, per class
+// Backup slide. "What else is in there besides AP-1" is a fair question and the partner shuffle can answer it,
+// whereas the scans cannot - they are positional and never see what is written at a position.
+{
+  const s = pres.addSlide({ masterName: "TITLE_BODY" });
+  s.addText("Besides AP-1, which partners do the sites lean on?", { placeholder: "title" });
+  s.addText(bullets([
+    { text: "The same three lead in every class — only how hard they are leaned on changes", bold: true },
+    { text: "Stable sites: C/EBP −0.69 (in 11% of them) · NFI −0.36 (28%) · E-box bHLH −0.27 (49%) · heat shock −0.19 (33%) · TEAD −0.16 (15%). Net log2 after subtracting a width- and distance-matched footprint-free control.", sub: true },
+    { text: "C/EBP hits hardest where it is present; E-box bHLH is the one most sites actually carry.", sub: true },
+    { text: "Three class differences clear BH, and only one of them convincingly", bold: true },
+    { text: "Exercise Down leans far harder on heat-shock / stress motifs: −0.69 against Stable's −0.19, FDR 0.005.", sub: true },
+    { text: "Age Up leans harder on NFI (−0.89 against −0.36) and on KLF/SP, both FDR 0.045 — but see the caveat.", sub: true },
+    { text: "Read these as leads, not findings", bold: true },
+    { text: "BH is applied within each class. Across all four Dynamic classes and every family together, only the heat-shock result would survive; the two at 0.045 would not.", sub: true },
+    { text: "Footprint detection needs signal, so a less accessible class yields fewer called partners — the share column moves with accessibility even where the net effect does not.", sub: true },
+    { text: "This is the partner shuffle, not the scan. A tile or sliding scan says which 10 bp matter, never what is written there.", sub: true },
+  ]), { placeholder: "body" });
+  s.addNotes("Source: Scripts/62_fb_partner_families_by_class.py, from the per-site per-family net effects. AP-1 itself "
+    + "is excluded - it has its own slide. A family needs 25 sites in a class to be ranked there.\n\n"
+    + "FULL TOP-FIVE BY CLASS (net log2, share of that class's sites carrying the footprint):\n"
+    + "  Stable (1180): CEBP -0.69 (11.0%) · NFI -0.36 (28.0%) · E-box -0.27 (49.0%) · heat shock -0.19 (33.4%) · TEAD -0.16 (14.7%)\n"
+    + "  Age Up (613): CEBP -1.25 (4.2%) · NFI -0.89 (15.2%) · E-box -0.39 (33.0%) · TALE homeodomain -0.33 (4.2%) · heat shock -0.28 (18.9%)\n"
+    + "  Age Down (212): CTCF/cohesin -0.56 (15.1%) · NFI -0.38 (14.2%) · E-box -0.34 (30.7%) · heat shock -0.27 (26.4%) · ETS -0.20 (21.7%)\n"
+    + "  Exercise Up (240): NFI -0.70 (15.4%) · E-box -0.44 (21.2%) · heat shock -0.23 (17.1%) · NF-kB/Rel -0.22 (12.1%) · NFAT -0.20 (10.8%)\n"
+    + "  Exercise Down (115): heat shock -0.69 (24.3%) · E-box -0.51 (38.3%) · KLF/SP -0.10 (62.6%) · Other -0.09 (73.9%) · Zn finger -0.07 (66.1%)\n\n"
+    + "DO NOT quote CTCF/cohesin topping Age Down as a result. n = 32 and the interval is [-2.14, -0.15] - the point "
+    + "estimate is unstable and it does not differ from Stable (FDR 0.059).\n\n"
+    + "How this sits with the specificity slide: that one says no class differs at its partner motifs, pooling all "
+    + "families into one number per site, and that remains true. Splitting by family is a finer and much more "
+    + "multiply-tested question, and it turns up three isolated hits. The two statements are consistent; the per-family "
+    + "one is the weaker evidence.\n\n"
+    + "The heat-shock result in Exercise Down is the one worth a sentence out loud: the sites that lose AP-1 with "
+    + "exercise are the ones whose remaining dependence sits on stress-response motifs. That is a hypothesis the bench "
+    + "could test, not something this analysis establishes.\n\n"
+    + "If someone asks what the SLIDING SCAN says about other motifs: nothing directly, and it is still running. Once it "
+    + "lands, the analysis that would answer it is to intersect the significant 10 bp windows with the TOBIAS footprint "
+    + "positions and ask which families sit under the secondary peaks. Worth doing, not yet done.");
+}
 
 // ================================================================== 12a. how each result handles accessibility
 // Backup slide. Dynamic sites are about half as accessible as Stable ones, so "is it just accessibility?" is the
