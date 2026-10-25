@@ -39,6 +39,7 @@ import pandas as pd
 import ag_lib as L
 
 TILE, TILE_HALF, ISM_HALF = 10, 300, 30
+SLIDE_TILE, SLIDE_HALF, SLIDE_STEP = 10, 400, 2   # the sliding scan: same 10 bp edit, stepped 2 bp, across the whole element
 OFFSETS = (-150, -80, -40, -20, 20, 40, 80, 150)
 CORE_LEN = 7
 
@@ -99,6 +100,21 @@ def scan_conditions(codes, reg, rng, tile_reps=3):
             e = codes.copy()
             e[i] = alt
             out.append((f"ism@{p:+d}{'ACGT'[alt]}", "ism", p, "ACGT"[alt], 0, e, None))
+    return out
+
+
+def slide_conditions(codes, reg, rng, tile=SLIDE_TILE, half=SLIDE_HALF, step=SLIDE_STEP, reps=1):
+    """The tile scan's edit, but the window slides instead of tiling: a 10 bp replacement centred every `step` bp
+    from -half to +half. Neighbouring windows share 8 of their 10 bases, so the profile is sampled far more finely
+    than the 60-tile version without the edit itself changing. One replicate per position is enough because every
+    10 bp of sequence is now covered by five overlapping windows rather than by three repeats of one."""
+    mid, out = reg["mid"], []
+    for o in range(-half, half - tile + 1, step):
+        a_, b_ = mid + o, mid + o + tile
+        if a_ < 0 or b_ > len(codes) or L.has_n(codes, a_, b_):
+            continue
+        for r in range(reps):
+            out.append((f"slide@{o:+d}", "slide", o, "", r, _mutate(codes, np.arange(a_, b_), rng), None))
     return out
 
 
@@ -221,13 +237,16 @@ def selftest():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--experiment", choices=["scan", "titrate"])
+    ap.add_argument("--experiment", choices=["scan", "titrate", "slide"])
     ap.add_argument("--sites", default="../data/cm_subset_dynamics.csv")
     ap.add_argument("--out")
     ap.add_argument("--chunk", type=int, default=0)
     ap.add_argument("--n-chunks", type=int, default=1)
     ap.add_argument("--limit", type=int, default=0, help="only a random N sites of this chunk (pilot)")
     ap.add_argument("--tile-reps", type=int, default=3)
+    ap.add_argument("--slide-step", type=int, default=SLIDE_STEP)
+    ap.add_argument("--slide-half", type=int, default=SLIDE_HALF)
+    ap.add_argument("--slide-reps", type=int, default=1)
     ap.add_argument("--config", default=None)
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
@@ -257,7 +276,9 @@ def main():
             log.open("a").write(f"{sid}\toff chromosome\n")
             continue
         reg = L.site_regions(row, wstart, size, cfg)
-        if reg["motif"][1] - reg["motif"][0] != 11 or L.has_n(codes, reg["mid"] - TILE_HALF, reg["mid"] + TILE_HALF) or reg["mid"] - TILE_HALF < 0:
+        half = args.slide_half if args.experiment == "slide" else TILE_HALF
+        if (reg["motif"][1] - reg["motif"][0] != 11 or reg["mid"] - half < 0 or reg["mid"] + half > len(codes)
+                or L.has_n(codes, reg["mid"] - half, reg["mid"] + half)):
             log.open("a").write(f"{sid}\tmotif not 11 bp, N in the scanned region, or outside the window\n")
             continue
         tss = tss_index.nearest(row["seqnames"], int(row["motif_mid"]))
@@ -266,6 +287,9 @@ def main():
         c0, c1, found = L.core_interval(codes, reg["motif"])
         if args.experiment == "scan":
             conds = scan_conditions(codes, reg, rng, args.tile_reps)
+        elif args.experiment == "slide":
+            conds = slide_conditions(codes, reg, rng, half=args.slide_half, step=args.slide_step,
+                                     reps=args.slide_reps)
         else:
             conds, found = titrate_conditions(codes, reg, rng)
         seqs = [codes] + [c[5] for c in conds]

@@ -59,10 +59,10 @@ if [ "$1" = context ] && [ -z "$BATCH" ]; then BATCH=2; fi
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
 O="-o $PWD/logs/pbs/${ACCOUNT:+ -A $ACCOUNT}"
-case "$1" in scan*|titrate*|dynamics*|rerun_dynamics) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context|rerun_sites|rerun_all) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+case "$1" in scan*|titrate*|dynamics*|rerun_dynamics|fb_slide*) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context|rerun_sites|rerun_all) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
 case "$1" in ft_eval*) FT=1 ;; esac
 if [ -n "$FT" ]; then
-  case "$1" in scan*|titrate*|dynamics*|rerun_dynamics) CFG=${CONFIG:-config_ft_cm_only.json} ;; *) CFG=${CONFIG:-config_ft.json} ;; esac
+  case "$1" in scan*|titrate*|dynamics*|rerun_dynamics|fb_slide*) CFG=${CONFIG:-config_ft_cm_only.json} ;; *) CFG=${CONFIG:-config_ft.json} ;; esac
   BATCH_VAR="${BATCH_VAR},RESULTS_DIR=results_ft${AG_FT_CHECKPOINT:+,AG_FT_CHECKPOINT=$AG_FT_CHECKPOINT}"
 fi
 [ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
@@ -104,6 +104,13 @@ FB_SCAN_CHUNKS=${FB_SCAN_CHUNKS:-80}
 p6_pshuf()    { sub -J 0-19 -N ag_pshuf_fb "NCHUNKS=20" pbs/19_partner_shuffle.pbs; }
 p6_titrate()  { sub -J 0-39 -l walltime=02:00:00 -N ag_titrate_fb "EXPERIMENT=titrate,PREFIX=titrate_,SITES=fb,NCHUNKS=40,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_fbscan()   { sub -J 0-$((FB_SCAN_CHUNKS-1)) -l walltime=02:00:00 -N ag_scan_fb "EXPERIMENT=scan,PREFIX=scan_,SITES=fb,NCHUNKS=$FB_SCAN_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
+# the same 10 bp edit, but the window SLIDES 2 bp at a time from -400 to +390, so the profile is sampled every
+# 2 bp across the whole element instead of once per 10 bp tile. 396 windows + native = 397 passes/site, about
+# 116 s/site, so ~20 sites a chunk finishes inside 45 min. One replicate per position: every 10 bp of sequence is
+# already covered by five overlapping windows.
+FB_SLIDE_CHUNKS=${FB_SLIDE_CHUNKS:-120}
+p5_fbslide()  { sub -J 0-$((FB_SLIDE_CHUNKS-1)) -l walltime=01:30:00 -N ag_slide_fb "EXPERIMENT=slide,PREFIX=slide_,SITES=fb,NCHUNKS=$FB_SLIDE_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
+p5_slide_pilot() { sub -m ae -l walltime=01:00:00 -N ag_slide_fb_pilot "EXPERIMENT=slide,PREFIX=pilot_slide_,SITES=fb,NCHUNKS=1,LIMIT=3,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_pilot()    { sub -m ae -l walltime=01:00:00 -N ag_scan_fb_pilot "EXPERIMENT=scan,PREFIX=pilot_,SITES=fb,NCHUNKS=1,LIMIT=4,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs
                 sub -m ae -l walltime=01:00:00 -N ag_fb_swap_pilot "EXPERIMENT=swap,PREFIX=pilot_swap_,NCHUNKS=1,LIMIT=10" pbs/18_fb_swap.pbs
                 sub -m ae -l walltime=01:00:00 -N ag_fb_bg_pilot "EXPERIMENT=background,PREFIX=pilot_bg_,NCHUNKS=1,LIMIT=6,BACKGROUNDS=$BG_FILE" pbs/18_fb_swap.pbs; }
@@ -137,6 +144,8 @@ case "$1" in
   rerun_dynamics) p4_scan; p4_titrate; p4_scan_rest; p4_titrate_rest ;;
   fb_partner)    p6_pshuf ;;
   fb_titrate)    p6_titrate ;;
+  fb_slide)      p5_fbslide ;;
+  fb_slide_pilot) p5_slide_pilot ;;
   fb_overnight)  p6_pshuf; p6_titrate ;;
   fb_scan)       p5_fbscan ;;
   fb_priority)   p1_fb; p5_fbscan; p5_swap; p5_bg ;;   # the three fibroblast priorities: shuffle, tile scan, element swaps + host insertions
