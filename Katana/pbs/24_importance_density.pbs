@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -N ag_density
+#PBS -l select=1:ncpus=4:mem=48gb
+#PBS -l walltime=00:45:00
+#PBS -j oe
+# CPU-only: importance as a density along the sequence, with a bootstrap band: qsub pbs/24_importance_density.pbs
+cd $PBS_O_WORKDIR
+source pbs/queue_wait.sh 2>/dev/null
+source /srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv/bin/activate
+cd ..
+python Scripts/57_fb_importance_density.py --boot 2000
