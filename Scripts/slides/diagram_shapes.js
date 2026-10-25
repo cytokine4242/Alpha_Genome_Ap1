@@ -36,7 +36,7 @@ function frame(pres, slide, { x, y, w, vbw = 1100 }) {
     const left = anchor === "middle" ? F.X(u) - F.S(bw) / 2 : anchor === "end" ? F.X(u) - F.S(bw) : F.X(u);
     slide.addText(s, {
       x: left, y: F.Y(v) - F.S(bh) / 2, w: F.S(bw), h: F.S(bh),
-      fontFace: "Arial", fontSize: o.size || 12, bold: !!o.bold,
+      fontFace: o.face || "Arial", fontSize: o.size || 12, bold: !!o.bold,
       color: o.color || INK, align: anchor === "middle" ? "center" : anchor === "end" ? "right" : "left",
       valign: "middle", margin: 0, isTextBox: true, wrap: o.wrap !== false,
       charSpacing: o.ls || 0, lineSpacingMultiple: o.lsm || 0.95,
@@ -433,7 +433,91 @@ function d6Titration(pres, slide, box) {
   return 424;
 }
 
+// ================================================================== d0  what AlphaGenome is
+// Three columns: what the model is given, what it is, what it returns. The point the whole deck rests on is the
+// footer - the prediction is a function of sequence alone, which is what makes an edit an experiment.
+function d0Model(pres, slide, box) {
+  const F = frame(pres, slide, box);
+  const AX = 14, AW = 286;            // 1  the input
+  const BX = 352, BW = 244;           // 2  the network
+  const CX = 650, CW = 258;           // 3  the predictions
+
+  // ---- 1. a window of sequence, and nothing else -----------------------------------------------------------
+  F.head("1   WHAT GOES IN", AX, 36);
+  const dnaY = 148, aMid = AX + AW / 2;
+  F.cap("131,072 bp of mouse genome", aMid, 108, { anchor: "middle", bw: 300 });
+  F.cap("one AP-1 site, held in the middle", aMid, 124, { anchor: "middle", bw: 300 });
+  F.dna(AX + 6, AX + AW - 6, dnaY);
+  F.line(AX + 6, dnaY - 8, AX + 6, dnaY + 8, { color: INK, w: 1.3, transparency: 45 });
+  F.line(AX + AW - 6, dnaY - 8, AX + AW - 6, dnaY + 8, { color: INK, w: 1.3, transparency: 45 });
+  F.block(aMid, dnaY, 16, { h: 13, color: GOLD, t: 15, lw: 1.1 });
+
+  // a zoom on that gold block, so "sequence" is something on the slide rather than a word
+  const zx = AX + 26, zw = 234, zy = 238, zTop = 216;
+  F.line(aMid - 9, dnaY + 5, zx, zTop, { color: HAIR, w: 0.9, dash: "dash" });
+  F.line(aMid + 9, dnaY + 5, zx + zw, zTop, { color: HAIR, w: 0.9, dash: "dash" });
+  F.block(zx + zw / 2, zy, zw, { h: 44, color: "FFFFFF", t: 0, line: HAIR, lw: 1 });
+  F.block(zx + zw / 2, zy, 88, { h: 24, color: GOLD, t: 70, line: GOLD, lw: 0.6 });
+  F.txt("ccaTGAGTCAgtt", zx + zw / 2, zy, { anchor: "middle", size: 13, bold: true, bw: 230,
+        face: "Consolas", ls: 1.4 });
+  F.cap("AP-1 core", zx + zw / 2, 276, { anchor: "middle", bw: 160, color: GOLD_D, size: 11 });
+  F.cap("one-hot A C G T, and nothing else:", AX, 302, { bw: 300 });
+  F.cap("no ATAC, no cell type, no annotation", AX, 318, { bw: 300 });
+
+  // ---- 2. the network --------------------------------------------------------------------------------------
+  F.head("2   THE MODEL", BX, 36);
+  slide.addShape(pres.ShapeType.roundRect, {
+    x: F.X(BX), y: F.Y(60), w: F.S(BW), h: F.S(238), rectRadius: 0.05,
+    fill: { color: INK, transparency: 95 }, line: { color: INK, width: 1, transparency: 68 },
+  });
+  F.txt("AlphaGenome", BX + BW / 2, 86, { anchor: "middle", size: 14, bold: true, bw: 230 });
+  F.cap("sequence in, signal out", BX + BW / 2, 106, { anchor: "middle", bw: 240 });
+
+  const bands = [
+    [152, "convolutions", "motifs, and how they sit together"],
+    [208, "transformer", "all 131 kb attended to at once"],
+    [264, "decoders and heads", "back up to 1 bp, one per track"],
+  ];
+  for (const [y, t1, t2] of bands) {
+    F.block(BX + BW / 2, y, BW - 44, { h: 44, color: SIG, t: 90, line: SIG, lw: 0.9 });
+    F.txt(t1, BX + BW / 2, y - 10, { anchor: "middle", size: 12, bold: true, bw: 210 });
+    F.cap(t2, BX + BW / 2, y + 9, { anchor: "middle", bw: 210, size: 10.5 });
+  }
+  F.line(BX + BW / 2, 175, BX + BW / 2, 186, { color: SIG, w: 1.2, arrow: true });
+  F.line(BX + BW / 2, 231, BX + BW / 2, 242, { color: SIG, w: 1.2, arrow: true });
+  F.cap("trained on thousands of genomic tracks", BX, 318, { bw: 300 });
+
+  // ---- 3. the predictions ----------------------------------------------------------------------------------
+  F.head("3   WHAT COMES OUT", CX, 36);
+  const LX = CX + CW + 14;
+  const rows = [
+    [112, "ATAC  ·  fibroblast", "the one we read", SIG, [{ c: 0.42, w: 24, a: 34 }, { c: 0.68, w: 15, a: 17 }]],
+    [174, "ATAC  ·  cardiomyocyte", null, HAIR, [{ c: 0.44, w: 22, a: 21 }, { c: 0.70, w: 14, a: 12 }]],
+    [236, "RNA-seq", "exon by exon", HAIR, [{ c: 0.22, w: 7, a: 25 }, { c: 0.37, w: 5, a: 30 }, { c: 0.63, w: 9, a: 20 }]],
+    [298, "ChIP-seq  ·  CAGE", "and more", HAIR, [{ c: 0.33, w: 12, a: 22 }, { c: 0.58, w: 18, a: 16 }]],
+  ];
+  rows.forEach(([y, lab, sub, col, peaks], i) => {
+    F.track(CX, y, CW, peaks, { seed: 1.4 + i * 1.7, hmax: 42, color: col, t: i === 0 ? 84 : 91 });
+    F.dna(CX, CX + CW, y);
+    F.txt(lab, LX, y - 27, { size: 11.5, bold: i === 0, bw: 164, color: i === 0 ? INK : MUTED });
+    F.cap(sub || "", LX, y - 10, { bw: 164, size: 10.5, color: i === 0 ? GOLD_D : HAIR });
+  });
+  F.line(CX - 8, 70, CX - 8, 112, { color: GOLD_D, w: 3 });
+  F.cap("1 bp resolution, right across the window", CX, 318, { bw: 320 });
+  F.cap("plus contact maps and splicing", CX, 334, { bw: 320 });
+
+  // ---- the flow, and the sentence the deck rests on ---------------------------------------------------------
+  F.line(AX + AW + 8, 180, BX - 8, 180, { color: INK, w: 1.4, arrow: true });
+  F.line(BX + BW + 8, 180, CX - 16, 180, { color: INK, w: 1.4, arrow: true });
+
+  F.line(14, 358, 1086, 358, { dash: "dash" });
+  F.txt("The prediction is a function of the sequence alone: change a base, predict again, and the difference "
+      + "is caused by the change.", 14, 380, { size: 12, bold: true, bw: 1060 });
+  return 400;
+}
+
 // the height each drawing occupies, in design units, so the caller can centre it
+d0Model.designHeight = 400;
 d1Pipeline.designHeight = 334;
 d2Transplant.designHeight = 362;
 d3Swap.designHeight = 354;
@@ -442,6 +526,6 @@ d5Scan.designHeight = 436;
 d6Titration.designHeight = 424;
 
 module.exports = {
-  d1Pipeline, d2Transplant, d3Swap, d4Shuffle, d5Scan, d6Titration,
+  d0Model, d1Pipeline, d2Transplant, d3Swap, d4Shuffle, d5Scan, d6Titration,
   COLORS: { INK, MUTED, HAIR, SIG, GOLD, GOLD_D, EDIT, EDIT_D, PART },
 };

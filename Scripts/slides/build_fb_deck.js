@@ -124,7 +124,36 @@ const bullets = (items) => items.map((t) => (typeof t === "string"
     + "Site classes are the TOBIAS categories as given - Stable = bound in all three conditions; Dynamic = anything else; Age Up / Age Down are the directional age classes.");
 }
 
-// ================================================================== 2. how an effect is measured
+// ================================================================== 2. what the model is
+diagramSlide({
+  title: "What AlphaGenome is, and what it is doing here",
+  draw: DIA.d0Model,
+  takeaway: "A network that reads 131 kb of raw sequence and returns predicted assay signal at every base. It is "
+    + "given no experimental data at prediction time — which is exactly why editing the sequence and predicting "
+    + "again counts as an experiment.",
+  notes: "Say this before any result, because every number in the deck depends on it.\n\n"
+    + "WHAT IT IS: a sequence-to-function model (Google DeepMind, 2025). Convolutional layers pick up local "
+    + "motif-scale features, a transformer lets every position see the whole 131,072 bp window, and a stack of "
+    + "decoders upsample back to base resolution, where a head per track turns it into predicted signal for "
+    + "thousands of assay x cell-type combinations.\n\n"
+    + "ON THE WINDOW: AlphaGenome takes a variable context and will go up to 1 Mb. We run it at 131,072 bp, which is "
+    + "wide enough to carry the regulatory neighbourhood of a site and cheap enough to repeat tens of thousands of "
+    + "times. Every perturbation in the deck uses that same width, so nothing here turns on the choice.\n\n"
+    + "WHAT IT IS GIVEN: one-hot DNA. No ATAC, no expression, no annotation, no cell-type label beyond our choice of "
+    + "which output track to read. If someone asks whether the model 'already knows' a site is dynamic - it cannot; "
+    + "it never sees the labels, the conditions, or the TOBIAS calls.\n\n"
+    + "WHAT WE READ: the fibroblast ATAC head, fine-tuned on our own Tn5 data. Held-out Spearman 0.68 against 0.27 "
+    + "for the built-in head, which is the reason we fine-tuned rather than using it off the shelf. The FB trackset "
+    + "is the mean of the four conditions.\n\n"
+    + "WHY IT LICENSES THE REST: because the output is a deterministic function of the input sequence, two "
+    + "predictions that differ only in an edit differ only because of the edit. That is the whole logic of the next "
+    + "slide, and of every perturbation in the deck.\n\n"
+    + "THE LIMIT, say it here rather than be asked: these are predictions, not measurements. AlphaGenome is good at "
+    + "ranking sequences on accessibility; it is not a reporter assay. Anything surprising is a hypothesis for the "
+    + "bench, not a result from it.",
+});
+
+// ================================================================== 3. how an effect is measured
 diagramSlide({
   title: "Everything here is one prediction minus another",
   draw: DIA.d1Pipeline,
@@ -281,7 +310,7 @@ resultSlide({
 });
 
 // ================================================================== 10a-c. the same result, read three other ways
-// Three alternative readings of slide 10, in the deck so they can be compared side by side. Keep one and delete the
+// Three alternative readings of the density result, in the deck so they can be compared side by side. Keep one and delete the
 // rest - the measurement is identical in all four, only the plotted quantity changes. ALT marks them in the deck.
 const ALT = "ALTERNATIVE VIEW OF THE PREVIOUS SLIDE — same measurement, keep one.  ";
 
@@ -337,7 +366,7 @@ resultSlide({
     + "  Exercise Up    31.5%  (n=240,  FDR 0.0087)\n"
     + "  Exercise Down  28.6%  (n=115,  FDR 0.0084)\n\n"
     + "This is the only one of the three alternatives that shows something the pooled comparison cannot. It is also the "
-    + "one that connects to slide 8: there, the LOSING classes let go of the motif in absolute terms; here, the same two "
+    + "one that connects to the motif-specificity slide: there, the LOSING classes let go of the motif in absolute terms; here, the same two "
     + "classes are the ones whose dependence is least concentrated on it. Same partition, different measurement.\n\n"
     + "What it is NOT: this is not accessibility. The matched analysis on the previous slide (860 pairs, p = 0.006) holds "
     + "for the pooled contrast; the per-class split has not been matched, because the smaller classes do not support it. "
@@ -364,7 +393,7 @@ resultSlide({
     + "Detection check, in case it is asked: footprint calling needs signal, so Stable sites carry more detected partners "
     + "(5.89 vs 5.01 per site, p = 2e-82). Restricting to the 1,808 sites that hit the cap of 6 detected partners, the gap is unchanged: "
     + "0.806 vs 0.736, p = 2.1e-13. Not a detection artefact.\n\n"
-    + "Note this is a DIFFERENT statement from slide 5. There, only the AP-1-losing class drops in absolute AP-1 dependence. "
+    + "Note this is a DIFFERENT statement from the motif-specificity slide. There, only the AP-1-losing class drops in absolute AP-1 dependence. "
     + "Here, all Dynamic classes are modestly less AP-1-centric in relative terms.\n\n"
     + "The equivalent tile-scan measure (motif share vs a 10-50 bp collar) does NOT survive accessibility matching (p = 0.11); "
     + "the collar is mostly noise at low-accessibility sites. This version is better powered because it only scores footprinted motifs.",
