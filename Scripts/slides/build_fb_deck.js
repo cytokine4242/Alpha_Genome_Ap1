@@ -11,6 +11,7 @@
 const pptxgen = require("pptxgenjs");
 const path = require("path");
 const fs = require("fs");
+const DIA = require("./diagram_shapes.js");
 const { applyTheme } = require("/Users/z5162865/.claude/skills/synced/2361eaa7-acd4-463c-8e26-dee27087b623_1ef5f431-f760-4047-8679-39ac25a5dd75/pptx/scripts/apply_theme.js");
 
 const ROOT = "/Users/z5162865/WongLab/AlphaGenome_Ap1";
@@ -87,12 +88,16 @@ function resultSlide({ title, figure, method, takeaway, caveat, notes }) {
   return s;
 }
 
-// a method slide: the diagram gets the room, because reading it IS the point of the slide
-function diagramSlide({ title, figure, method, takeaway, notes }) {
+// a method slide. The diagram is drawn as native PowerPoint objects - text boxes, lines, rounded rectangles and
+// freeform curves - so every part of it can be moved, recoloured or deleted in PowerPoint without regenerating.
+function diagramSlide({ title, draw, method, takeaway, notes }) {
   const s = pres.addSlide({ masterName: "RESULT" });
   s.addText(title, { placeholder: "title" });
   if (method) s.addText(method, { isTextBox: true, x: 0.55, y: 1.06, w: 12.2, h: 0.34, fontSize: 12.5, italic: true, color: "595959", margin: 0 });
-  FIG(s, figure, { x: 0.5, y: method ? 1.42 : 1.2, w: 12.3, h: method ? 5.0 : 5.25 });
+  const top = method ? 1.46 : 1.26;
+  const dh = ((draw.designHeight || 400) * 12.2) / 1100;        // centre the drawing in the space it has
+  if (dh > 6.45 - top) console.warn(`  ! ${title}: drawing is ${dh.toFixed(2)} in tall, overruns the takeaway`);
+  draw(pres, s, { x: 0.55, y: top + Math.max(0, (6.45 - top - dh) / 2), w: 12.2 });
   s.addShape(pres.ShapeType.rect, { x: 0.55, y: 6.55, w: 0.055, h: 0.62, fill: { color: "3F3F3F" }, line: { width: 0 } });
   s.addText(takeaway, { isTextBox: true, x: 0.82, y: 6.55, w: 11.9, h: 0.62, fontSize: 15.5, color: "111111", valign: "middle", margin: 0 });
   s.addNotes(notes);
@@ -122,7 +127,7 @@ const bullets = (items) => items.map((t) => (typeof t === "string"
 // ================================================================== 2. how an effect is measured
 diagramSlide({
   title: "Everything here is one prediction minus another",
-  figure: "Analysis/slide_figures/d1_pipeline.png",
+  draw: DIA.d1Pipeline,
   takeaway: "No edit is ever compared against another site. The native and the edited sequence are the same 131 kb "
     + "window through the same weights, so whatever changes in the prediction came from the edit.",
   notes: "Worth saying out loud at the start, because it is what makes the rest defensible: the comparison is always "
@@ -138,7 +143,7 @@ diagramSlide({
 // ================================================================== 3. transplant, the design
 diagramSlide({
   title: "Transplant: can the element build a site on its own?",
-  figure: "Analysis/slide_figures/d2_transplant.png",
+  draw: DIA.d2Transplant,
   takeaway: "The control is the same letters shuffled, dropped into the same background — so whatever the host "
     + "contributes, it contributes to both and cancels in the ratio.",
   notes: "Hosts are genomic windows with no called ATAC peak. 20 per element, 50 donor elements per class, scored "
@@ -171,7 +176,7 @@ resultSlide({
 // ================================================================== 5. swap, the design
 diagramSlide({
   title: "Swap: is the level set by the element, or by the place?",
-  figure: "Analysis/slide_figures/d3_swap.png",
+  draw: DIA.d3Swap,
   takeaway: "Write every element into every other element's location and regress the result on both. "
     + "Whichever term carries more weight is the one that sets a site's accessibility.",
   notes: "62,250 swaps, self-swaps excluded, at two widths: the 170 bp MPRA-sized window and the whole peak.\n\n"
@@ -199,7 +204,7 @@ resultSlide({
 // ================================================================== 7. motif shuffle, the design
 diagramSlide({
   title: "Shuffling one motif at a time, inside the site",
-  figure: "Analysis/slide_figures/d4_shuffle.png",
+  draw: DIA.d4Shuffle,
   takeaway: "Each partner motif is scored against a footprint-free window of the same width at the mirrored "
     + "distance, so the two differ only in whether a motif was there. Everything stays inside one site.",
   notes: "This is the control that makes the next two slides immune to the accessibility gap. Dynamic sites are "
@@ -238,7 +243,7 @@ resultSlide({
 // ================================================================== 9. the scan, the design
 diagramSlide({
   title: "Scanning the whole window, tile by tile and base by base",
-  figure: "Analysis/slide_figures/d5_scan.png",
+  draw: DIA.d5Scan,
   takeaway: "Rather than choosing a region to destroy, replace every 10 bp tile across 600 bp in turn — and then "
     + "every single base across the middle 61 — and ask where the cost lands.",
   notes: "60 tiles of 10 bp from -300 to +290, one prediction each; then 61 positions x 3 alternative bases.\n\n"
@@ -302,7 +307,7 @@ resultSlide({
 // ================================================================== 12. the AP-1 ladder
 diagramSlide({
   title: "The AP-1 ladder, and the spacing experiments",
-  figure: "Analysis/slide_figures/d6_titration.png",
+  draw: DIA.d6Titration,
   takeaway: "Rather than only destroying the motif, weaken it one base at a time, strengthen it, flip it, duplicate "
     + "it or move it — each against a control that changes the same amount of sequence but no motif.",
   notes: "This is where the next slide's numbers come from. 2,359 sites; 860 accessibility-matched pairs at caliper "
