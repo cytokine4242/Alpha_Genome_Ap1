@@ -1,0 +1,7 @@
+comparison,statistic,value,p,n,matched
+"top tile is the AP-1 core, Stable vs Dynamic",Fisher odds ratio,1.1681316204642778,0.06314097659470344,2359,False
+"AP-1 core tile in the top 3, Stable vs Dynamic",Fisher,,0.05971502401542664,2359,False
+"rank of the AP-1 core tile, Stable vs Dynamic",Mann-Whitney,0.0,0.0298321892644584,2359,False
+zone of the top tile across the four classes,chi-square,,0.140806483734017,2359,False
+"top tile is the AP-1 core, matched",McNemar (398 discordant),3.023255813953485,0.21010170812421433,860,True
+"rank of the AP-1 core tile, matched",Wilcoxon,0.0,0.22896003762039718,860,True

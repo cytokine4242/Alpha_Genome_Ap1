@@ -1,0 +1,4 @@
+zone,n_tiles,chance_pct
+AP-1 core,2,3.3333333333333335
+"Flank, within 50 bp",8,13.333333333333334
+Beyond 50 bp,50,83.33333333333333
