@@ -1,0 +1,12 @@
+#!/bin/bash
+#PBS -N ag_swap_class
+#PBS -l select=1:ncpus=4:mem=64gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+# CPU-only: is the element-versus-location balance a class difference, or the same for every site?
+# 2000 cluster-bootstrap refits per class per width.  qsub pbs/28_swap_by_class.pbs
+cd $PBS_O_WORKDIR
+source pbs/queue_wait.sh 2>/dev/null
+source /srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv/bin/activate
+cd ..
+python Scripts/60_fb_swap_by_class.py --boot ${BOOT:-2000}

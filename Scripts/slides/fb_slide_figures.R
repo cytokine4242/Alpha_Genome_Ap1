@@ -184,7 +184,7 @@ if (file.exists(cif)) {
     scale_y_continuous(breaks = seq(-0.8, 0.8, 0.4), labels = function(b) sprintf("%.1f", abs(b))) +
     scale_x_discrete(expand = expansion(add = c(0.78, 1.05))) +
     coord_flip(ylim = c(-LIM, LIM), expand = FALSE, clip = "off") +
-    labs(x = NULL, y = "Weight on the swapped site's accessibility") +
+    labs(x = NULL, y = "Regression weight — both are positive, drawn apart only so the pair can be compared") +
     theme_pub() + no_cat_axis("y") +
     theme(axis.text.y = element_text(colour = INK, hjust = 0.5, size = 14.5, lineheight = 0.95),
           plot.margin = margin(6, 14, 4, 6))

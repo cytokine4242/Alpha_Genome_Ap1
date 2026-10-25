@@ -217,10 +217,11 @@ diagramSlide({
 // ================================================================== 6. element or place
 resultSlide({
   title: "The element's identity lives at peak scale, not in 170 bp",
-  method: "Every element swapped into every other site's location: the swapped site's accessibility regressed on the donor element and on the recipient location. The two weights are drawn pulling against each other from a common zero. 62,250 swaps; 95% CI from a cluster bootstrap over the 250 donors.",
+  method: "Every element written into every other site's location. The accessibility that results is regressed on two things: how accessible the donor element's own site was, and how accessible the recipient location was. Both weights are positive — they are drawn on opposite sides of zero only so the pair can be compared, and the longer bar is the stronger influence. P tests the two weights against each other. 62,250 swaps; 95% CI from a cluster bootstrap over the 250 donors.",
   figure: "Analysis/slide_figures/r_fb_scale.png",
   takeaway: "At 170 bp an element mostly takes on the level of wherever you put it; at full peak width it imposes its own. "
     + "The information that opens chromatin is spread over the whole peak — which is why a 170 bp assay cannot see it.",
+  caveat: "Read it as a transplant. Take a strong element and put it somewhere weak: at 170 bp it comes out weak, because the location carries most of the weight (0.61 against 0.24). At full peak width it stays strong, because the element now carries most of it (0.71 against 0.20). Nothing about the element changed — only how much of it we moved.",
   notes: "62,250 swaps. 170 bp: beta(element) 0.24 vs beta(location) 0.61, R2 = 0.20. Whole peak: 0.71 vs 0.20, R2 = 0.46. "
     + "Transfer fraction 0.29 at 170 bp, 0.83 at peak.\n\n"
     + "Link to the MPRA, if asked: the MPRA library is 170 bp, and its class difference there is tiny (flank shuffle 0.128 vs 0.016 log2, d = 0.14). "
