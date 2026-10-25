@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -N ag_dens_var
+#PBS -l select=1:ncpus=4:mem=64gb
+#PBS -l walltime=00:45:00
+#PBS -j oe
+# CPU-only: other ways of showing the importance density: qsub -v KIND=scan pbs/26_density_variations.pbs
+cd $PBS_O_WORKDIR
+source pbs/queue_wait.sh 2>/dev/null
+source /srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv/bin/activate
+cd ..
+python Scripts/59_fb_density_variations.py --kind ${KIND:-scan} --boot 2000

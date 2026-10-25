@@ -382,12 +382,20 @@ if (file.exists(zf)) {
 #    the gap on its own. Cropped to +-150 bp; under 2% of either class's importance lies beyond that.
 #    Left open at the top on purpose, so the talk can annotate it.
 # ==========================================================================================================
+# the sliding scan supersedes the 60-tile one where it exists: same quantity, sampled every 2 bp instead of every 10
+sf <- file.path(ROOT, "Analysis/fb_scan/tables/slide_density_profile.csv")
 pf <- file.path(ROOT, "Analysis/fb_scan/tables/importance_density_profile.csv")
 cf <- file.path(ROOT, "Analysis/fb_scan/tables/importance_density_concentration.csv")
 mf <- file.path(ROOT, "Analysis/fb_scan/tables/importance_density_matched.csv")
+SLIDE <- file.exists(sf)
+if (SLIDE) {
+  pf <- sf
+  cf <- file.path(ROOT, "Analysis/fb_scan/tables/slide_density_concentration.csv")
+  mf <- cf
+}
 if (file.exists(pf)) {
   PR <- read.csv(pf)
-  PR <- PR[PR$grouping == "stable_dynamic" & PR$version == "corrected", ]
+  if (!SLIDE) PR <- PR[PR$grouping == "stable_dynamic" & PR$version == "corrected", ]
   PR$cls <- factor(PR$class, levels = c("Stable", "Dynamic"))
   for (v in c("median", "lo", "hi")) PR[[v]] <- 100 * PR[[v]]
   XL <- 150
@@ -428,8 +436,13 @@ if (file.exists(pf)) {
   bot <- ggplot(W, aes(pos, diff)) +
     annotate("rect", xmin = MOT[1], xmax = MOT[2], ymin = -dlim, ymax = dlim, fill = GOLD_PALE) +
     geom_hline(yintercept = 0, linewidth = 0.4, colour = FAINT) +
-    geom_segment(aes(xend = pos, yend = 0, colour = sig), linewidth = 1.9, show.legend = FALSE) +
-    geom_point(aes(colour = sig), size = 1.9, show.legend = FALSE) +
+    { if (SLIDE && any(W$sig))
+        annotate("rect", xmin = min(W$pos[W$sig]), xmax = max(W$pos[W$sig]), ymin = -dlim, ymax = dlim,
+                 fill = INK, alpha = 0.07) } +
+    { if (SLIDE) geom_line(linewidth = 0.9, colour = "#55544F")
+      else geom_segment(aes(xend = pos, yend = 0, colour = sig), linewidth = 1.9, show.legend = FALSE) } +
+    { if (SLIDE) geom_point(data = W[W$sig, ], size = 0.9, colour = INK)
+      else geom_point(aes(colour = sig), size = 1.9, show.legend = FALSE) } +
     annotate("text", x = 0, y = max(W$diff), label = "FDR = 0.001", vjust = -0.75, hjust = 0.5,
              family = "Arial", size = 4.0, colour = INK) +
     annotate("text", x = XL - 6, y = -dlim * 0.72, label = "every other position: FDR > 0.8", hjust = 1,
