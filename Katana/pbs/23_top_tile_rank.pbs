@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -N ag_toptile
+#PBS -l select=1:ncpus=4:mem=48gb
+#PBS -l walltime=01:00:00
+#PBS -j oe
+# CPU-only: where a site's most important tile sits, as a rank rather than a ratio: qsub pbs/23_top_tile_rank.pbs
+cd $PBS_O_WORKDIR
+source pbs/queue_wait.sh 2>/dev/null
+source /srv/scratch/wonglab/minh/envs/alphagenome-pytorch_venv/bin/activate
+cd ..
+python Scripts/56_fb_top_tile_rank.py
