@@ -183,49 +183,66 @@ cat(sprintf("     per-class median fold: %s\n",
             paste(sprintf("%s %.1fx", med$cls, 2^med$lift), collapse = ", ")))
 
 # ==========================================================================================================
-# 2. the element or the place? - the two weights pulling against each other from a common zero
+# 2. the element or the place? - and does the balance differ by class, which is the only reason it is on a slide
+#    Diverging bars, one row per class: how much of a swapped site's level follows the element it was given, and
+#    how much follows the location it was put in. Whole-peak width; the 170 bp version is in the notes.
 # ==========================================================================================================
-cif <- file.path(ROOT, "Analysis/fb_swap/tables/sequence_vs_location_ci.csv")
-if (file.exists(cif)) {
-  ci <- read.csv(cif)
-  # one bar each side of zero: the element pulls left, the location right. Values are the same betas, signed for side.
-  sl <- rbind(
-    data.frame(width = ci$width, term = "What the element is", s = -1,
-               beta = ci$beta_donor_sequence, lo = ci$seq_lo, hi = ci$seq_hi, p = ci$p_sequence_vs_location),
-    data.frame(width = ci$width, term = "Where it sits", s = 1,
-               beta = ci$beta_recipient_location, lo = ci$loc_lo, hi = ci$loc_hi, p = ci$p_sequence_vs_location))
-  sl$x <- sl$s * sl$beta; sl$xlo <- sl$s * sl$lo; sl$xhi <- sl$s * sl$hi
-  sl$width <- factor(sl$width, levels = c("peak", "170"),
-                     labels = c("Whole peak\nmedian 0.8 kb", "170 bp element\nthe MPRA window"))
-  sl$term <- factor(sl$term, levels = c("What the element is", "Where it sits"))
-  ptab <- unique(sl[, c("width", "p")])
-  LIM <- 1.02
+bcf <- file.path(ROOT, "Analysis/fb_swap/tables/sequence_vs_location_by_class.csv")
+tcf <- file.path(ROOT, "Analysis/fb_swap/tables/sequence_vs_location_class_tests.csv")
+if (file.exists(bcf)) {
+  BC <- read.csv(bcf); TC <- read.csv(tcf)
+  B <- BC[BC$width == "peak", ]
+  B <- B[match(CLS5, B$class), ]
+  q <- TC[TC$width == "peak" & TC$quantity == "transfer", ]
+  B$fdr <- q$fdr[match(B$class, q$class)]
+  B$cls <- factor(B$class, levels = rev(CLS5))
 
-  g2 <- ggplot(sl, aes(width, x, fill = term)) +
-    geom_col(width = 0.44, show.legend = FALSE) +
-    geom_errorbar(aes(ymin = xlo, ymax = xhi, colour = term), width = 0.11, linewidth = 0.55,
+  # one bar each side of zero: what the element is pulls left, where it sits pulls right. Both weights are positive.
+  sl <- rbind(
+    data.frame(cls = B$cls, term = "What the element is", s = -1,
+               beta = B$beta_seq, lo = B$beta_seq_lo, hi = B$beta_seq_hi),
+    data.frame(cls = B$cls, term = "Where it sits", s = 1,
+               beta = B$beta_loc, lo = B$beta_loc_lo, hi = B$beta_loc_hi))
+  sl$x <- sl$s * sl$beta; sl$xlo <- sl$s * sl$lo; sl$xhi <- sl$s * sl$hi
+  sl$term <- factor(sl$term, levels = c("What the element is", "Where it sits"))
+  LIM <- 1.02; RIGHT <- 1.62
+  B$lab <- sprintf("%.0f%% carried", 100 * B$transfer)
+  # ifelse would still evaluate fmtP on the Stable row's NA, so the branch has to be inside the loop
+  B$sub <- sapply(B$fdr, function(p) if (is.na(p)) "reference" else sub("^P", "FDR", fmtP(p)))
+
+  g2 <- ggplot(sl, aes(cls, x, fill = term)) +
+    geom_col(width = 0.52, show.legend = FALSE) +
+    geom_errorbar(aes(ymin = xlo, ymax = xhi, colour = term), width = 0.13, linewidth = 0.55,
                   show.legend = FALSE) +
-    geom_text(aes(y = x, label = sprintf("%.2f", beta), hjust = ifelse(s < 0, 1.25, -0.25)),
-              family = "Arial", fontface = "bold", size = 5.4, colour = INK, show.legend = FALSE) +
+    geom_text(aes(y = x, label = sprintf("%.2f", beta), hjust = ifelse(s < 0, 1.22, -0.22)),
+              family = "Arial", fontface = "bold", size = 4.6, colour = INK, show.legend = FALSE) +
     geom_hline(yintercept = 0, linewidth = 0.8, colour = INK) +
-    annotate("text", x = 2.82, y = -LIM, label = "What the element IS", hjust = 0, vjust = 0.5,
-             family = "Arial", fontface = "bold", size = 5.0, colour = TEAL) +
-    annotate("text", x = 2.82, y = LIM, label = "WHERE it sits", hjust = 1, vjust = 0.5,
-             family = "Arial", fontface = "bold", size = 5.0, colour = "#6E6D69") +
-    annotate("text", x = c(2.47, 1.47), y = 0, label = sapply(ptab$p, fmtP, floor = 5e-4),
-             hjust = 0.5, vjust = 0.5, family = "Arial", size = 4.3, colour = MUTED) +
+    # the quantity the slide is actually about: the share of its own level the element takes with it
+    geom_text(data = B, aes(cls, RIGHT, label = lab), inherit.aes = FALSE, hjust = 1, vjust = -0.08,
+              family = "Arial", fontface = "bold", size = 4.9, colour = TEAL) +
+    geom_text(data = B, aes(cls, RIGHT, label = sub), inherit.aes = FALSE, hjust = 1, vjust = 1.32,
+              family = "Arial", size = 4.0, colour = MUTED) +
+    annotate("segment", x = 0.42, xend = 5.58, y = LIM + 0.10, yend = LIM + 0.10,
+             linewidth = 0.4, colour = FAINT) +
+    annotate("text", x = 5.92, y = -LIM, label = "What the element IS", hjust = 0, vjust = 0.5,
+             family = "Arial", fontface = "bold", size = 4.8, colour = TEAL) +
+    annotate("text", x = 5.92, y = LIM, label = "WHERE it sits", hjust = 1, vjust = 0.5,
+             family = "Arial", fontface = "bold", size = 4.8, colour = "#6E6D69") +
     scale_fill_manual(values = c("What the element is" = TEAL, "Where it sits" = GREY)) +
     scale_colour_manual(values = c("What the element is" = "white", "Where it sits" = "#6E6D69")) +
     scale_y_continuous(breaks = seq(-0.8, 0.8, 0.4), labels = function(b) sprintf("%.1f", abs(b))) +
-    scale_x_discrete(expand = expansion(add = c(0.78, 1.05))) +
-    coord_flip(ylim = c(-LIM, LIM), expand = FALSE, clip = "off") +
+    scale_x_discrete(labels = function(b) sprintf("%s\n(n = 50)", b)) +
+    coord_flip(xlim = c(0.4, 6.25), ylim = c(-LIM, RIGHT), expand = FALSE, clip = "off") +
     labs(x = NULL, y = "Regression weight — both are positive, drawn apart only so the pair can be compared") +
     theme_pub() + no_cat_axis("y") +
-    theme(axis.text.y = element_text(colour = INK, hjust = 0.5, size = 14.5, lineheight = 0.95),
+    theme(axis.text.y = element_text(colour = unname(rev(COL5)), hjust = 0.5, size = 12.5, lineheight = 0.95),
           plot.margin = margin(6, 14, 4, 6))
-  save_fig(g2, "r_fb_scale", 10.4, 4.0)
+  save_fig(g2, "r_fb_scale", 10.8, 4.3)
+  cat(sprintf("     peak-width transfer by class: %s\n",
+              paste(sprintf("%s %.3f (FDR %s)", B$class, B$transfer,
+                            ifelse(is.na(B$fdr), "-", sprintf("%.3g", B$fdr))), collapse = ", ")))
 } else {
-  cat("  skipped r_fb_scale: run Scripts/55_fb_swap_regression_ci.py first\n")
+  cat("  skipped r_fb_scale: run Scripts/60_fb_swap_by_class.py first\n")
 }
 
 # ==========================================================================================================

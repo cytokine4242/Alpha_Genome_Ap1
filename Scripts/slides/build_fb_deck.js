@@ -242,14 +242,26 @@ diagramSlide({
 
 // ================================================================== 6. element or place
 resultSlide({
-  title: "The element's identity lives at peak scale, not in 170 bp",
-  method: "Every element written into every other site's location; the accessibility that results regressed on the donor element's own level and on the recipient location's. Both weights are positive, drawn apart only so the pair can be compared. 62,250 swaps; 95% CI from a cluster bootstrap over 250 donors.",
+  title: "A Stable element carries more of itself into a new location",
+  method: "Every element written into every other site's location, at whole-peak width; the resulting accessibility regressed on the donor element's own level and the recipient location's, within each class. 'Carried' is the element's share of the two. Cluster bootstrap over 50 donors per class, BH across four.",
   figure: "Analysis/slide_figures/r_fb_scale.png",
-  takeaway: "At 170 bp an element mostly takes on the level of wherever you put it; at full peak width it imposes its own. "
-    + "The information that opens chromatin is spread over the whole peak — which is why a 170 bp assay cannot see it.",
-  caveat: "Read it as a transplant: take a strong element, put it somewhere weak. At 170 bp it comes out weak — the location carries most of the weight (0.61 against 0.24). At full peak width it stays strong — the element now carries most of it (0.71 against 0.20). Nothing about the element changed, only how much of it we moved. P tests the two weights against each other.",
-  notes: "62,250 swaps. 170 bp: beta(element) 0.24 vs beta(location) 0.61, R2 = 0.20. Whole peak: 0.71 vs 0.20, R2 = 0.46. "
-    + "Transfer fraction 0.29 at 170 bp, 0.83 at peak.\n\n"
+  takeaway: "Move an element somewhere else and a Stable one brings 84% of its own level with it; every Dynamic class "
+    + "brings less, 73–79%, and three of the four differ from Stable. A Dynamic element is more a product of where it "
+    + "sits — the same conclusion the transplant reached, from a design with no closed background in it.",
+  caveat: "Width matters as much as class: at the 170 bp MPRA window a Stable element carries only 40% and the Dynamic classes essentially nothing (−1% to 34%, intervals crossing zero). The information that opens chromatin is spread over the whole peak, which is why a 170 bp assay struggles to see any of this.",
+  notes: "THE CLASS RESULT, whole peak, element's share of its own level ('carried'), BH across the four:\n"
+    + "  Stable 84.1% [80.9-87.0] (reference) · Age Up 77.8% [73.4-81.4] FDR 0.020 · Age Down 78.6% [72.6-83.2] FDR 0.063 · "
+    + "Exercise Up 76.0% [69.7-80.5] FDR 0.010 · Exercise Down 72.7% [62.3-79.2] FDR 0.004\n"
+    + "Underlying weights, element vs location: Stable 0.79/0.15, Age Up 0.72/0.21, Age Down 0.67/0.18, "
+    + "Exercise Up 0.69/0.22, Exercise Down 0.60/0.23. R2 0.65 for Stable, 0.27-0.50 for the Dynamic classes.\n\n"
+    + "Age Down at FDR 0.063 is the one that does not clear the line. Say 'three of four' rather than 'all four'; "
+    + "the direction is the same in every class and the ordering is monotone, but one of them is not significant.\n\n"
+    + "Every interval resamples DONORS, not swaps: each donor appears in ~250 rows, so a row-level standard error "
+    + "would be far too small and all five classes would look certain.\n\n"
+    + "170 bp, for contrast: Stable carries 39.8% [23.7-51.0]; Age Up 11.9%, Age Down 11.0%, Exercise Up -0.9%, "
+    + "Exercise Down 33.6%, three of four below Stable at FDR < 0.05. The Dynamic intervals there cross zero, so treat "
+    + "the 170 bp row as 'almost nothing transfers' rather than as a clean ranking.\n\n"
+    + "Pooled over all classes, which is what this slide used to show: 170 bp 0.24 vs 0.61, whole peak 0.71 vs 0.20.\n\n"
     + "Link to the MPRA, if asked: the MPRA library is 170 bp, and its class difference there is tiny (flank shuffle 0.128 vs 0.016 log2, d = 0.14). "
     + "Both assays agree that 170 bp is a poor window for this question. They are NOT the same measurement - the MPRA is episomal activity, "
     + "this is chromatin accessibility in genomic context.\n\n"
