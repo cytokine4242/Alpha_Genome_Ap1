@@ -468,3 +468,108 @@ if (file.exists(pf)) {
 }
 
 cat("done\n")
+
+# ==========================================================================================================
+# 7. three other readings of the same density, for picking one. Nothing here changes the measurement; what
+#    changes is what is plotted. Each panel prints the effect size so a transformed axis can be checked.
+# ==========================================================================================================
+cuf <- file.path(ROOT, "Analysis/fb_scan/tables/density_cumulative.csv")
+dif <- file.path(ROOT, "Analysis/fb_scan/tables/density_difference.csv")
+c5f <- file.path(ROOT, "Analysis/fb_scan/tables/density_concentration_5class.csv")
+if (file.exists(cuf)) {
+  CU <- read.csv(cuf); for (v in c("median", "lo", "hi")) CU[[v]] <- 100 * CU[[v]]
+
+  # ---- variation 1: cumulative. Per-position differences of a point each add up to a visible gap ----------
+  PO <- CU[CU$grouping == "pooled", ]
+  PO$cls <- factor(PO$class, levels = c("Stable", "Dynamic"))
+  w <- reshape(PO[, c("radius_bp", "class", "median")], idvar = "radius_bp",
+               timevar = "class", direction = "wide")
+  names(w) <- sub("median\\.", "", names(w))
+  w$gap <- w$Stable - w$Dynamic
+  gx <- w$radius_bp[which.max(w$gap)]; gy <- max(w$gap)
+  half <- function(cl) approx(w[[cl]], w$radius_bp, xout = 50)$y
+  hS <- half("Stable"); hD <- half("Dynamic")
+  nn <- tapply(PO$n_sites, PO$cls, max)
+
+  g7 <- ggplot(PO, aes(radius_bp, median, colour = cls, fill = cls)) +
+    geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.22, linewidth = 0, show.legend = FALSE) +
+    geom_line(linewidth = 1.7, show.legend = FALSE) +
+    annotate("segment", x = gx, xend = gx, y = w$Dynamic[w$radius_bp == gx], yend = w$Stable[w$radius_bp == gx],
+             linewidth = 0.9, colour = INK) +
+    annotate("point", x = c(gx, gx), y = c(w$Dynamic[w$radius_bp == gx], w$Stable[w$radius_bp == gx]),
+             size = 2.1, colour = INK) +
+    annotate("text", x = gx + 12, y = mean(c(w$Dynamic[w$radius_bp == gx], w$Stable[w$radius_bp == gx])),
+             label = sprintf("%.1f points apart\nat ±%d bp", gy, gx), hjust = 0, vjust = 0.5,
+             family = "Arial", size = 4.6, colour = INK, lineheight = 0.95) +
+    annotate("segment", x = 0, xend = max(hS, hD), y = 50, yend = 50, linewidth = 0.4,
+             linetype = "22", colour = FAINT) +
+    annotate("text", x = -295, y = 100, label = sprintf("Stable  (n = %s)", nn[["Stable"]]), hjust = 0,
+             vjust = 1, family = "Arial", fontface = "bold", size = 5, colour = BLUE) +
+    annotate("text", x = -295, y = 92, label = sprintf("Dynamic  (n = %s)", nn[["Dynamic"]]), hjust = 0,
+             vjust = 1, family = "Arial", fontface = "bold", size = 5, colour = ROSE) +
+    scale_colour_manual(values = c(Stable = BLUE, Dynamic = ROSE)) +
+    scale_fill_manual(values = c(Stable = BLUE, Dynamic = ROSE)) +
+    scale_x_continuous(breaks = seq(0, 300, 50)) +
+    scale_y_continuous(breaks = seq(0, 100, 25), labels = function(b) paste0(b, "%")) +
+    coord_cartesian(xlim = c(0, 300), ylim = c(0, 104), expand = FALSE, clip = "off") +
+    labs(x = "Distance from the AP-1 motif (± bp)",
+         y = "Share of the site's importance\nwithin that distance") +
+    theme_pub() + theme(plot.margin = margin(14, 16, 4, 6))
+  g7 <- g7 + annotate("text", x = 300, y = 6,
+                      label = sprintf("half of it lies within ±%.0f bp (Stable) and ±%.0f bp (Dynamic)", hS, hD),
+                      hjust = 1, family = "Arial", size = 4.2, colour = MUTED)
+  save_fig(g7, "r_fb_density_cumulative", 9.4, 4.4)
+  cat(sprintf("     cumulative: max gap %.1f pp at ±%d bp; half-radius %.0f vs %.0f bp\n", gy, gx, hS, hD))
+
+  # ---- variation 2: the difference on its own axis -------------------------------------------------------
+  DF <- read.csv(dif)
+  DF$sig <- DF$fdr < 0.05
+  g8 <- ggplot(DF, aes(pos, diff_pp)) +
+    annotate("rect", xmin = -10, xmax = 10, ymin = -Inf, ymax = Inf, fill = GOLD_PALE) +
+    geom_hline(yintercept = 0, linewidth = 0.4, colour = FAINT) +
+    geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.20, linewidth = 0, fill = BLUE) +
+    geom_line(linewidth = 1.4, colour = BLUE) +
+    geom_point(data = DF[DF$sig, ], size = 2.6, colour = INK) +
+    annotate("text", x = 0, y = max(DF$hi) * 1.04, label = "AP-1 core", vjust = -0.2, family = "Arial",
+             fontface = "bold", size = 4.5, colour = "#9A7400") +
+    annotate("text", x = 300, y = min(DF$lo), label = "filled points: FDR < 0.05", hjust = 1, vjust = 0,
+             family = "Arial", size = 4.2, colour = MUTED) +
+    scale_x_continuous(breaks = seq(-300, 300, 100)) +
+    coord_cartesian(xlim = c(-300, 300), ylim = c(min(DF$lo) * 1.1, max(DF$hi) * 1.28),
+                    expand = FALSE, clip = "off") +
+    labs(x = "Position relative to the AP-1 motif (bp)",
+         y = "Stable − Dynamic\n(percentage points of a site's importance)") +
+    theme_pub() + theme(plot.margin = margin(16, 14, 4, 6))
+  save_fig(g8, "r_fb_density_diff", 9.4, 4.2)
+
+  # ---- variation 3: the five classes ---------------------------------------------------------------------
+  CL <- CU[CU$grouping == "class", ]
+  CL$cls <- factor(CL$class, levels = CLS5)
+  C5 <- read.csv(c5f)
+  C5$cls <- factor(C5$class, levels = rev(CLS5))
+  for (v in c("share_within_25bp", "lo", "hi")) C5[[v]] <- 100 * C5[[v]]
+  C5$lab <- sapply(C5$fdr_vs_stable, function(p) if (is.na(p)) "reference" else sub("^P", "FDR", fmtP(p)))
+  g9 <- ggplot(C5, aes(cls, share_within_25bp, colour = cls)) +
+    geom_errorbar(aes(ymin = lo, ymax = hi), width = 0, linewidth = 1.5) +
+    geom_point(size = 4.2) +
+    geom_text(aes(label = sprintf("%.1f%%", share_within_25bp)), hjust = -0.45, vjust = -0.75,
+              family = "Arial", fontface = "bold", size = 4.8, show.legend = FALSE) +
+    geom_text(aes(y = 20.6, label = lab), hjust = 0, vjust = -0.9, family = "Arial", size = 4.2,
+              colour = MUTED) +
+    geom_hline(yintercept = C5$share_within_25bp[C5$class == "Stable"], linewidth = 0.4,
+               linetype = "22", colour = BLUE) +
+    scale_colour_manual(values = COL5) +
+    scale_y_continuous(breaks = seq(20, 40, 5), labels = function(b) paste0(b, "%")) +
+    scale_x_discrete(expand = expansion(add = 0.7),
+                     labels = function(x) sprintf("%s\n(n = %d)", x, C5$n_sites[match(x, C5$class)])) +
+    coord_flip(xlim = c(0.4, 5.8), ylim = c(20, 40), expand = FALSE, clip = "off") +
+    labs(x = NULL, y = "Share of the site's importance within ±25 bp of the motif") +
+    theme_pub() + no_cat_axis("y") +
+    theme(legend.position = "none",
+          axis.text.y = element_text(colour = rev(unname(COL5)), hjust = 0, size = 14),
+          plot.margin = margin(10, 20, 4, 6))
+  save_fig(g9, "r_fb_density_classes", 9.4, 4.4)
+  print(C5[, c("class", "n_sites", "share_within_25bp", "lo", "hi", "fdr_vs_stable")], row.names = FALSE)
+} else {
+  cat("  skipped the density variations: run Scripts/59_fb_density_variations.py on Katana first\n")
+}
