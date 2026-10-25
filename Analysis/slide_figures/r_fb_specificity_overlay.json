@@ -1,0 +1,103 @@
+{
+  "w_in": 10.8,
+  "h_in": 4,
+  "panel": {
+    "left": 0.086096,
+    "right": 0.987188,
+    "top": 0.020756,
+    "bottom": 0.873535
+  },
+  "x_range": [0.735, 5.265],
+  "y_range": [-2.903291, 1.14],
+  "name": "r_fb_specificity",
+  "labels": [
+    {
+      "id": "header",
+      "x": 0.8,
+      "y": 0.8,
+      "text": "vs Stable, at the site's own AP-1 motif (BH across the four)",
+      "size_pt": 12,
+      "color": "4D4D4D",
+      "anchor": "start"
+    },
+    {
+      "id": "fdr1",
+      "x": 0.85,
+      "y": 0.3,
+      "text": "reference",
+      "size_pt": 12,
+      "color": "4D4D4D",
+      "anchor": "middle"
+    },
+    {
+      "id": "fdr2",
+      "x": 1.85,
+      "y": 0.3,
+      "text": "FDR = 0.93",
+      "size_pt": 12,
+      "color": "4D4D4D",
+      "anchor": "middle"
+    },
+    {
+      "id": "fdr3",
+      "x": 2.85,
+      "y": 0.3,
+      "text": "FDR = 9.1 × 10⁻⁵",
+      "size_pt": 12,
+      "color": "4D4D4D",
+      "anchor": "middle"
+    },
+    {
+      "id": "fdr4",
+      "x": 3.85,
+      "y": 0.3,
+      "text": "FDR = 0.49",
+      "size_pt": 12,
+      "color": "4D4D4D",
+      "anchor": "middle"
+    },
+    {
+      "id": "fdr5",
+      "x": 4.85,
+      "y": 0.3,
+      "text": "FDR = 0.043",
+      "size_pt": 12,
+      "color": "4D4D4D",
+      "anchor": "middle"
+    },
+    {
+      "id": "leg1",
+      "x": 3.03,
+      "y": 0.95,
+      "text": "its own AP-1 motif",
+      "size_pt": 12.5,
+      "color": "111111",
+      "anchor": "start"
+    },
+    {
+      "id": "leg2",
+      "x": 3.03,
+      "y": 0.7,
+      "text": "its partner motifs, net of a matched control",
+      "size_pt": 12.5,
+      "color": "111111",
+      "anchor": "start"
+    }
+  ],
+  "swatches": [
+    {
+      "id": "sw1",
+      "x": 2.95,
+      "y": 0.95,
+      "fill": "D6D6D6",
+      "line": "111111"
+    },
+    {
+      "id": "sw2",
+      "x": 2.95,
+      "y": 0.7,
+      "fill": "FFFFFF",
+      "line": "111111"
+    }
+  ]
+}

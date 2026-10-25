@@ -17,7 +17,7 @@
 # Outputs Analysis/slide_figures/r_fb_*.png
 
 suppressPackageStartupMessages({
-  library(ggplot2); library(ragg); library(grid); library(patchwork)
+  library(ggplot2); library(ragg); library(grid); library(patchwork); library(jsonlite)
 })
 
 ROOT <- "/Users/z5162865/WongLab/AlphaGenome_Ap1"
@@ -48,6 +48,41 @@ site_classes <- function() {
 }
 # BH across the four comparisons each panel makes against Stable
 fdr <- function(p) p.adjust(p, method = "BH")
+
+# --- overlay geometry ------------------------------------------------------------------------------------
+# Some annotation is better as PowerPoint text than as part of the PNG, so it can be moved, reworded or deleted
+# on the slide. For that the deck has to know where ggplot put the panel inside the image. This measures the
+# gtable and writes the panel rectangle (as fractions of the image) and the data ranges, together with the
+# labels to draw and the data coordinates they belong at. build_fb_deck.js turns those into text boxes.
+panel_geom <- function(g, W, H) {
+  gt <- ggplotGrob(g)
+  fill_null <- function(u, total) {                 # grid reports null units as 0; they share what is left over
+    inch <- grid::convertWidth(u, "in", valueOnly = TRUE)
+    isn <- as.character(grid::unitType(u)) == "null"
+    if (any(isn)) {
+      amt <- as.numeric(u)[isn]
+      inch[isn] <- max(0, total - sum(inch[!isn])) * amt / sum(amt)
+    }
+    inch
+  }
+  wi <- fill_null(gt$widths, W); hi <- fill_null(gt$heights, H)
+  p <- gt$layout[gt$layout$name == "panel", ][1, ]
+  pp <- ggplot_build(g)$layout$panel_params[[1]]
+  list(w_in = W, h_in = H,
+       panel = list(left = sum(wi[seq_len(p$l - 1)]) / W, right = sum(wi[seq_len(p$r)]) / W,
+                    top = sum(hi[seq_len(p$t - 1)]) / H, bottom = sum(hi[seq_len(p$b)]) / H),
+       x_range = pp$x.range, y_range = pp$y.range)
+}
+
+write_overlay <- function(g, name, W, H, labels = list(), swatches = list()) {
+  geom <- panel_geom(g, W, H)
+  geom$name <- name
+  geom$labels <- labels
+  geom$swatches <- swatches
+  jsonlite::write_json(geom, file.path(OUT, paste0(name, "_overlay.json")),
+                       auto_unbox = TRUE, digits = 6, pretty = TRUE)
+  cat(sprintf("  wrote %s_overlay.json (%d labels, %d swatches)\n", name, length(labels), length(swatches)))
+}
 GOLD <- "#E3B23C"; GOLD_PALE <- "#F9EAC4"   # the AP-1 core
 TEAL <- "#2F6F6F"            # "what the element is", used nowhere else
 GREY <- "#BDBCB8"; GREY_DK <- "#8C8B87"
@@ -246,16 +281,8 @@ g3 <- ggplot(B, aes(grp)) +
                    notchlower = notchlower, notchupper = notchupper, colour = grp, fill = key),
                stat = "identity", width = 0.46, position = position_dodge(width = dw),
                notch = TRUE, notchwidth = 0.58, linewidth = 0.6, show.legend = FALSE) +
-  geom_text(data = PS, aes(x, y, label = lab), inherit.aes = FALSE, family = "Arial", size = 4.2,
-            colour = MUTED) +
-  annotate("text", x = 0.30, y = 0.56, label = "vs Stable, at the site's own AP-1 motif (BH across the four)",
-           hjust = 0, family = "Arial", size = 4.2, colour = MUTED) +
-  annotate("point", x = 2.95, y = 0.95, size = 4.4, shape = 22, fill = "#1111112b", colour = INK, stroke = 0.6) +
-  annotate("text", x = 3.03, y = 0.95, label = "its own AP-1 motif", hjust = 0, vjust = 0.42,
-           family = "Arial", size = 4.4, colour = INK) +
-  annotate("point", x = 2.95, y = 0.70, size = 4.4, shape = 22, fill = "white", colour = INK, stroke = 0.6) +
-  annotate("text", x = 3.03, y = 0.70, label = "its partner motifs, net of a matched control",
-           hjust = 0, vjust = 0.42, family = "Arial", size = 4.4, colour = INK) +
+  # the legend, the header and the FDR row are NOT drawn here: they go on the slide as PowerPoint text boxes
+  # (see write_overlay below) so they can be moved, reworded or dropped without regenerating the figure
   scale_colour_manual(values = COL5) +
   scale_fill_manual(values = FILL3) +
   scale_x_discrete(labels = nlab, expand = expansion(add = c(0.95, 0.5))) +
@@ -265,6 +292,21 @@ g3 <- ggplot(B, aes(grp)) +
   theme_pub() + theme(legend.position = "none",
                       axis.text.x = element_text(colour = unname(COL5), size = 13, lineheight = 0.95))
 save_fig(g3, "r_fb_specificity", 10.8, 4.0)
+# every piece of text that was overlaid on the panel, handed to the deck as data instead
+write_overlay(g3, "r_fb_specificity", 10.8, 4.0,
+  labels = c(
+    list(list(id = "header", x = 0.80, y = 0.80, text = "vs Stable, at the site's own AP-1 motif (BH across the four)",
+              size_pt = 12, color = "4D4D4D", anchor = "start")),
+    lapply(seq_len(nrow(PS)), function(i)
+      list(id = paste0("fdr", i), x = PS$x[i], y = PS$y[i], text = PS$lab[i],
+           size_pt = 12, color = "4D4D4D", anchor = "middle")),
+    list(list(id = "leg1", x = 3.03, y = 0.95, text = "its own AP-1 motif",
+              size_pt = 12.5, color = "111111", anchor = "start"),
+         list(id = "leg2", x = 3.03, y = 0.70, text = "its partner motifs, net of a matched control",
+              size_pt = 12.5, color = "111111", anchor = "start"))),
+  swatches = list(
+    list(id = "sw1", x = 2.95, y = 0.95, fill = "D6D6D6", line = "111111"),
+    list(id = "sw2", x = 2.95, y = 0.70, fill = "FFFFFF", line = "111111")))
 cat(sprintf("     own AP-1 vs Stable, BH: %s\n", paste(sprintf("%s %.3g", CLS5[-1], q_own), collapse = ", ")))
 cat(sprintf("     partners vs Stable, BH: %s\n", paste(sprintf("%s %.3g", CLS5[-1], q_par), collapse = ", ")))
 

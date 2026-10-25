@@ -71,15 +71,41 @@ function FIG(slide, file, box) {
   const r = width / height;
   let w = box.w, h = w / r;
   if (h > box.h) { h = box.h; w = h * r; }
-  slide.addImage({ path: F(file), x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h });
+  const x = box.x + (box.w - w) / 2, y = box.y + (box.h - h) / 2;
+  slide.addImage({ path: F(file), x, y, w, h });
+  return { x, y, w, h };
+}
+
+// Annotation that would otherwise be baked into the PNG, placed as real PowerPoint text at the data coordinates
+// ggplot would have drawn it at. fb_slide_figures.R writes the panel rectangle and the labels to <fig>_overlay.json;
+// everything placed here can be moved, reworded or deleted on the slide without regenerating the figure.
+function drawOverlay(slide, file, rect) {
+  const o = JSON.parse(fs.readFileSync(F(file), "utf8"));
+  const P = o.panel, k = rect.w / o.w_in;          // the image was scaled by k when it was placed
+  const px = (dx) => rect.x + (P.left + ((dx - o.x_range[0]) / (o.x_range[1] - o.x_range[0])) * (P.right - P.left)) * rect.w;
+  const py = (dy) => rect.y + (P.top + ((o.y_range[1] - dy) / (o.y_range[1] - o.y_range[0])) * (P.bottom - P.top)) * rect.h;
+  for (const s of o.swatches || []) {
+    const d = 0.15;
+    slide.addShape(pres.ShapeType.rect, { x: px(s.x) - d / 2, y: py(s.y) - d / 2, w: d, h: d,
+      fill: { color: s.fill }, line: { color: s.line, width: 0.9 } });
+  }
+  for (const t of o.labels || []) {
+    const sz = t.size_pt * k;
+    const bw = Math.max(1.0, t.text.length * sz * 0.0078), bh = 0.26;
+    const left = t.anchor === "middle" ? px(t.x) - bw / 2 : t.anchor === "end" ? px(t.x) - bw : px(t.x);
+    slide.addText(t.text, { x: left, y: py(t.y) - bh / 2, w: bw, h: bh, fontFace: "Arial", fontSize: sz,
+      color: t.color, margin: 0, isTextBox: true, wrap: false, valign: "middle",
+      align: t.anchor === "middle" ? "center" : t.anchor === "end" ? "right" : "left" });
+  }
 }
 
 // title / figure / takeaway, with the takeaway in an accent rule so the eye lands on it last
-function resultSlide({ title, figure, method, takeaway, caveat, notes }) {
+function resultSlide({ title, figure, overlay, method, takeaway, caveat, notes }) {
   const s = pres.addSlide({ masterName: "RESULT" });
   s.addText(title, { placeholder: "title" });
   s.addText(method, { isTextBox: true, x: 0.55, y: 1.06, w: 12.2, h: 0.34, fontSize: 12.5, italic: true, color: "595959", margin: 0 });
-  FIG(s, figure, { x: 1.1, y: 1.46, w: 11.1, h: caveat ? 3.9 : 4.22 });
+  const rect = FIG(s, figure, { x: 1.1, y: 1.46, w: 11.1, h: caveat ? 3.9 : 4.22 });
+  if (overlay) drawOverlay(s, overlay, rect);
   const y0 = caveat ? 5.52 : 5.80;
   s.addShape(pres.ShapeType.rect, { x: 0.55, y: y0, w: 0.055, h: caveat ? 0.8 : 0.95, fill: { color: "3F3F3F" }, line: { width: 0 } });
   s.addText(takeaway, { isTextBox: true, x: 0.82, y: y0, w: 11.9, h: caveat ? 0.8 : 0.95, fontSize: 17, color: "111111", valign: "middle", margin: 0 });
@@ -217,11 +243,11 @@ diagramSlide({
 // ================================================================== 6. element or place
 resultSlide({
   title: "The element's identity lives at peak scale, not in 170 bp",
-  method: "Every element written into every other site's location. The accessibility that results is regressed on two things: how accessible the donor element's own site was, and how accessible the recipient location was. Both weights are positive — they are drawn on opposite sides of zero only so the pair can be compared, and the longer bar is the stronger influence. P tests the two weights against each other. 62,250 swaps; 95% CI from a cluster bootstrap over the 250 donors.",
+  method: "Every element written into every other site's location; the accessibility that results regressed on the donor element's own level and on the recipient location's. Both weights are positive, drawn apart only so the pair can be compared. 62,250 swaps; 95% CI from a cluster bootstrap over 250 donors.",
   figure: "Analysis/slide_figures/r_fb_scale.png",
   takeaway: "At 170 bp an element mostly takes on the level of wherever you put it; at full peak width it imposes its own. "
     + "The information that opens chromatin is spread over the whole peak — which is why a 170 bp assay cannot see it.",
-  caveat: "Read it as a transplant. Take a strong element and put it somewhere weak: at 170 bp it comes out weak, because the location carries most of the weight (0.61 against 0.24). At full peak width it stays strong, because the element now carries most of it (0.71 against 0.20). Nothing about the element changed — only how much of it we moved.",
+  caveat: "Read it as a transplant: take a strong element, put it somewhere weak. At 170 bp it comes out weak — the location carries most of the weight (0.61 against 0.24). At full peak width it stays strong — the element now carries most of it (0.71 against 0.20). Nothing about the element changed, only how much of it we moved. P tests the two weights against each other.",
   notes: "62,250 swaps. 170 bp: beta(element) 0.24 vs beta(location) 0.61, R2 = 0.20. Whole peak: 0.71 vs 0.20, R2 = 0.46. "
     + "Transfer fraction 0.29 at 170 bp, 0.83 at peak.\n\n"
     + "Link to the MPRA, if asked: the MPRA library is 170 bp, and its class difference there is tiny (flank shuffle 0.128 vs 0.016 log2, d = 0.14). "
@@ -252,6 +278,7 @@ resultSlide({
   title: "The sites that lose AP-1 let go of it — whether with age or exercise",
   method: "The site's own AP-1 motif and each partner motif shuffled separately inside the same window; partners net of a width- and distance-matched footprint-free control. Box, median and IQR, whiskers 5th–95th centile, notch a 95% interval on the median. Classes as given: Up = AP-1 gained, Down = AP-1 lost.",
   figure: "Analysis/slide_figures/r_fb_specificity.png",
+  overlay: "Analysis/slide_figures/r_fb_specificity_overlay.json",
   takeaway: "It is the direction that matters, not the stimulus. Both losing classes depend less on their own AP-1 motif "
     + "— Age Down by 36%, Exercise Down by 21% — while both gaining classes are indistinguishable from Stable. "
     + "No class differs at its partner motifs.",
