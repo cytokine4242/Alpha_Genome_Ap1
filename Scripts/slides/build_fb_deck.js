@@ -87,6 +87,18 @@ function resultSlide({ title, figure, method, takeaway, caveat, notes }) {
   return s;
 }
 
+// a method slide: the diagram gets the room, because reading it IS the point of the slide
+function diagramSlide({ title, figure, method, takeaway, notes }) {
+  const s = pres.addSlide({ masterName: "RESULT" });
+  s.addText(title, { placeholder: "title" });
+  if (method) s.addText(method, { isTextBox: true, x: 0.55, y: 1.06, w: 12.2, h: 0.34, fontSize: 12.5, italic: true, color: "595959", margin: 0 });
+  FIG(s, figure, { x: 0.5, y: method ? 1.42 : 1.2, w: 12.3, h: method ? 5.0 : 5.25 });
+  s.addShape(pres.ShapeType.rect, { x: 0.55, y: 6.55, w: 0.055, h: 0.62, fill: { color: "3F3F3F" }, line: { width: 0 } });
+  s.addText(takeaway, { isTextBox: true, x: 0.82, y: 6.55, w: 11.9, h: 0.62, fontSize: 15.5, color: "111111", valign: "middle", margin: 0 });
+  s.addNotes(notes);
+  return s;
+}
+
 // pptxgenjs runs array items together unless each one asks for its own paragraph
 const bullets = (items) => items.map((t) => (typeof t === "string"
   ? { text: t, options: { bullet: { code: "2022" }, breakLine: true, paraSpaceAfter: 9, fontSize: 17 } }
@@ -107,25 +119,54 @@ const bullets = (items) => items.map((t) => (typeof t === "string"
     + "Site classes are the TOBIAS categories as given - Stable = bound in all three conditions; Dynamic = anything else; Age Up / Age Down are the directional age classes.");
 }
 
-// ================================================================== 2. the three experiments
-{
-  const s = pres.addSlide({ masterName: "TITLE_BODY" });
-  s.addText("Three perturbations, all in the native 131 kb window", { placeholder: "title" });
-  s.addText(bullets([
-    { text: "Transplant — take the element out and drop it into 20 closed, non-open backgrounds", bold: true },
-    { text: "scored against the same sequence shuffled, so the host contributes nothing. 50 donors per class.", sub: true },
-    { text: "Swap — put every element into every other site's location, at two widths", bold: true },
-    { text: "62,250 swaps; separates what the element IS from WHERE it sits.", sub: true },
-    { text: "Shuffle, motif by motif — scramble the site's own AP-1 motif, and each partner motif, one at a time", bold: true },
-    { text: "each partner is scored against a footprint-free window of the same width at the mirrored distance, so the comparison is inside one site and needs no accessibility matching.", sub: true },
-    { text: "Why that last control matters", bold: true },
-    { text: "Dynamic sites are about half as accessible as Stable ones. Any comparison that does not hold that constant will find a difference whether or not one exists - two results below are exactly that trap.", sub: true },
-  ]), { placeholder: "body" });
-  s.addNotes("TOBIAS is used only to say where the partner footprints are and which family each belongs to. "
-    + "No footprint score enters any calculation; every number on these slides is an AlphaGenome effect.");
-}
+// ================================================================== 2. how an effect is measured
+diagramSlide({
+  title: "Everything here is one prediction minus another",
+  figure: "Analysis/slide_figures/m1_pipeline.png",
+  takeaway: "No edit is ever compared against another site. The native and the edited sequence are the same 131 kb "
+    + "window through the same weights, so whatever changes in the prediction came from the edit.",
+  notes: "Worth saying out loud at the start, because it is what makes the rest defensible: the comparison is always "
+    + "within one window, and the model never sees a label.\n\n"
+    + "The head is ours - fine-tuned on our own 1 bp fibroblast Tn5 insertions with Borzoi fold-3 region-based splits, "
+    + "so 0.68 is on held-out regions. The built-in AlphaGenome ATAC head manages 0.27 on the same data, which is why "
+    + "none of this was run on it.\n\n"
+    + "FB is the mean of the four conditions (young/old x sedentary/exercise), not a single track.\n\n"
+    + "TOBIAS is used only to say WHERE a footprint is and which family it belongs to. No footprint score enters any "
+    + "calculation on these slides.",
+});
 
-// ================================================================== 3. transplant
+// ================================================================== 3. edits in place
+diagramSlide({
+  title: "Edits made where the element stands",
+  figure: "Analysis/slide_figures/m2_within_site.png",
+  takeaway: "Three widths of shuffle, a tile scan across 600 bp, single-base saturation, and one partner motif at a "
+    + "time against a footprint-free window of the same width at the mirrored distance.",
+  notes: "Reading order: the three shuffles ask how much sequence you have to destroy; the tile scan and the "
+    + "saturation ask where in the sequence the dependence lives; the partner shuffle asks which other motifs matter.\n\n"
+    + "The partner control is the part to dwell on. Dynamic sites are about half as accessible as Stable ones, so any "
+    + "measure that compares a Dynamic number against a Stable number is open to that confound. Scoring a shuffled "
+    + "partner against a matched footprint-free window at the mirrored distance keeps the whole comparison inside one "
+    + "site, so accessibility cannot reach it.\n\n"
+    + "Every shuffle is repeated 10 times per site and averaged, so a single lucky permutation cannot carry a result.",
+});
+
+// ================================================================== 4. edits that move the element
+diagramSlide({
+  title: "Edits that move the element somewhere else",
+  figure: "Analysis/slide_figures/m3_move.png",
+  takeaway: "Transplant asks whether an element can build a site on its own, by dropping it into chromatin that has "
+    + "none. Swap asks whether a site's level is set by the sequence or by the address.",
+  notes: "Transplant: the control is the SAME sequence shuffled, dropped into the SAME host, so the host's own "
+    + "contribution cancels in the ratio. 20 hosts per element, 50 donors per class. Hosts are genomic windows with "
+    + "no called ATAC peak.\n\n"
+    + "Swap: every donor element written into every recipient location, both at 170 bp and at the whole peak, 62,250 "
+    + "combinations. Self-swaps are excluded. Because each donor appears in about 250 of those rows, the confidence "
+    + "intervals come from a cluster bootstrap over donors - an OLS standard error on 62,250 rows would be far too small.\n\n"
+    + "Caveat to have ready for the transplant slide: the donors are NOT matched on accessibility. That is handled "
+    + "separately and the slide carries the matched number.",
+});
+
+// ================================================================== 5. transplant
 resultSlide({
   title: "A Stable element opens closed chromatin on its own",
   method: "Each element moved into 20 closed backgrounds and scored against the same sequence shuffled; one point per donor, whole-peak width. Box, median and IQR, whiskers 1.5 × IQR; 50 donors per class; Mann–Whitney, Stable against the four Dynamic classes pooled.",
@@ -144,7 +185,7 @@ resultSlide({
   caveat: "Stable donors also come from more accessible loci. Holding that constant (measured ATAC, 224 donors) a Stable element still gains 1.8× more than a Dynamic one, P = 0.005 — the direction holds, but about a third of the gap above is accessibility rather than sequence.",
 });
 
-// ================================================================== 4. scale
+// ================================================================== 6. scale
 resultSlide({
   title: "The element's identity lives at peak scale, not in 170 bp",
   method: "Every element swapped into every other site's location: the swapped site's accessibility regressed on the donor element and on the recipient location. The two weights are drawn pulling against each other from a common zero. 62,250 swaps; 95% CI from a cluster bootstrap over the 250 donors.",
@@ -160,7 +201,7 @@ resultSlide({
     + "direction to the MPRA flank result. Different assay, but it reads as a contradiction. Keep it off unless someone asks.",
 });
 
-// ================================================================== 5. specificity
+// ================================================================== 7. specificity
 resultSlide({
   title: "Only the AP-1-losing sites let go — and only of AP-1",
   method: "The site's own AP-1 motif and each partner motif shuffled separately inside the same window; partners net of a width- and distance-matched footprint-free control. Box, median and IQR, whiskers 5th–95th centile; the notch is a 95% interval on the median. Dynamic split into the age classes as given. Mann–Whitney against Stable.",
@@ -179,7 +220,7 @@ resultSlide({
     + "to the partners in every class equally, so the class comparison is unaffected.",
 });
 
-// ================================================================== 6. the model finds the motif on its own
+// ================================================================== 8. where the dependence sits
 resultSlide({
   title: "Where the dependence sits: on the motif, and more so if Stable",
   method: "Each 10 bp tile replaced in turn; each site's own noise floor removed, then normalised to its own total, so the curve is where the dependence sits, not how much there is. Median per site, band a bootstrap 95% CI; Mann–Whitney per position, BH-FDR across the 60. Cropped to ±150 bp.",
@@ -206,7 +247,7 @@ resultSlide({
     + "do not oversell it as two different architectures.",
 });
 
-// ================================================================== 7. how the dependence is divided
+// ================================================================== 9. how the dependence is divided
 resultSlide({
   title: "Dynamic sites hand more of the load to the partner motifs",
   method: "Per site: |own AP-1| / (|own AP-1| + |partner motifs|), the share of its motif dependence that sits inside the AP-1 motif rather than outside it. Both terms are AlphaGenome shuffle effects measured inside the same window, so accessibility cannot drive the comparison. Median per site; error bar, bootstrap 95% CI; Mann–Whitney.",
@@ -227,7 +268,26 @@ resultSlide({
     + "the collar is mostly noise at low-accessibility sites. This version is better powered because it only scores footprinted motifs.",
 });
 
-// ================================================================== 8. what did not hold
+// ================================================================== 10. the AP-1 ladder
+diagramSlide({
+  title: "The AP-1 ladder, and the spacing experiments",
+  figure: "Analysis/slide_figures/m4_titration.png",
+  takeaway: "Rather than only destroying the motif, weaken it one base at a time, strengthen it, flip it, duplicate "
+    + "it or move it — each against a control that changes the same amount of sequence but no motif.",
+  notes: "This is where the next slide's numbers come from. 2,359 sites; 860 accessibility-matched pairs at caliper "
+    + "0.1 log10.\n\n"
+    + "The ladder (1 to 7 bases of the core) is what gives a dose-response rather than a single on/off contrast - it "
+    + "is how we can say the Dynamic curve is SHALLOWER rather than just lower.\n\n"
+    + "Two controls worth naming if asked:\n"
+    + "  - the second copy is paired with a scrambled insert of the same width at the same distance, so the comparison "
+    + "is 'a motif there' against 'that much sequence there'\n"
+    + "  - moving the motif is paired with moving it to a spot that has no footprint\n\n"
+    + "The reverse complement is the sanity check on the head: a TRE is a near-palindrome, only 5 of the 11 bases "
+    + "actually move, and the predicted cost is -0.03 log2 (p = 0.89). If that had come out large, nothing else here "
+    + "would be trustworthy.",
+});
+
+// ================================================================== 11. what did not hold
 {
   const s = pres.addSlide({ masterName: "TITLE_BODY" });
   s.addText("Two differences that turned out to be accessibility", { placeholder: "title" });
@@ -248,7 +308,7 @@ resultSlide({
     + "Age Down is the outlier again, consistently with the other arms: one base of the core changed -0.62 vs Stable -0.83; motif gone -0.72 vs -1.07.");
 }
 
-// ================================================================== 9. where this sits
+// ================================================================== 12. where this sits
 {
   const s = pres.addSlide({ masterName: "TITLE_BODY" });
   s.addText("How this sits with the MPRA work", { placeholder: "title" });
