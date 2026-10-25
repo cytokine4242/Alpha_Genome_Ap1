@@ -181,22 +181,29 @@ resultSlide({
 
 // ================================================================== 6. the model finds the motif on its own
 resultSlide({
-  title: "AlphaGenome puts the motif first — at every class equally",
-  method: "Each site's 600 bp scanned with 60 replaced 10 bp tiles; for each site, where does the single most costly tile fall? Two of the 60 tiles overlap the AP-1 core, so chance is 3.3% (dashed line). Fisher exact, Stable against Dynamic.",
-  figure: "Analysis/slide_figures/r_fb_top_tile.png",
-  takeaway: "In over half of all sites the most important 10 bp of the whole window is the AP-1 core itself — about 16× chance, "
-    + "and nobody told the model where the motif was. But this is the same in every class: whether AP-1 is the dominant element "
-    + "is not what separates Stable from Dynamic.",
-  caveat: "A deliberate negative. A rank cannot be moved by the accessibility gap, so this is the measure most likely to be a real class difference — and it is not one (matched: 56.3% vs 53.3%, P = 0.21). What does differ is the next slide: not whether AP-1 leads, but by how much.",
-  notes: "2,359 sites, 60 tiles each, fine-tuned FB head, readout atac_170. Top tile on the AP-1 core: Stable 55.7%, "
-    + "AP-1 gained 53.3%, AP-1 lost 50.5%, other Dynamic 50.1%. Stable vs Dynamic Fisher p = 0.063; chi-square across the four p = 0.14.\n\n"
-    + "Accessibility-matched (860 pairs, caliper 0.1 log10): 56.3% vs 53.3%, McNemar on the 398 discordant pairs p = 0.21. "
-    + "The core tile's median rank is 1 of 60 in BOTH classes.\n\n"
-    + "Why this was run: the ratio measures (motif share vs a collar) scale with a site's signal and the scan version does not "
-    + "survive matching (p = 0.11). A rank is invariant to that, so it is the honest version of the question - and the answer is no difference. "
-    + "Say that out loud rather than hiding the slide; it makes the next one credible.\n\n"
-    + "Good question to expect: why is 56% not higher? Each of the two core tiles covers only 5-6 bp of the 11 bp motif, "
-    + "so a site whose dependence is spread over the full core can have a flanking tile win.",
+  title: "Where the dependence sits: on the motif, and more so if Stable",
+  method: "Each 10 bp tile replaced in turn; each site's own noise floor removed, then normalised to its own total, so the curve is where the dependence sits, not how much there is. Median per site, band a bootstrap 95% CI; Mann–Whitney per position, BH-FDR across the 60. Cropped to ±150 bp.",
+  figure: "Analysis/slide_figures/r_fb_density.png",
+  takeaway: "A spike on the AP-1 core sitting on a shallow shoulder that reaches ±100 bp — and the model was never told "
+    + "where the motif was. The spike is taller for Stable sites, and the two tiles covering the core are the only positions "
+    + "in the whole window where the classes differ at all.",
+  caveat: "Holding accessibility constant the gap halves but holds: 33.1% vs 31.3% of importance within ±25 bp, P = 0.006 over 860 matched pairs. The older ratio version of this measure did not survive that check (P = 0.11); this one does, because the noise floor is removed per site first.",
+  notes: "NUMBERS TO ANNOTATE WITH, strongest first:\n"
+    + "  - the peak tile carries 10.8% (Stable) / 9.9% (Dynamic) of a site's importance, against 1.7% for an average tile - about 6x enrichment\n"
+    + "  - within +-25 bp (5 of 60 tiles, 8% of the sequence): Stable 33.8% vs Dynamic 30.7%, p = 2.0e-6\n"
+    + "  - accessibility-matched, 860 pairs: 33.1% vs 31.3%, paired difference +1.5 points, Wilcoxon p = 0.006\n"
+    + "  - only 2 of 60 positions differ at FDR < 0.05, and they are the two tiles over the core (FDR = 0.001). Every other position FDR > 0.8\n"
+    + "  - in 56% of Stable and 52% of Dynamic sites the single most important tile IS a core tile, against a chance of 3.3% - 16x. "
+    + "That one does NOT differ by class (Fisher p = 0.063; matched McNemar p = 0.21), so quote it as the shared fact, not as a difference. "
+    + "Figure for it is on disk as r_fb_top_tile.png if anyone wants to see it.\n\n"
+    + "2,359 sites, 60 tiles of 10 bp from -300 to +290, fine-tuned FB head, readout atac_170.\n\n"
+    + "Why the floor subtraction matters, if asked: Dynamic sites are about half as accessible, so their log2 ratios are noisier, "
+    + "and noise is flat across position. Without removing each site's own floor (median |effect| beyond +-200 bp: 0.047 Dynamic, "
+    + "0.037 Stable) a Dynamic profile looks more distributed whether or not it is. That is exactly the artefact this corrects for.\n\n"
+    + "Agreement: this is the AlphaGenome version of 'attention is more distributed at dynamic enhancers'. Same direction, "
+    + "different model and different readout.\n\n"
+    + "Honest size: the matched difference is 1.5 percentage points on a base of about a third. Real, repeatedly so, but small - "
+    + "do not oversell it as two different architectures.",
 });
 
 // ================================================================== 7. how the dependence is divided
@@ -254,7 +261,8 @@ resultSlide({
     { text: "Adds", bold: true },
     { text: "The class difference is a whole-peak property, not a 170 bp one.", sub: true },
     { text: "Within Dynamic, the AP-1-losing sites are the ones that are sequence-different; the gaining ones are not.", sub: true },
-    { text: "AlphaGenome makes the AP-1 core the single most important 10 bp in over half of all sites, unprompted — equally in both classes. The classes differ in how much of the dependence AP-1 carries, not in whether it leads.", sub: true },
+    { text: "Unprompted, AlphaGenome makes the AP-1 core the most important 10 bp in over half of all sites — equally in both classes. The classes differ in how much of the dependence sits there, not in whether AP-1 leads.", sub: true },
+    { text: "Dynamic sites spread their dependence slightly wider, and it survives accessibility matching (33.1% vs 31.3% within ±25 bp, P = 0.006) — the sequence-model version of “attention is more distributed at dynamic enhancers”.", sub: true },
     { text: "Keep off the slides", bold: true },
     { text: "Our in-situ 170 bp shuffle costs Stable sites more (−2.51 vs −1.96, p = 4e-40), the opposite of the MPRA flank result. Different assay — episomal activity vs chromatin accessibility — but it reads as a contradiction.", sub: true },
   ]), { placeholder: "body" });

@@ -17,7 +17,7 @@
 # Outputs Analysis/slide_figures/r_fb_*.png
 
 suppressPackageStartupMessages({
-  library(ggplot2); library(ragg); library(grid)
+  library(ggplot2); library(ragg); library(grid); library(patchwork)
 })
 
 ROOT <- "/Users/z5162865/WongLab/AlphaGenome_Ap1"
@@ -343,6 +343,85 @@ if (file.exists(zf)) {
   print(core[, c("class", "n_sites", "pct", "lo", "hi")], row.names = FALSE)
 } else {
   cat("  skipped r_fb_top_tile: run Scripts/56_fb_top_tile_rank.py on Katana first\n")
+}
+
+# ==========================================================================================================
+# 6. importance as a density along the sequence - where, across the window, does a site's dependence sit?
+#    Two panels in the same visual language as the MPRA deck's attention figure: the profile, and underneath
+#    it the Stable - Dynamic difference, because the two curves are close enough that the eye cannot judge
+#    the gap on its own. Cropped to +-150 bp; under 2% of either class's importance lies beyond that.
+#    Left open at the top on purpose, so the talk can annotate it.
+# ==========================================================================================================
+pf <- file.path(ROOT, "Analysis/fb_scan/tables/importance_density_profile.csv")
+cf <- file.path(ROOT, "Analysis/fb_scan/tables/importance_density_concentration.csv")
+mf <- file.path(ROOT, "Analysis/fb_scan/tables/importance_density_matched.csv")
+if (file.exists(pf)) {
+  PR <- read.csv(pf)
+  PR <- PR[PR$grouping == "stable_dynamic" & PR$version == "corrected", ]
+  PR$cls <- factor(PR$class, levels = c("Stable", "Dynamic"))
+  for (v in c("median", "lo", "hi")) PR[[v]] <- 100 * PR[[v]]
+  XL <- 150
+  PR <- PR[abs(PR$pos) <= XL, ]
+  nn <- tapply(PR$n_sites, PR$cls, max)
+  cc <- if (file.exists(cf)) read.csv(cf) else NULL
+  mm <- if (file.exists(mf)) read.csv(mf) else NULL
+  MOT <- c(-10, 10)                                  # the two tiles that overlap the 11 bp core
+  COLD <- c(Stable = BLUE, Dynamic = ROSE)
+  ytop <- max(PR$hi) * 1.30
+
+  W <- reshape(PR[, c("pos", "class", "median", "fdr")], idvar = c("pos", "fdr"),
+               timevar = "class", direction = "wide")
+  names(W) <- sub("median\\.", "", names(W))
+  W$diff <- W$Stable - W$Dynamic
+  W$sig <- W$fdr < 0.05
+  dlim <- max(abs(W$diff)) * 1.55
+
+  top <- ggplot(PR, aes(pos, median, colour = cls, fill = cls)) +
+    annotate("rect", xmin = MOT[1], xmax = MOT[2], ymin = 0, ymax = ytop, fill = GOLD_PALE) +
+    annotate("text", x = 0, y = ytop, label = "AP-1 core", vjust = -0.3, family = "Arial",
+             fontface = "bold", size = 4.5, colour = "#9A7400") +
+    geom_area(aes(group = cls), position = "identity", alpha = 0.14, linewidth = 0, show.legend = FALSE) +
+    geom_ribbon(aes(ymin = lo, ymax = hi, group = cls), alpha = 0.32, linewidth = 0, show.legend = FALSE) +
+    geom_line(linewidth = 1.6, show.legend = FALSE) +
+    annotate("text", x = -XL + 6, y = ytop * 0.97, label = sprintf("Stable  (n = %s)", nn[["Stable"]]),
+             hjust = 0, vjust = 1, family = "Arial", fontface = "bold", size = 5.0, colour = BLUE) +
+    annotate("text", x = -XL + 6, y = ytop * 0.83, label = sprintf("Dynamic  (n = %s)", nn[["Dynamic"]]),
+             hjust = 0, vjust = 1, family = "Arial", fontface = "bold", size = 5.0, colour = ROSE) +
+    scale_colour_manual(values = COLD) + scale_fill_manual(values = COLD) +
+    scale_x_continuous(breaks = seq(-XL, XL, 50)) +
+    scale_y_continuous(breaks = seq(0, 10, 5), labels = function(b) paste0(b, "%")) +
+    coord_cartesian(xlim = c(-XL, XL), ylim = c(0, ytop * 1.1), expand = FALSE, clip = "off") +
+    labs(x = NULL, y = "Share of importance\nper 10 bp") +
+    theme_pub() + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+                        axis.line.x = element_blank(), plot.margin = margin(16, 14, 0, 6))
+
+  bot <- ggplot(W, aes(pos, diff)) +
+    annotate("rect", xmin = MOT[1], xmax = MOT[2], ymin = -dlim, ymax = dlim, fill = GOLD_PALE) +
+    geom_hline(yintercept = 0, linewidth = 0.4, colour = FAINT) +
+    geom_segment(aes(xend = pos, yend = 0, colour = sig), linewidth = 1.9, show.legend = FALSE) +
+    geom_point(aes(colour = sig), size = 1.9, show.legend = FALSE) +
+    annotate("text", x = 0, y = max(W$diff), label = "FDR = 0.001", vjust = -0.75, hjust = 0.5,
+             family = "Arial", size = 4.0, colour = INK) +
+    annotate("text", x = XL - 6, y = -dlim * 0.72, label = "every other position: FDR > 0.8", hjust = 1,
+             family = "Arial", size = 4.0, colour = MUTED) +
+    annotate("text", x = -XL + 6, y = dlim * 0.80, label = "Stable − Dynamic (percentage points)", hjust = 0,
+             family = "Arial", size = 4.0, colour = MUTED) +
+    scale_colour_manual(values = c(`TRUE` = INK, `FALSE` = "#C6C5C1")) +
+    scale_x_continuous(breaks = seq(-XL, XL, 50)) +
+    scale_y_continuous(breaks = c(0, 1), labels = function(b) sprintf("%+.1f", b)) +
+    coord_cartesian(xlim = c(-XL, XL), ylim = c(-dlim, dlim * 1.12), expand = FALSE, clip = "off") +
+    labs(x = "Position relative to the AP-1 motif (bp)", y = NULL) +
+    theme_pub() + theme(plot.margin = margin(2, 14, 4, 6))
+
+  g6 <- top / bot + plot_layout(heights = c(2.4, 1.1))
+  save_fig(g6, "r_fb_density", 11.0, 3.95)
+  if (!is.null(cc)) print(cc[, c("class", "n_sites", "share_within_25bp",
+                                 "p_stable_vs_dynamic_share", "p_share_matched")], row.names = FALSE)
+  if (!is.null(mm)) cat(sprintf("     matched: Stable %.3f vs Dynamic %.3f, paired %+.4f, P = %.3g (%d pairs)\n",
+                                mm$near_stable, mm$near_dynamic, mm$paired_difference, mm$p_wilcoxon, mm$n_pairs))
+  cat(sprintf("     positions differing at FDR < 0.05: %s\n", paste(W$pos[W$sig], collapse = ", ")))
+} else {
+  cat("  skipped r_fb_density: run Scripts/57_fb_importance_density.py on Katana first\n")
 }
 
 cat("done\n")
