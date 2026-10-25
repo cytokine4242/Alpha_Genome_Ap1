@@ -1,0 +1,9 @@
+#!/bin/bash
+#PBS -N ag_host_native
+#PBS -l select=1:ncpus=6:mem=62gb:ngpus=1
+#PBS -l walltime=00:20:00
+#PBS -j oe
+# The 20 host windows predicted untouched, to check the backgrounds really are closed and to give the
+# insertions a no-insert baseline. 20 predictions; see Katana/scripts/20_host_native.py.
+source "$PBS_O_WORKDIR/pbs/common.sh"
+python 20_host_native.py --backgrounds ${BACKGROUNDS} --out ../${RESULTS_DIR:-results_ft}/${PREFIX:-hostnat_}fb

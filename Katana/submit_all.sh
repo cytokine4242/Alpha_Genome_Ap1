@@ -98,6 +98,7 @@ p3_mpran()    { sub -J 0-7 -N ag_mpra_neutral "NCHUNKS=8" pbs/14_mpra_neutral.pb
 BG_FILE=${BG_FILE:-/srv/scratch/wonglab/jack/AlphaGenome_Ap1/finetune_data/closed_backgrounds.csv}
 p5_swap()     { sub -J 0-39 -N ag_fb_swap "EXPERIMENT=swap,PREFIX=swap_,NCHUNKS=40" pbs/18_fb_swap.pbs; }
 p5_bg()       { sub -J 0-7 -N ag_fb_bg "EXPERIMENT=background,PREFIX=bg_,NCHUNKS=8,BACKGROUNDS=$BG_FILE" pbs/18_fb_swap.pbs; }
+p5_hostnat() { sub -m ae -l walltime=00:20:00 -N ag_host_native "BACKGROUNDS=$BG_FILE" pbs/27_host_native.pbs; }
 # fibroblast tile scan: all 1,180 Dynamic sites + 1,180 Stable drawn at random (data/fb_subset_scan.csv), 364 passes/site
 FB_SCAN_CHUNKS=${FB_SCAN_CHUNKS:-80}
 # is AP-1 special? the site's own motif and each footprinted partner shuffled in the same window, with matched controls (42 passes/site)
@@ -151,6 +152,7 @@ case "$1" in
   fb_priority)   p1_fb; p5_fbscan; p5_swap; p5_bg ;;   # the three fibroblast priorities: shuffle, tile scan, element swaps + host insertions
   fb_swap)       p5_swap ;;
   fb_background) p5_bg ;;
+  fb_hostnat)    p5_hostnat ;;
   fb_swap_all)   p5_swap; p5_bg ;;
   fb_swap_pilot) p5_pilot ;;
   scan)          p4_scan ;;
