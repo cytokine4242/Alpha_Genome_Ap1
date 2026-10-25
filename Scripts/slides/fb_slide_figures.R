@@ -503,9 +503,9 @@ if (file.exists(cuf)) {
              family = "Arial", size = 4.6, colour = INK, lineheight = 0.95) +
     annotate("segment", x = 0, xend = max(hS, hD), y = 50, yend = 50, linewidth = 0.4,
              linetype = "22", colour = FAINT) +
-    annotate("text", x = -295, y = 100, label = sprintf("Stable  (n = %s)", nn[["Stable"]]), hjust = 0,
+    annotate("text", x = 8, y = 101, label = sprintf("Stable  (n = %s)", nn[["Stable"]]), hjust = 0,
              vjust = 1, family = "Arial", fontface = "bold", size = 5, colour = BLUE) +
-    annotate("text", x = -295, y = 92, label = sprintf("Dynamic  (n = %s)", nn[["Dynamic"]]), hjust = 0,
+    annotate("text", x = 8, y = 92, label = sprintf("Dynamic  (n = %s)", nn[["Dynamic"]]), hjust = 0,
              vjust = 1, family = "Arial", fontface = "bold", size = 5, colour = ROSE) +
     scale_colour_manual(values = c(Stable = BLUE, Dynamic = ROSE)) +
     scale_fill_manual(values = c(Stable = BLUE, Dynamic = ROSE)) +

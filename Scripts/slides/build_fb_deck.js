@@ -280,6 +280,72 @@ resultSlide({
     + "do not oversell it as two different architectures.",
 });
 
+// ================================================================== 10a-c. the same result, read three other ways
+// Three alternative readings of slide 10, in the deck so they can be compared side by side. Keep one and delete the
+// rest - the measurement is identical in all four, only the plotted quantity changes. ALT marks them in the deck.
+const ALT = "ALTERNATIVE VIEW OF THE PREVIOUS SLIDE — same measurement, keep one.  ";
+
+resultSlide({
+  title: "Stable sites keep half their dependence within 41 bp, Dynamic 48",
+  method: ALT + "Cumulative share of a site's importance within ±x bp, against x. Median per site, band a bootstrap 95% CI. The value at ±20 bp is the 33.8% / 30.7% quoted on the previous slide, so the two readings cannot disagree.",
+  figure: "Analysis/slide_figures/r_fb_density_cumulative.png",
+  takeaway: "Per-position differences of a point each add up: by ±60 bp the two curves are 5.3 points apart. Half of a "
+    + "Stable site's dependence sits within ±41 bp of the motif, against ±48 bp for a Dynamic one — the same result as "
+    + "the previous slide, said as a distance rather than a percentage.",
+  caveat: "Nothing is rescaled: the axis runs 0 to 100% and both curves end at 1. The half-radii are read off a profile sampled every 10 bp, so quote them as about 40 against about 50 bp until the sliding scan lands.",
+  notes: "Stable vs Dynamic, cumulative share within ±x bp:\n"
+    + "  ±20 bp  33.8% / 30.7%   (the previous slide's number)\n"
+    + "  ±40 bp  49.0% / 44.5%\n"
+    + "  ±60 bp  62.8% / 57.5%   <- widest gap, 5.3 points\n"
+    + "  ±100 bp 80.0% / 75.7%\n"
+    + "Half-maximum radius by linear interpolation: Stable 41.4 bp, Dynamic 48.1 bp.\n\n"
+    + "Why this view: the two profiles on the previous slide differ by about a percentage point per position, which is "
+    + "invisible when both are drawn at full height. Integrating makes a real difference legible without inflating it - "
+    + "the quantity at every radius is still a share of the site's own total.\n\n"
+    + "The honest size is unchanged from the previous slide: about 1.5 points once accessibility is matched, on a base "
+    + "of a third. Do not let the separation in this plot be heard as two different architectures.",
+});
+
+resultSlide({
+  title: "The classes differ on the motif and nowhere else",
+  method: ALT + "Stable minus Dynamic at each position, on its own axis. Band from resampling sites within each class; filled points are FDR < 0.05, Mann–Whitney with BH across the 60 tiles.",
+  figure: "Analysis/slide_figures/r_fb_density_diff.png",
+  takeaway: "One curve instead of two overlapping ones. It is flat across the entire 600 bp except for a single spike of "
+    + "+0.94 points on the tile covering the AP-1 core — the difference between the classes is not spread along the "
+    + "element, it is on the motif itself.",
+  notes: "Two of 60 positions reach FDR < 0.05 and they are the two core tiles: -10 bp (+0.94 points, FDR 0.0008) and "
+    + "0 bp (+0.84 points, FDR 0.0007). The next largest difference anywhere is +0.31 points at -20 bp, FDR 0.81; every "
+    + "other position FDR > 0.9.\n\n"
+    + "Use this one if the point you want to land is WHERE the classes differ rather than BY HOW MUCH. It is the most "
+    + "conservative of the three - the whole class difference is two points above a flat line, and the plot says so.\n\n"
+    + "A difference plot hides the shared signal: both classes still put a large spike on the motif, and that spike is "
+    + "the main result of the previous slide. Say it out loud if you show this instead.",
+});
+
+resultSlide({
+  title: "The two classes that lose AP-1 spread their dependence furthest",
+  method: ALT + "Share of a site's importance within ±25 bp of the motif, by class. Point, median per site; bar, bootstrap 95% CI; Mann–Whitney against Stable, BH across the four comparisons.",
+  figure: "Analysis/slide_figures/r_fb_density_classes.png",
+  takeaway: "All four Dynamic classes are less motif-centred than Stable, and they order the same way the motif-shuffle "
+    + "slide did: the two AP-1-losing classes (28.3%, 28.6%) sit below the two gaining ones (31.3%, 31.5%), which sit "
+    + "below Stable at 33.8%. Two independent measures, the same split.",
+  caveat: "Exercise Down is 115 sites and its interval (24.2–32.2%) overlaps the gaining classes, so the ordering within Dynamic is suggestive, not established. Every class is below Stable, and that part is solid.",
+  notes: "Share within ±25 bp, median per site, with BH-adjusted P against Stable:\n"
+    + "  Stable         33.8%  (n=1179, reference)\n"
+    + "  Age Up         31.3%  (n=613,  FDR 0.0038)\n"
+    + "  Age Down       28.3%  (n=212,  FDR 0.00045)\n"
+    + "  Exercise Up    31.5%  (n=240,  FDR 0.0087)\n"
+    + "  Exercise Down  28.6%  (n=115,  FDR 0.0084)\n\n"
+    + "This is the only one of the three alternatives that shows something the pooled comparison cannot. It is also the "
+    + "one that connects to slide 8: there, the LOSING classes let go of the motif in absolute terms; here, the same two "
+    + "classes are the ones whose dependence is least concentrated on it. Same partition, different measurement.\n\n"
+    + "What it is NOT: this is not accessibility. The matched analysis on the previous slide (860 pairs, p = 0.006) holds "
+    + "for the pooled contrast; the per-class split has not been matched, because the smaller classes do not support it. "
+    + "If pushed, that is the honest answer - the pooled difference survives matching, the ordering within Dynamic is "
+    + "unmatched and n=115 at the bottom.\n\n"
+    + "A site dynamic with both age and exercise is counted under its age class, as everywhere else in the deck.",
+});
+
 // ================================================================== 11. how the dependence is divided
 resultSlide({
   title: "Dynamic sites hand more of the load to the partner motifs",
