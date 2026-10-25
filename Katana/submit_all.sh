@@ -109,7 +109,7 @@ p5_fbscan()   { sub -J 0-$((FB_SCAN_CHUNKS-1)) -l walltime=02:00:00 -N ag_scan_f
 # 116 s/site, so ~20 sites a chunk finishes inside 45 min. One replicate per position: every 10 bp of sequence is
 # already covered by five overlapping windows.
 FB_SLIDE_CHUNKS=${FB_SLIDE_CHUNKS:-120}
-p5_fbslide()  { sub -J 0-$((FB_SLIDE_CHUNKS-1)) -l walltime=01:00:00 -N ag_slide_fb "EXPERIMENT=slide,PREFIX=slide_,SITES=fb,NCHUNKS=$FB_SLIDE_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
+p5_fbslide()  { sub -J 0-$((FB_SLIDE_CHUNKS-1)) -l walltime=00:30:00 -N ag_slide_fb "EXPERIMENT=slide,PREFIX=slide_,SITES=fb,NCHUNKS=$FB_SLIDE_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_slide_pilot() { sub -m ae -l walltime=01:00:00 -N ag_slide_fb_pilot "EXPERIMENT=slide,PREFIX=pilot_slide_,SITES=fb,NCHUNKS=1,LIMIT=3,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_pilot()    { sub -m ae -l walltime=01:00:00 -N ag_scan_fb_pilot "EXPERIMENT=scan,PREFIX=pilot_,SITES=fb,NCHUNKS=1,LIMIT=4,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs
                 sub -m ae -l walltime=01:00:00 -N ag_fb_swap_pilot "EXPERIMENT=swap,PREFIX=pilot_swap_,NCHUNKS=1,LIMIT=10" pbs/18_fb_swap.pbs
