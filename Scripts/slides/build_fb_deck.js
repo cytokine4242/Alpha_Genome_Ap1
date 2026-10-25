@@ -135,38 +135,21 @@ diagramSlide({
     + "calculation on these slides.",
 });
 
-// ================================================================== 3. edits in place
+// ================================================================== 3. transplant, the design
 diagramSlide({
-  title: "Edits made where the element stands",
-  figure: "Analysis/slide_figures/m2_within_site.png",
-  takeaway: "Three widths of shuffle, a tile scan across 600 bp, single-base saturation, and one partner motif at a "
-    + "time against a footprint-free window of the same width at the mirrored distance.",
-  notes: "Reading order: the three shuffles ask how much sequence you have to destroy; the tile scan and the "
-    + "saturation ask where in the sequence the dependence lives; the partner shuffle asks which other motifs matter.\n\n"
-    + "The partner control is the part to dwell on. Dynamic sites are about half as accessible as Stable ones, so any "
-    + "measure that compares a Dynamic number against a Stable number is open to that confound. Scoring a shuffled "
-    + "partner against a matched footprint-free window at the mirrored distance keeps the whole comparison inside one "
-    + "site, so accessibility cannot reach it.\n\n"
-    + "Every shuffle is repeated 10 times per site and averaged, so a single lucky permutation cannot carry a result.",
+  title: "Transplant: can the element build a site on its own?",
+  figure: "Analysis/slide_figures/m2_transplant.png",
+  takeaway: "The control is the same letters shuffled, dropped into the same background — so whatever the host "
+    + "contributes, it contributes to both and cancels in the ratio.",
+  notes: "Hosts are genomic windows with no called ATAC peak. 20 per element, 50 donor elements per class, scored "
+    + "at the whole-peak width.\n\n"
+    + "Why the shuffled control and not an empty host: an empty host still has its own baseline signal, and that "
+    + "baseline differs between hosts. Scoring element against shuffled inside the SAME host removes it.\n\n"
+    + "What this cannot do: the donors are not matched on accessibility. That is handled on the next slide and the "
+    + "caveat line there carries the matched number.",
 });
 
-// ================================================================== 4. edits that move the element
-diagramSlide({
-  title: "Edits that move the element somewhere else",
-  figure: "Analysis/slide_figures/m3_move.png",
-  takeaway: "Transplant asks whether an element can build a site on its own, by dropping it into chromatin that has "
-    + "none. Swap asks whether a site's level is set by the sequence or by the address.",
-  notes: "Transplant: the control is the SAME sequence shuffled, dropped into the SAME host, so the host's own "
-    + "contribution cancels in the ratio. 20 hosts per element, 50 donors per class. Hosts are genomic windows with "
-    + "no called ATAC peak.\n\n"
-    + "Swap: every donor element written into every recipient location, both at 170 bp and at the whole peak, 62,250 "
-    + "combinations. Self-swaps are excluded. Because each donor appears in about 250 of those rows, the confidence "
-    + "intervals come from a cluster bootstrap over donors - an OLS standard error on 62,250 rows would be far too small.\n\n"
-    + "Caveat to have ready for the transplant slide: the donors are NOT matched on accessibility. That is handled "
-    + "separately and the slide carries the matched number.",
-});
-
-// ================================================================== 5. transplant
+// ================================================================== 4. transplant
 resultSlide({
   title: "A Stable element opens closed chromatin on its own",
   method: "Each element moved into 20 closed backgrounds and scored against the same sequence shuffled; one point per donor, whole-peak width. Box, median and IQR, whiskers 1.5 × IQR; 50 donors per class — Up = AP-1 gained, Down = AP-1 lost; Mann–Whitney, Stable against the four Dynamic classes pooled.",
@@ -185,7 +168,19 @@ resultSlide({
   caveat: "Stable donors also come from more accessible loci. Holding that constant (measured ATAC, 224 donors) a Stable element still gains 1.8× more than a Dynamic one, P = 0.005 — the direction holds, but about a third of the gap above is accessibility rather than sequence.",
 });
 
-// ================================================================== 6. scale
+// ================================================================== 5. swap, the design
+diagramSlide({
+  title: "Swap: is the level set by the element, or by the place?",
+  figure: "Analysis/slide_figures/m3_swap.png",
+  takeaway: "Write every element into every other element's location and regress the result on both. "
+    + "Whichever term carries more weight is the one that sets a site's accessibility.",
+  notes: "62,250 swaps, self-swaps excluded, at two widths: the 170 bp MPRA-sized window and the whole peak.\n\n"
+    + "Each donor appears in about 250 of those rows, so the rows are nowhere near independent. The intervals on the "
+    + "next slide come from a cluster bootstrap over the 250 donors; an OLS standard error on 62,250 rows would be "
+    + "far too small and would make both coefficients look certain.",
+});
+
+// ================================================================== 6. element or place
 resultSlide({
   title: "The element's identity lives at peak scale, not in 170 bp",
   method: "Every element swapped into every other site's location: the swapped site's accessibility regressed on the donor element and on the recipient location. The two weights are drawn pulling against each other from a common zero. 62,250 swaps; 95% CI from a cluster bootstrap over the 250 donors.",
@@ -201,7 +196,23 @@ resultSlide({
     + "direction to the MPRA flank result. Different assay, but it reads as a contradiction. Keep it off unless someone asks.",
 });
 
-// ================================================================== 7. specificity
+// ================================================================== 7. motif shuffle, the design
+diagramSlide({
+  title: "Shuffling one motif at a time, inside the site",
+  figure: "Analysis/slide_figures/m4_shuffle.png",
+  takeaway: "Each partner motif is scored against a footprint-free window of the same width at the mirrored "
+    + "distance, so the two differ only in whether a motif was there. Everything stays inside one site.",
+  notes: "This is the control that makes the next two slides immune to the accessibility gap. Dynamic sites are "
+    + "about half as accessible as Stable ones, so any measure that compares a Dynamic number against a Stable "
+    + "number is exposed to that confound. Here both terms come from the same window of the same site.\n\n"
+    + "TOBIAS says only WHERE a footprint is and which family it belongs to. No footprint score enters the "
+    + "calculation; the effect is always AlphaGenome's.\n\n"
+    + "One asymmetry to admit if asked: the site's own AP-1 motif has no matched control, because a control at "
+    + "distance 0 would overlap the motif. That inflates AP-1 relative to the partners in every class equally, so "
+    + "the comparison BETWEEN classes is unaffected.",
+});
+
+// ================================================================== 8. motif specificity
 resultSlide({
   title: "The sites that lose AP-1 let go of it — whether with age or exercise",
   method: "The site's own AP-1 motif and each partner motif shuffled separately inside the same window; partners net of a width- and distance-matched footprint-free control. Box, median and IQR, whiskers 5th–95th centile, notch a 95% interval on the median. Classes as given: Up = AP-1 gained, Down = AP-1 lost.",
@@ -224,7 +235,20 @@ resultSlide({
     + "to the partners in every class equally, so the class comparison is unaffected.",
 });
 
-// ================================================================== 8. where the dependence sits
+// ================================================================== 9. the scan, the design
+diagramSlide({
+  title: "Scanning the whole window, tile by tile and base by base",
+  figure: "Analysis/slide_figures/m5_scan.png",
+  takeaway: "Rather than choosing a region to destroy, replace every 10 bp tile across 600 bp in turn — and then "
+    + "every single base across the middle 61 — and ask where the cost lands.",
+  notes: "60 tiles of 10 bp from -300 to +290, one prediction each; then 61 positions x 3 alternative bases.\n\n"
+    + "The analysis step that matters is on the next slide: each site's profile has its OWN noise floor subtracted "
+    + "(the median |effect| beyond +-200 bp) before being normalised to its own total. Without that, Dynamic sites "
+    + "look more 'distributed' simply because they are less accessible and therefore noisier, and noise is flat "
+    + "across position.",
+});
+
+// ================================================================== 10. where the dependence sits
 resultSlide({
   title: "Where the dependence sits: on the motif, and more so if Stable",
   method: "Each 10 bp tile replaced in turn; each site's own noise floor removed, then normalised to its own total, so the curve is where the dependence sits, not how much there is. Median per site, band a bootstrap 95% CI; Mann–Whitney per position, BH-FDR across the 60. Cropped to ±150 bp.",
@@ -251,7 +275,7 @@ resultSlide({
     + "do not oversell it as two different architectures.",
 });
 
-// ================================================================== 9. how the dependence is divided
+// ================================================================== 11. how the dependence is divided
 resultSlide({
   title: "Dynamic sites hand more of the load to the partner motifs",
   method: "Per site: |own AP-1| / (|own AP-1| + |partner motifs|), the share of its motif dependence that sits inside the AP-1 motif rather than outside it. Both terms are AlphaGenome shuffle effects measured inside the same window, so accessibility cannot drive the comparison. Median per site; error bar, bootstrap 95% CI; Mann–Whitney.",
@@ -275,10 +299,10 @@ resultSlide({
     + "the collar is mostly noise at low-accessibility sites. This version is better powered because it only scores footprinted motifs.",
 });
 
-// ================================================================== 10. the AP-1 ladder
+// ================================================================== 12. the AP-1 ladder
 diagramSlide({
   title: "The AP-1 ladder, and the spacing experiments",
-  figure: "Analysis/slide_figures/m4_titration.png",
+  figure: "Analysis/slide_figures/m6_titration.png",
   takeaway: "Rather than only destroying the motif, weaken it one base at a time, strengthen it, flip it, duplicate "
     + "it or move it — each against a control that changes the same amount of sequence but no motif.",
   notes: "This is where the next slide's numbers come from. 2,359 sites; 860 accessibility-matched pairs at caliper "
@@ -294,7 +318,7 @@ diagramSlide({
     + "would be trustworthy.",
 });
 
-// ================================================================== 11. what did not hold
+// ================================================================== 13. what did not hold
 {
   const s = pres.addSlide({ masterName: "TITLE_BODY" });
   s.addText("Two differences that turned out to be accessibility", { placeholder: "title" });
@@ -315,7 +339,7 @@ diagramSlide({
     + "Age Down is the outlier again, consistently with the other arms: one base of the core changed -0.62 vs Stable -0.83; motif gone -0.72 vs -1.07.");
 }
 
-// ================================================================== 12. where this sits
+// ================================================================== 14. where this sits
 {
   const s = pres.addSlide({ masterName: "TITLE_BODY" });
   s.addText("How this sits with the MPRA work", { placeholder: "title" });

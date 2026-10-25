@@ -7,10 +7,14 @@ not used: on these slides blue already means Stable and crimson means Dynamic, a
 it, so native/unchanged is drawn in ink and the only strong colours are the edit (orange), the matched control
 (green) and the AP-1 motif itself (gold, as in the data figures).
 
+One diagram per design, so each can sit with the result it produced rather than arriving all at once:
+
   m1_pipeline     how any effect on these slides is measured at all
-  m2_within_site  the edits that change the sequence where it stands: shuffles, the tile scan, saturation, partners
-  m3_move         the edits that move the element: transplant into closed chromatin, and the element swap
-  m4_titration    the AP-1 affinity ladder and the spacing experiments, base by base
+  m2_transplant   an element dropped into chromatin that has none          -> the transplant result
+  m3_swap         every element written into every other location          -> the element-or-place result
+  m4_shuffle      the site's own AP-1 motif, and one partner at a time     -> the motif-specificity results
+  m5_scan         the tile scan and single-base saturation                 -> the importance-density result
+  m6_titration    the AP-1 ladder and the spacing designs, base by base    -> the titration result
 
 Writes Analysis/slide_figures/m_*.svg and .png (PNG via headless Chrome at 3x, which is the only rasteriser on this
 machine - no rsvg-convert, inkscape or cairosvg).
@@ -130,153 +134,176 @@ def m1_pipeline():
 
 
 # ==========================================================================================================
-def m2_within_site():
-    """The edits that change the sequence where it stands."""
+def m2_transplant():
+    """An element lifted out and dropped into chromatin that has none, against the same letters shuffled."""
     s, uid = [], "p2"
-    X0, X1 = 272, 1002                       # the drawn peak, ~1 kb across
-    CX = (X0 + X1) / 2
-    PXBP = (X1 - X0) / 1000.0               # px per bp at this scale
+    s.append(lane_label(20, 62, "The element", "its whole peak, lifted out"))
+    s.append(bar(250, 48, 320, 26))
+    s.append(block(400, 44, 18, 34, GOLD, 0.75, 1.3))
+    s.append(T(409, 36, "AP-1", 11, "middle", weight="bold", fill="#8A6400"))
+    s.append(L(409, 82, 409, 118, arrow=uid))
 
-    # the reference bar
-    y = 54
-    s.append(lane_label(20, y + 14, "The site", "ATAC peak, median 0.8 kb"))
-    s.append(bar(X0, y, X1 - X0, 24))
-    for d in (-260, -150, 95, 210):         # partner footprints, drawn as landmarks
-        s.append(block(CX + d * PXBP - 9, y + 3, 18, 18, CTRL, 0.30, 1.1))
-    s.append(block(CX - 7, y - 3, 14, 30, GOLD, 0.75, 1.3))
-    s.append(T(CX, y - 10, "AP-1, 11 bp", 11.5, "middle", weight="bold", fill="#8A6400"))
-    s.append(T(X1 + 10, y + 17, "green = a partner", 11, fill=CTRL, op=0.95))
-    s.append(T(X1 + 10, y + 31, "motif footprint", 11, fill=CTRL, op=0.95))
-    for bp in (-400, -200, 0, 200, 400):                 # a real scale, since the rows are drawn to one
-        x = CX + bp * PXBP
-        s.append(L(x, y + 24, x, y + 30, HAIR, 1))
-        s.append(T(x, y + 44, "0" if bp == 0 else f"{bp:+d}", 10.5, "middle", op=0.7))
-    s.append(T(X0 - 10, y + 44, "bp", 10.5, "end", op=0.7))
-    s.append(L(20, y + 62, X1, y + 62, HAIR, 1, dash="4 4"))
-
-    rows = [
-        ("Motif shuffle", "letters permuted", "motif"),
-        ("170 bp shuffle", "the MPRA-sized window", "w170"),
-        ("Whole-peak shuffle", "everything the peak covers", "peak"),
-        ("Tile scan", "each 10 bp tile in turn", "tiles"),
-        ("Saturation", "every base, ±30 bp", "sat"),
-        ("Partner shuffle", "one at a time, vs a control", "partner"),
-    ]
-    GAP = [0, 0, 0, 2, 12, 34]                  # the scan, saturation and partner rows carry notes under the bar
-    for i, (name, sub, kind) in enumerate(rows):
-        y = 152 + i * 58 + GAP[i]
-        s.append(lane_label(20, y + 12, name, sub))
-        s.append(bar(X0, y, X1 - X0, 20, "currentColor", 0.035))
-        if kind == "motif":
-            s.append(block(CX - 7, y - 3, 14, 26))
-            s.append(T(CX + 16, y + 14, "11 bp", 11, fill=EDIT, weight="bold"))
-        elif kind == "w170":
-            w = 170 * PXBP
-            s.append(block(CX - w / 2, y - 3, w, 26))
-            s.append(T(CX + w / 2 + 8, y + 14, "170 bp", 11, fill=EDIT, weight="bold"))
-        elif kind == "peak":
-            s.append(block(X0, y - 3, X1 - X0, 26))
-            s.append(T(X0 + 10, y + 14, "all of it", 11, fill="#7A2E00", weight="bold"))
-        elif kind == "tiles":
-            tw = 10 * PXBP
-            for k in range(-30, 30):
-                x = CX + k * tw
-                on = k == -8
-                s.append(R(x + 0.6, y - 2, tw - 1.2, 24, EDIT, EDIT, 0.55 if on else 0.0,
-                           1.0 if on else 0.7, rx=1.5, so=1.0 if on else 0.5))
-            s.append(L(CX - 30 * tw, y + 34, CX + 30 * tw, y + 34, "currentColor", 1, op=0.4))
-            s.append(T(CX, y + 46, "60 tiles, one edit each", 11, "middle", op=0.75))
-        elif kind == "sat":
-            sw_ = 30 * PXBP                      # 61 bp is 44 px here, so single bases cannot be drawn to scale
-            s.append(block(CX - sw_, y - 3, 2 * sw_, 26))
-            for k in range(-5, 6):               # a few separators, to read as many small edits rather than one
-                s.append(L(CX + k * sw_ / 5.5, y - 3, CX + k * sw_ / 5.5, y + 23, "#ffffff", 0.9, op=0.85))
-            s.append(L(CX - sw_, y + 26, CX - 120, y + 44, HAIR, 0.9, dash="3 3"))
-            s.append(L(CX + sw_, y + 26, CX + 120, y + 44, HAIR, 0.9, dash="3 3"))
-            s.append(T(CX, y + 54, "61 positions × 3 alternative bases, one prediction each", 11, "middle", op=0.8))
-        elif kind == "partner":
-            for d in (-260, -150, 210):              # the other footprints, so the shuffled one is clearly one of several
-                s.append(block(CX + d * PXBP - 9, y + 1, 18, 18, CTRL, 0.10, 1.0))
-            px = CX + 95 * PXBP
-            s.append(block(px - 9, y - 3, 18, 26))
-            s.append(T(px, y - 12, "shuffled", 10.5, "middle", fill=EDIT, weight="bold"))
-            cx_ = CX - 95 * PXBP
-            s.append(block(cx_ - 9, y - 3, 18, 26, CTRL, 0.12, 1.3, dash="3 3"))
-            s.append(T(cx_, y - 12, "matched control", 10.5, "middle", weight="bold", fill=CTRL))
-            s.append(L(cx_ + 11, y + 36, px - 11, y + 36, "currentColor", 1, dash="4 4", op=0.45))
-            s.append(T(CX, y + 50, "same width, mirrored distance, no footprint there", 10.5, "middle", op=0.8))
-    s.append(T(20, 560, "the saturation row is the one thing not drawn to scale: 61 bp is 45 px here",
-               11, op=0.7))
-    return svg("".join(s), 1220, 578, uid, "Edits made in place"), 1220, 578
-
-
-# ==========================================================================================================
-def m3_move():
-    """The edits that move the element somewhere else."""
-    s, uid = [], "p3"
-    s.append(L(500, 34, 500, 384, "currentColor", 1, dash="5 5", op=0.3))
-
-    # ---- transplant -------------------------------------------------------
-    s.append(T(20, 24, "Transplant  —  does the element work anywhere?", 13.5, weight="bold"))
-    s.append(bar(20, 52, 300, 22))
-    s.append(block(158, 49, 14, 28, GOLD, 0.75, 1.3))
-    s.append(T(170, 92, "the element: its whole peak, lifted out", 11.5, op=0.85))
-    s.append(L(170, 100, 170, 128, arrow=uid))
-
-    for k, (x, lab, sub, shuf) in enumerate(((20, "the element", "as it is", False),
-                                             (250, "the same letters", "shuffled", True))):
-        s.append(R(x, 138, 200, 102, EDIT if shuf else INK, EDIT if shuf else INK, 0.045, 1.5, rx=9))
-        s.append(T(x + 100, 159, lab, 12, "middle", weight="bold", fill=EDIT if shuf else INK))
-        s.append(T(x + 100, 175, sub, 11, "middle", op=0.75))
+    for x, lab, sub, shuf in ((250, "the element", "as it is", False),
+                              (490, "the same letters", "shuffled", True)):
+        s.append(R(x, 126, 200, 108, EDIT if shuf else INK, EDIT if shuf else INK, 0.045, 1.5, rx=9))
+        s.append(T(x + 100, 150, lab, 12.5, "middle", weight="bold", fill=EDIT if shuf else INK))
+        s.append(T(x + 100, 168, sub, 11.5, "middle", op=0.75))
         for j, op_ in enumerate((0.22, 0.45, 1.0)):      # the same pair goes into 20 hosts, drawn as a short stack
-            s.append(L(x + 14, 196 + j * 9, x + 186, 196 + j * 9, HAIR, 2.4, op=op_))
+            s.append(L(x + 16, 194 + j * 10, x + 184, 194 + j * 10, HAIR, 2.4, op=op_))
         if shuf:
-            s.append(block(x + 84, 203, 32, 22, EDIT, 0.45, 1.1))
+            s.append(block(x + 82, 202, 36, 24, EDIT, 0.45, 1.1))
         else:
-            s.append(bar(x + 72, 202, 56, 24, INK, 0.10, 1.3))
-            s.append(block(x + 93, 199, 14, 30, GOLD, 0.75, 1.2))
-    s.append(R(223, 203, 24, 24, "currentColor", "#ffffff", 1.0, 1.3, rx=12))
-    s.append(T(235, 219, "vs", 11.5, "middle", weight="bold"))
-    s.append(T(235, 258, "each into the same 20 closed backgrounds", 11, "middle", op=0.82))
+            s.append(bar(x + 70, 201, 60, 26, INK, 0.10, 1.3))
+            s.append(block(x + 93, 197, 14, 34, GOLD, 0.75, 1.2))
+    s.append(R(458, 166, 28, 28, "currentColor", "#ffffff", 1.0, 1.3, rx=14))
+    s.append(T(472, 185, "vs", 12, "middle", weight="bold"))
+    s.append(T(470, 254, "each into the same 20 closed backgrounds", 11.5, "middle", op=0.82))
 
-    s.append(R(20, 276, 430, 54, "currentColor", CTRL, 0.10, 1.6, rx=9))
-    s.append(TT(235, 298, ["effect = log₂( element ⁄ same sequence shuffled )"], 12.5, weight="bold"))
-    s.append(TT(235, 317, ["the host contributes to both, so it cancels"], 11, op=0.85))
-    s.append(TT(20, 356, ["50 donor elements per class; backgrounds are genomic",
-                          "windows with no called ATAC peak"], 11, anchor="start", lh=15, op=0.8))
+    s.append(R(250, 278, 440, 62, "currentColor", CTRL, 0.10, 1.6, rx=9))
+    s.append(TT(470, 302, ["effect = log₂( element ⁄ same sequence shuffled )"], 13, weight="bold"))
+    s.append(TT(470, 323, ["the host contributes to both, so it cancels"], 11.5, op=0.85))
 
-    # ---- swap -------------------------------------------------------------
-    s.append(T(530, 24, "Swap  —  the element, or the place it sits?", 13.5, weight="bold"))
-    s.append(lane_label(530, 64, "donor", "where the sequence comes from"))
-    s.append(bar(860, 50, 250, 22, EDIT, 0.10))
-    s.append(block(977, 47, 16, 28, GOLD, 0.75, 1.3))
-    s.append(lane_label(530, 134, "recipient", "the location it is written into"))
-    s.append(bar(860, 120, 250, 22))
-    s.append(block(977, 117, 16, 28, GOLD, 0.35, 1.2))
-    s.append(P([(1125, 61), (1150, 61), (1150, 131), (1114, 131)], EDIT, 1.6, arrow=uid + "e"))
-    s.append(T(1000, 100, "", 11))
-
-    s.append(lane_label(530, 196, "result", "donor sequence, recipient location"))
-    s.append(bar(860, 182, 250, 22, "currentColor", 0.035))
-    s.append(block(860, 179, 250, 28, EDIT, 0.30, 1.3))
-    s.append(block(977, 176, 16, 34, GOLD, 0.75, 1.3))
-
-    s.append(R(530, 240, 580, 48, "currentColor", "currentColor", 0.04, 1.5, rx=9))
-    s.append(TT(820, 260, ["two widths: the 170 bp window, and the whole peak"], 12, weight="bold"))
-    s.append(TT(820, 278, ["every element into every other location — 62,250 swaps"], 11.5, op=0.9))
-    s.append(R(530, 300, 580, 52, "currentColor", CTRL, 0.10, 1.6, rx=9))
-    s.append(TT(820, 321, ["regress the swapped site's ATAC on both:"], 12, weight="bold"))
-    s.append(TT(820, 339, ["what the donor was, and what the recipient location was"], 11.5, op=0.9))
-    s.append(TT(530, 370, ["Each donor appears in about 250 swaps, so the intervals come from",
-                           "a cluster bootstrap over donors, not from the 62,250 rows."],
-                11, anchor="start", lh=15, op=0.8))
-    return svg("".join(s), 1220, 400, uid, "Edits that move the element"), 1220, 400
+    s.append(TT(752, 150, ["50 donor elements per class", "20 backgrounds each",
+                           "scored at the whole-peak width"], 12.5, anchor="start", lh=23))
+    s.append(TT(752, 240, ["A background is a genomic window with no",
+                           "called ATAC peak, so there is nothing there",
+                           "for the element to add to."], 11.5, anchor="start", lh=17, op=0.8))
+    return svg("".join(s), 1100, 366, uid, "Transplant into closed chromatin"), 1100, 366
 
 
 # ==========================================================================================================
-def m4_titration():
-    """The AP-1 affinity ladder and the spacing experiments."""
+def m3_swap():
+    """Every element written into every other element's location, at two widths."""
+    s, uid = [], "p3"
+    BX0, BW = 250, 420
+    rows = (("Donor", "where the sequence comes from", "donor"),
+            ("Recipient", "the location it is written into", "recip"),
+            ("Result", "donor sequence, recipient location", "res"))
+    for i, (name, sub, kind) in enumerate(rows):
+        y = 50 + i * 82
+        s.append(lane_label(20, y + 16, name, sub))
+        if kind == "donor":
+            s.append(bar(BX0, y, BW, 26, EDIT, 0.10))
+            s.append(block(BX0 + 200, y - 4, 18, 34, GOLD, 0.75, 1.3))
+        elif kind == "recip":
+            s.append(bar(BX0, y, BW, 26))
+            s.append(block(BX0 + 200, y - 4, 18, 34, GOLD, 0.30, 1.2))
+        else:
+            s.append(bar(BX0, y, BW, 26, "currentColor", 0.035))
+            s.append(block(BX0, y - 4, BW, 34, EDIT, 0.26, 1.3))
+            s.append(block(BX0 + 200, y - 4, 18, 34, GOLD, 0.75, 1.3))
+    s.append(P([(BX0 + BW + 12, 63), (BX0 + BW + 36, 63), (BX0 + BW + 36, 145), (BX0 + BW + 14, 145)],
+               EDIT, 1.7, arrow=uid + "e"))
+
+    s.append(R(752, 48, 328, 72, "currentColor", "currentColor", 0.04, 1.5, rx=9))
+    s.append(TT(916, 72, ["Two widths"], 12.5, weight="bold"))
+    s.append(TT(916, 92, ["the 170 bp window,", "and the whole peak"], 11.5, lh=16))
+    s.append(R(752, 136, 328, 72, "currentColor", "currentColor", 0.04, 1.5, rx=9))
+    s.append(TT(916, 160, ["62,250 swaps"], 12.5, weight="bold"))
+    s.append(TT(916, 180, ["every element into every other", "location; self-swaps excluded"], 11.5, lh=16))
+
+    s.append(R(250, 258, 830, 60, "currentColor", CTRL, 0.10, 1.6, rx=9))
+    s.append(TT(665, 281, ["regress the swapped site's accessibility on both:"], 13, weight="bold"))
+    s.append(TT(665, 301, ["what the donor element was, and where the recipient location was"], 11.5, op=0.85))
+    s.append(TT(250, 340, ["Each donor appears in about 250 of those rows, so the confidence intervals come from",
+                           "a cluster bootstrap over donors, not from the 62,250 swaps."],
+                11.5, anchor="start", lh=17, op=0.8))
+    return svg("".join(s), 1100, 380, uid, "The element swap"), 1100, 380
+
+
+# ==========================================================================================================
+X0, X1 = 250, 1080                      # the drawn peak for the two in-place diagrams, ~1 kb across
+CX = (X0 + X1) / 2
+PXBP = (X1 - X0) / 1000.0
+FOOTPRINTS = (-260, -150, 95, 210)      # illustrative partner footprints
+
+
+def site_row(s, y, uid, show_footprints=True, scale=True):
+    """The reference bar both in-place diagrams are read against, drawn to scale."""
+    s.append(lane_label(20, y + 16, "The site", "ATAC peak, median 0.8 kb"))
+    s.append(bar(X0, y, X1 - X0, 26))
+    if show_footprints:
+        for d in FOOTPRINTS:
+            s.append(block(CX + d * PXBP - 10, y + 4, 20, 18, CTRL, 0.30, 1.1))
+    s.append(block(CX - 8, y - 4, 16, 34, GOLD, 0.75, 1.3))
+    s.append(T(CX, y - 12, "AP-1, 11 bp", 12, "middle", weight="bold", fill="#8A6400"))
+    if scale:
+        for bp in (-400, -200, 0, 200, 400):
+            x = CX + bp * PXBP
+            s.append(L(x, y + 26, x, y + 33, HAIR, 1))
+            s.append(T(x, y + 48, "0" if bp == 0 else f"{bp:+d}", 11, "middle", op=0.7))
+        s.append(T(X0 - 12, y + 48, "bp", 11, "end", op=0.7))
+
+
+def m4_shuffle():
+    """The site's own AP-1 motif, and one partner motif at a time against a matched control."""
     s, uid = [], "p4"
+    site_row(s, 50, uid)
+    s.append(T(X1, 14, "green = a partner motif footprint", 11.5, "end", fill=CTRL, op=0.95))
+    s.append(L(20, 132, X1, 132, HAIR, 1, dash="4 4"))
+
+    y = 172
+    s.append(lane_label(20, y + 14, "Its own AP-1 motif", "the 11 bp footprint, letters permuted"))
+    s.append(bar(X0, y, X1 - X0, 24, "currentColor", 0.035))
+    s.append(block(CX - 8, y - 4, 16, 32))
+    s.append(T(CX + 18, y + 16, "11 bp", 11.5, fill=EDIT, weight="bold"))
+
+    y = 268
+    s.append(lane_label(20, y + 14, "One partner motif", "scored against a matched control"))
+    s.append(bar(X0, y, X1 - X0, 24, "currentColor", 0.035))
+    for d in (-260, -150, 210):
+        s.append(block(CX + d * PXBP - 10, y + 3, 20, 18, CTRL, 0.10, 1.0))
+    px, cx_ = CX + 95 * PXBP, CX - 95 * PXBP
+    s.append(block(px - 10, y - 4, 20, 32))
+    s.append(T(px, y - 12, "shuffled", 11.5, "middle", fill=EDIT, weight="bold"))
+    s.append(block(cx_ - 10, y - 4, 20, 32, CTRL, 0.12, 1.3, dash="3 3"))
+    s.append(T(cx_, y - 12, "matched control", 11.5, "middle", weight="bold", fill=CTRL))
+    s.append(L(cx_ + 12, y + 40, px - 12, y + 40, "currentColor", 1, dash="4 4", op=0.45))
+    s.append(T(CX, y + 56, "same width, mirrored distance, no footprint there", 11.5, "middle", op=0.82))
+
+    s.append(TT(20, 356, ["Both effects are measured inside one site, so the accessibility gap between the classes "
+                          "cannot reach the comparison. Repeated for every partner family the site carries."],
+                11.5, anchor="start", op=0.8))
+    return svg("".join(s), 1100, 376, uid, "Shuffling one motif at a time"), 1100, 376
+
+
+# ==========================================================================================================
+def m5_scan():
+    """Where along the sequence the dependence sits: tiles, then single bases."""
+    s, uid = [], "p5"
+    site_row(s, 50, uid, show_footprints=False)
+    s.append(L(20, 132, X1, 132, HAIR, 1, dash="4 4"))
+
+    y = 176
+    s.append(lane_label(20, y + 14, "Tile scan", "each 10 bp tile replaced in turn"))
+    s.append(bar(X0, y, X1 - X0, 24, "currentColor", 0.035))
+    tw = 10 * PXBP
+    for k in range(-30, 30):
+        x = CX + k * tw
+        on = k == -8
+        s.append(R(x + 0.6, y - 3, tw - 1.2, 30, EDIT, EDIT, 0.55 if on else 0.0,
+                   1.0 if on else 0.7, rx=1.5, so=1.0 if on else 0.5))
+    s.append(L(CX - 30 * tw, y + 40, CX + 30 * tw, y + 40, "currentColor", 1, op=0.4))
+    s.append(T(CX, y + 56, "60 tiles from −300 to +290 bp, one prediction each", 11.5, "middle", op=0.82))
+
+    y = 282
+    s.append(lane_label(20, y + 14, "Saturation", "every base, one at a time"))
+    s.append(bar(X0, y, X1 - X0, 24, "currentColor", 0.035))
+    sw_ = 30 * PXBP
+    s.append(block(CX - sw_, y - 3, 2 * sw_, 30))
+    for k in range(-5, 6):
+        s.append(L(CX + k * sw_ / 5.5, y - 3, CX + k * sw_ / 5.5, y + 27, "#ffffff", 0.9, op=0.85))
+    s.append(L(CX - sw_, y + 30, CX - 150, y + 48, HAIR, 0.9, dash="3 3"))
+    s.append(L(CX + sw_, y + 30, CX + 150, y + 48, HAIR, 0.9, dash="3 3"))
+    s.append(T(CX, y + 62, "61 positions × 3 alternative bases — the only row not drawn to scale",
+               11.5, "middle", op=0.82))
+    return svg("".join(s), 1100, 376, uid, "Tile scan and saturation"), 1100, 376
+
+
+# ==========================================================================================================
+def m6_titration():
+    """The AP-1 affinity ladder and the spacing experiments."""
+    s, uid = [], "p6"
     native = "ACGTTCCTGAGTCACCGTAGA"        # motif at 5..15, core TGAGTCA at 7..13
     rows = [
         ("native", native, None, "the site as it is"),
@@ -349,8 +376,8 @@ def m4_titration():
 
 
 # ==========================================================================================================
-DIAGRAMS = {"m1_pipeline": m1_pipeline, "m2_within_site": m2_within_site,
-            "m3_move": m3_move, "m4_titration": m4_titration}
+DIAGRAMS = {"m1_pipeline": m1_pipeline, "m2_transplant": m2_transplant, "m3_swap": m3_swap,
+            "m4_shuffle": m4_shuffle, "m5_scan": m5_scan, "m6_titration": m6_titration}
 
 
 def rasterise(name, w, h, scale=3):
