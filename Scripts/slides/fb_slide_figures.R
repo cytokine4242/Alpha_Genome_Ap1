@@ -146,41 +146,59 @@ save_fig <- function(p, name, w, h) {
 }
 
 # ==========================================================================================================
-# 1. elements transplanted into closed chromatin - horizontal boxes, one row per class, donors behind them
+# 1. elements transplanted into closed chromatin, against the EMPTY host, at both transplanted widths
+#    A scaling plot rather than two bars: how far an element gets depends on how much of it you move, and the
+#    two classes scale differently. Both axes log, so a straight line is a power law and the slope is readable.
 # ==========================================================================================================
-td <- read.csv(file.path(OUT, "s_fb_transplant_per_donor.csv"))
-td <- td[td$donor_class %in% CLS5, ]
-td$cls <- factor(td$donor_class, levels = rev(CLS5))         # rev: ggplot draws the first level at the bottom
-p_tr <- wilcox.test(lift ~ grp, data = td)$p.value
-med <- aggregate(lift ~ cls, td, median)
-nn  <- aggregate(lift ~ cls, td, length); names(nn)[2] <- "n"
-labs_tr <- setNames(sprintf("%s", levels(td$cls)), levels(td$cls))
-COL1 <- COL5
+hwf <- file.path(ROOT, "Analysis/fb_swap/tables/host_insertion_by_width.csv")
+if (file.exists(hwf)) {
+  HW <- read.csv(hwf)
+  W <- HW[HW$class %in% CLS5, ]
+  W$cls <- factor(W$class, levels = CLS5)
+  for (v in c("vs_empty", "vs_empty_lo", "vs_empty_hi")) W[[paste0("f_", v)]] <- 2^W[[v]]
+  # the five classes land on top of each other at 170 bp, so nudge them apart in log space to keep the bars legible
+  W$xpos <- W$median_insert_bp * (1 + 0.045 * (as.integer(W$cls) - 3))
+  ends <- W[W$width == "peak", ]
+  st <- W[W$cls == "Stable", ]; st <- st[order(st$median_insert_bp), ]
+  dy <- HW[HW$class == "Dynamic", ]; dy <- dy[order(dy$median_insert_bp), ]
+  slope <- function(z) diff(z$vs_empty) / diff(log2(z$median_insert_bp))
+  sS <- slope(st); sD <- slope(dy)
+  pw <- HW$p_vs_empty[HW$class == "Dynamic" & HW$width == "peak"]
 
-VCOL <- 8.95                                                  # the median column, parked outside the data range
-
-g1 <- ggplot(td, aes(cls, lift)) +
-  geom_hline(yintercept = 0, linewidth = 0.35, colour = FAINT) +
-  geom_point(aes(colour = donor_class), position = position_jitter(width = 0.17, height = 0, seed = 1),
-             size = 1.2, alpha = 0.30, stroke = 0, show.legend = FALSE) +
-  geom_boxplot(aes(colour = donor_class, fill = donor_class), width = 0.52, alpha = 0.16,
-               outlier.shape = NA, linewidth = 0.6, show.legend = FALSE) +
-  geom_text(data = med, aes(cls, VCOL, label = sprintf("%.0f×", 2^lift), colour = cls), hjust = 1,
-            family = "Arial", fontface = "bold", size = 5.6, show.legend = FALSE) +
-  annotate("text", x = 5.72, y = VCOL, label = "median", hjust = 1, family = "Arial", size = 4.2, colour = MUTED) +
-  annotate("text", x = 5.72, y = 0, label = sprintf("Stable vs Dynamic (pooled), %s", fmtP(p_tr)),
-           hjust = 0, family = "Arial", size = 4.4, colour = INK) +
-  scale_colour_manual(values = COL1) + scale_fill_manual(values = COL1) +
-  scale_y_continuous(breaks = c(0, 2, 4, 6, 8), labels = c("1", "4", "16", "64", "256")) +
-  scale_x_discrete(labels = labs_tr, expand = expansion(add = c(0.6, 1.25))) +
-  coord_flip(ylim = c(-0.55, 8.35), expand = FALSE, clip = "off") +
-  labs(x = NULL, y = "Opening of a closed site (fold)") +
-  theme_pub() + no_cat_axis("y") +
-  theme(axis.text.y = element_text(colour = unname(rev(COL5)), hjust = 0, size = 15),
-        plot.margin = margin(6, 56, 4, 6))
-save_fig(g1, "r_fb_transplant", 10.6, 3.85)
-cat(sprintf("     per-class median fold: %s\n",
-            paste(sprintf("%s %.1fx", med$cls, 2^med$lift), collapse = ", ")))
+  g1 <- ggplot(W, aes(xpos, f_vs_empty, colour = cls, group = cls)) +
+    geom_hline(yintercept = 1, linewidth = 0.35, colour = FAINT) +
+    geom_line(linewidth = 1.5, show.legend = FALSE) +
+    geom_linerange(aes(ymin = f_vs_empty_lo, ymax = f_vs_empty_hi), linewidth = 0.8, show.legend = FALSE) +
+    geom_point(size = 3.4, show.legend = FALSE) +
+    # four of the five land within a factor of two of each other, so the end labels have to be pulled apart
+    ggrepel::geom_text_repel(data = ends, aes(x = median_insert_bp, y = f_vs_empty,
+                                              label = sprintf("%s   %.0f×", cls, f_vs_empty)),
+                             hjust = 0, direction = "y", nudge_x = 0.55, min.segment.length = 0,
+                             segment.size = 0.4, segment.colour = FAINT, box.padding = 0.25,
+                             family = "Arial", fontface = "bold", size = 4.4, seed = 7, show.legend = FALSE) +
+    annotate("text", x = 150, y = 8.1, label = sprintf("%.0f×", 2^st$vs_empty[1]), hjust = 1,
+             family = "Arial", fontface = "bold", size = 4.4, colour = BLUE) +
+    annotate("text", x = 150, y = 5.0, label = sprintf("%.0f×", 2^dy$vs_empty[1]), hjust = 1,
+             family = "Arial", size = 4.4, colour = ROSE) +
+    annotate("text", x = 176, y = 138, hjust = 0, family = "Arial", size = 4.3, colour = INK, lineheight = 1.05,
+             label = sprintf("every doubling of transplanted sequence\nmultiplies a Stable element by %.1f×,\na Dynamic one by only %.1f×",
+                             2^sS, 2^sD)) +
+    annotate("text", x = 1150, y = 2.3, hjust = 1, family = "Arial", size = 4.2, colour = MUTED,
+             label = sprintf("Stable vs Dynamic at peak width, %s", fmtP(pw))) +
+    scale_colour_manual(values = COL5) +
+    scale_x_continuous(trans = "log2", breaks = c(170, 340, 680, 1000),
+                       labels = c("170", "340", "680", "1,000")) +
+    scale_y_continuous(trans = "log2", breaks = c(1, 4, 16, 64), labels = c("1", "4", "16", "64")) +
+    coord_cartesian(xlim = c(140, 2900), ylim = c(1.6, 190), expand = FALSE, clip = "off") +
+    labs(x = "Base pairs of the element transplanted",
+         y = "Opening of the empty host (fold)") +
+    theme_pub() + theme(plot.margin = margin(14, 20, 4, 6))
+  save_fig(g1, "r_fb_transplant", 10.6, 4.1)
+  cat(sprintf("     vs empty host: Stable %.0f× -> %.0f×, Dynamic %.0f× -> %.0f×; slopes %.2f vs %.2f per doubling\n",
+              2^st$vs_empty[1], 2^st$vs_empty[2], 2^dy$vs_empty[1], 2^dy$vs_empty[2], sS, sD))
+} else {
+  cat("  skipped r_fb_transplant: run Scripts/61_fb_host_insertion_widths.py first\n")
+}
 
 # ==========================================================================================================
 # 2. the element or the place? - and does the balance differ by class, which is the only reason it is on a slide

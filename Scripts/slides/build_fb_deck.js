@@ -211,21 +211,36 @@ diagramSlide({
 
 // ================================================================== 4. transplant
 resultSlide({
-  title: "A Stable element opens closed chromatin on its own",
-  method: "Each element moved into 20 closed backgrounds and scored against the same sequence shuffled; one point per donor, whole-peak width. Box, median and IQR, whiskers 1.5 × IQR; 50 donors per class — Up = AP-1 gained, Down = AP-1 lost; Mann–Whitney, Stable against the four Dynamic classes pooled.",
+  title: "The more of a Stable element you move, the more it builds",
+  method: "Each element written into the centre of the same 20 closed hosts, scored against that host left empty — a true no-insert baseline. Two widths: the 170 bp MPRA window and the whole peak (median 930 bp). Median over 20 hosts per donor, then over 50 donors per class; bars bootstrap 95% CI. Both axes log.",
   figure: "Analysis/slide_figures/r_fb_transplant.png",
-  takeaway: "Stable AP-1 elements carry enough sequence to build their own accessible site. Dynamic ones do not — "
-    + "they need the neighbourhood they came from. That is \"context, not sequence autonomy\", shown by moving the sequence.",
-  notes: "Per-donor medians over 20 hosts: Stable +4.65 log2 (25x), Dynamic pooled +2.35 (5.1x), p = 1.5e-5.\n\n"
-    + "By class, as plotted: Stable 25x, Age Up 6.3x, Age Down 6.1x, Exercise Down 4.6x, Exercise Up 4.4x. "
-    + "Every Dynamic class sits well below Stable and they are close to each other, which is why pooling them is fair here.\n\n"
-    + "IMPORTANT CAVEAT, be ready for this question: the donors are not matched on accessibility - Stable donors come from loci "
-    + "about 1.8x more accessible (measured ATAC: 32.2 vs 18.0 CPM/kb). Matching on MEASURED fibroblast ATAC (model-independent), "
-    + "the residual Stable advantage is +0.84 +- 0.30 log2, i.e. about 1.8x, p = 0.005 (covariance adjustment, 224 donors). "
-    + "The 47 matched pairs point the same way (+0.99) but are underpowered (p = 0.13). "
-    + "So: direction solid, magnitude about a third to a half of the raw gap. Do not defend 25x vs 5x as a sequence effect.\n\n"
+  takeaway: "It is not all-or-nothing, it scales — and the two classes scale differently. Every doubling of transplanted "
+    + "sequence multiplies a Stable element's effect by 2.2× but a Dynamic one's by only 1.4×. At 170 bp the classes are "
+    + "nearly the same (8× against 6×); give them their whole peak and they are five-fold apart.",
+  caveat: "Stable donors also come from more accessible loci. Holding that constant (measured ATAC, 224 donors) a Stable element still gains 1.8× more than a Dynamic one, P = 0.005; the 47 strictly matched pairs point the same way but are underpowered (P = 0.13). Direction solid, and about a third of the raw gap is accessibility rather than sequence.",
+  notes: "THE BASELINE CHANGED, and it matters. This used to be scored against a dinucleotide-shuffled copy of the "
+    + "element in the same host. 20_host_native.py predicted the hosts empty for the first time and showed two things:\n"
+    + "  - the hosts really are closed: 0.0078 predicted accessibility, against 4.78 for a real AP-1 site in its own "
+    + "locus, about 600x lower. The 'closed background' assumption now has evidence behind it.\n"
+    + "  - a scrambled insert is NOT neutral: it opens these hosts about 3.3x on its own. So the old contrast understated "
+    + "what inserting an element does.\n"
+    + "The scramble effect is the same in every class (3.4x Stable vs 3.3x Dynamic, p = 0.46 at peak width), so the CLASS "
+    + "comparison barely moves: 4.7x apart against the scramble, 5.0x against the empty host. Only the absolute numbers "
+    + "change, and they roughly triple.\n\n"
+    + "NUMBERS, fold over the empty host:\n"
+    + "  170 bp   Stable 8.1x · Age Down 6.5x · Exercise Down 5.8x · Exercise Up 5.5x · Age Up 5.4x   (Stable vs Dynamic 1.4x, p = 0.002)\n"
+    + "  peak     Stable 64.7x · Age Up 18.8x · Age Down 16.6x · Exercise Down 11.6x · Exercise Up 10.8x   (5.0x, p = 0.00019)\n"
+    + "Scaling slope, per doubling of transplanted bp: Stable 1.17 in log2 (2.2x), Dynamic 0.48 (1.4x).\n\n"
+    + "Against the scramble, if anyone wants the conservative version: peak width Stable 22.8x vs Dynamic 4.9x, p = 1.7e-5.\n\n"
+    + "Two things to have ready:\n"
+    + "  - Stable peaks are slightly wider (median 1,000 vs 900 bp) so they do get marginally more sequence, but the "
+    + "difference is 11% and not significant (p = 0.16), nowhere near enough to make a 5-fold gap.\n"
+    + "  - at 170 bp the scramble control is itself class-dependent (3.7x vs 3.3x, p = 0.012), which it is not at peak "
+    + "width. Another reason the 170 bp row is the weaker readout, beyond being the smaller effect.\n\n"
+    + "This is the same conclusion the swap slide reaches from the other direction: at 170 bp almost nothing transfers, "
+    + "at peak width the element carries 73-84% of its own level. Two designs, one message - what opens the chromatin is "
+    + "spread across the whole peak, which is why a 170 bp assay struggles to see it.\n\n"
     + "Also worth knowing: 0 of 50 Stable donors lack a measured ATAC peak, against 5-8 per Dynamic class.",
-  caveat: "Stable donors also come from more accessible loci. Holding that constant (measured ATAC, 224 donors) a Stable element still gains 1.8× more than a Dynamic one, P = 0.005 — the direction holds, but about a third of the gap above is accessibility rather than sequence.",
 });
 
 // ================================================================== 5. swap, the design
