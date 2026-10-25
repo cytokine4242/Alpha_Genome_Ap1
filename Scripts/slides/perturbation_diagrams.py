@@ -1,397 +1,504 @@
 #!/usr/bin/env python3
-"""Method diagrams for the fibroblast lab-meeting deck, drawn in the same idiom as the HTML report's diagrams.
+"""Method diagrams for the fibroblast deck, drawn to graphical-abstract standard.
 
-Same primitives as Scripts/report_diagrams.py (rounded rects, hairline strokes, arrow markers, orange = edited), but
-emitted as standalone SVG and rasterised for slides rather than inlined in a page. The report's blue is deliberately
-not used: on these slides blue already means Stable and crimson means Dynamic, and a method diagram has no classes in
-it, so native/unchanged is drawn in ink and the only strong colours are the edit (orange), the matched control
-(green) and the AP-1 motif itself (gold, as in the data figures).
+An earlier version of this file drew boxes-and-arrows flowcharts in the HTML report's idiom. These are built
+instead from a small set of drawn primitives - a locus, a predicted ATAC track, a bZIP dimer on its motif, a
+scrambled stretch of sequence - so the mechanism is visible rather than described. One diagram per design, each
+sitting with the result it produced.
 
-One diagram per design, so each can sit with the result it produced rather than arriving all at once:
+  d1_pipeline     one window predicted twice and differenced
+  d2_transplant   an element dropped into chromatin that has none
+  d3_swap         the donor's sequence written into the recipient's place
+  d4_shuffle      one motif scrambled at a time, against an empty window of the same width
+  d5_scan         a 10 bp window walked across the locus
+  d6_titration    the motif weakened one base at a time, and a second copy at a set distance
 
-  m1_pipeline     how any effect on these slides is measured at all
-  m2_transplant   an element dropped into chromatin that has none          -> the transplant result
-  m3_swap         every element written into every other location          -> the element-or-place result
-  m4_shuffle      the site's own AP-1 motif, and one partner at a time     -> the motif-specificity results
-  m5_scan         the tile scan and single-base saturation                 -> the importance-density result
-  m6_titration    the AP-1 ladder and the spacing designs, base by base    -> the titration result
+The grammar is the same in all six, so the audience learns it once:
+  left to right   what we do, then what the model predicts
+  gold            the AP-1 motif and the protein on it
+  orange          sequence we changed
+  slate fill      predicted ATAC signal
+  dashed grey     a control: the same thing done where there is no motif
 
-Writes Analysis/slide_figures/m_*.svg and .png (PNG via headless Chrome at 3x, which is the only rasteriser on this
-machine - no rsvg-convert, inkscape or cairosvg).
-
-  python3 Scripts/slides/perturbation_diagrams.py [--no-png]
+Writes Analysis/slide_figures/d*.svg and .png (PNG via headless Chrome at 3x - no rsvg/inkscape/cairosvg here).
+  python3 Scripts/slides/perturbation_diagrams.py [--no-png] [--only NAME]
 """
 from __future__ import annotations
 
 import argparse
+import math
 import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "Scripts"))
-import report_diagrams as _rd  # noqa: E402
-from report_diagrams import L, P, R  # noqa: E402,F401
-
-FS = 1.18   # these diagrams are read on a projector, not on a page
-
-
-def T(x, y, s, size=12, *a, **k):
-    return _rd.T(x, y, s, size * FS, *a, **k)
-
-
-def TT(x, y, lines, size=12, anchor="middle", lh=15, *a, **k):
-    return _rd.TT(x, y, lines, size * FS, anchor, lh * FS, *a, **k)
-
 OUT = ROOT / "Analysis" / "slide_figures"
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
-INK = "#111111"
-EDIT = "#EB6834"        # the report's "edited" orange
-CTRL = "#1BAF7A"        # the report's "measured / control" green
-GOLD = "#D9A32B"        # the AP-1 motif, as in the data figures
-HAIR = "#9A9993"
+INK = "#15181C"
+MUTED = "#5A6471"
+HAIR = "#AFB5BD"
+SIG = "#55637A"          # predicted ATAC signal
+GOLD = "#D9A32B"         # the AP-1 motif and its protein
+GOLD_D = "#8A6400"
+EDIT = "#E2622F"         # sequence we changed
+EDIT_D = "#A2380F"
+PART = "#4E8E8A"         # a partner transcription factor
+
+
+# ---------------------------------------------------------------------------------------------- primitives
+def esc(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+FS = 1.22   # these are read across a room: a 12.5 unit label lands near 12 pt at slide width
+
+
+def T(x, y, s, size=13, anchor="start", weight="400", fill=INK, op=1.0, ls=0):
+    return (f'<text x="{x:.1f}" y="{y:.1f}" font-size="{size * FS:.2f}" text-anchor="{anchor}" '
+            f'font-weight="{weight}" fill="{fill}" fill-opacity="{op}" letter-spacing="{ls}">{esc(s)}</text>')
+
+
+def tag(x, y, s, col=MUTED, size=11.5):
+    """A count or a unit, set apart from prose."""
+    return T(x, y, s, size, fill=col, op=0.95, ls=0.2)
+
+
+def rule(x0, x1, y, col=HAIR, w=1, dash=None, op=1.0):
+    d = f' stroke-dasharray="{dash}"' if dash else ""
+    return (f'<line x1="{x0:.1f}" y1="{y:.1f}" x2="{x1:.1f}" y2="{y:.1f}" stroke="{col}" stroke-width="{w}"'
+            f' stroke-opacity="{op}"{d}/>')
+
+
+def vrule(x, y0, y1, col=HAIR, w=1, dash=None, op=1.0):
+    d = f' stroke-dasharray="{dash}"' if dash else ""
+    return (f'<line x1="{x:.1f}" y1="{y0:.1f}" x2="{x:.1f}" y2="{y1:.1f}" stroke="{col}" stroke-width="{w}"'
+            f' stroke-opacity="{op}"{d}/>')
+
+
+def arrow(x0, y0, x1, y1, uid, col=INK, w=1.6, op=0.85):
+    return (f'<line x1="{x0:.1f}" y1="{y0:.1f}" x2="{x1:.1f}" y2="{y1:.1f}" stroke="{col}" stroke-width="{w}"'
+            f' stroke-opacity="{op}" marker-end="url(#{uid}-{col.lstrip("#")})"/>')
+
+
+def dna(x0, x1, y, col=INK, op=0.55):
+    """The locus itself: one quiet line. Detail is saved for the motif."""
+    return rule(x0, x1, y, col, 2.0, op=op)
+
+
+def _noise(x, seed):
+    return (math.sin(x * 0.11 + seed) * 0.5 + math.sin(x * 0.29 + seed * 2.1) * 0.3
+            + math.sin(x * 0.53 + seed * 3.7) * 0.2)
+
+
+def track(x0, x1, ybase, peaks, floor=2.0, seed=1.0, col=SIG, fo=0.16, n=200):
+    """A predicted ATAC track: gaussians plus a little texture, so it reads as signal rather than a bell curve."""
+    pts = []
+    for i in range(n + 1):
+        x = x0 + (x1 - x0) * i / n
+        h = floor + 1.6 * abs(_noise(x, seed))
+        for cx, w, a in peaks:
+            h += a * math.exp(-((x - cx) ** 2) / (2.0 * w * w)) * (1 + 0.10 * _noise(x, seed + 5))
+        pts.append((x, ybase - max(h, 0.0)))
+    area = (f'<path d="M {x0:.1f} {ybase:.1f} ' + " ".join(f"L {a:.1f} {b:.1f}" for a, b in pts)
+            + f' L {x1:.1f} {ybase:.1f} Z" fill="{col}" fill-opacity="{fo}" stroke="none"/>')
+    line = ('<polyline points="' + " ".join(f"{a:.1f},{b:.1f}" for a, b in pts)
+            + f'" fill="none" stroke="{col}" stroke-width="1.5" stroke-opacity="0.9" stroke-linejoin="round"/>')
+    return area + line
+
+
+def dimer(x, y, col=GOLD, s=1.0, op=1.0, tilt=0.0):
+    """A bZIP dimer clamping the DNA where its motif is. The deck's one piece of iconography."""
+    w, h, out = 8.0 * s, 32 * s, []
+    for a in (-17 + tilt, 17 + tilt):
+        out.append(f'<g transform="translate({x:.1f},{y:.1f}) rotate({a})" opacity="{op}">'
+                   f'<rect x="{-w / 2:.1f}" y="{-h:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{w / 2:.1f}" '
+                   f'fill="{col}" fill-opacity="0.80" stroke="{col}" stroke-width="1.3"/></g>')
+    return "".join(out)
+
+
+def blob(x, y, col=PART, s=1.0, op=1.0):
+    """A partner factor: deliberately not a dimer, so it never reads as AP-1."""
+    return (f'<ellipse cx="{x:.1f}" cy="{y - 9 * s:.1f}" rx="{9 * s:.1f}" ry="{8 * s:.1f}" fill="{col}" '
+            f'fill-opacity="{0.70 * op}" stroke="{col}" stroke-width="1.2" stroke-opacity="{op}"/>')
+
+
+def motif(x, y, w=20, col=GOLD, op=1.0):
+    """The motif's footprint on the DNA."""
+    return (f'<rect x="{x - w / 2:.1f}" y="{y - 4:.1f}" width="{w:.1f}" height="8" rx="2" fill="{col}" '
+            f'fill-opacity="{0.85 * op}" stroke="none"/>')
+
+
+def scramble(x, y, w, col=EDIT, h=9.0):
+    """Changed sequence: a band with a scribble through it, which needs no label."""
+    n = max(4, int(w / 5))
+    pts = " ".join(f"{x - w / 2 + w * i / n:.1f},{y + (h / 2 if i % 2 else -h / 2):.1f}" for i in range(n + 1))
+    return (f'<rect x="{x - w / 2:.1f}" y="{y - h / 2 - 1:.1f}" width="{w:.1f}" height="{h + 2:.1f}" rx="2" '
+            f'fill="{col}" fill-opacity="0.18" stroke="none"/>'
+            f'<polyline points="{pts}" fill="none" stroke="{col}" stroke-width="1.6" stroke-linejoin="round"/>')
+
+
+def ghost_window(x, y, w, col=MUTED, h=13):
+    """A control: the same stretch of sequence, where no motif sits. Drawn to be found, not to hide."""
+    n = max(4, int(w / 5))
+    pts = " ".join(f"{x - w / 2 + w * i / n:.1f},{y + (4 if i % 2 else -4):.1f}" for i in range(n + 1))
+    return (f'<rect x="{x - w / 2 - 3:.1f}" y="{y - h / 2:.1f}" width="{w + 6:.1f}" height="{h:.1f}" rx="2.5" '
+            f'fill="{col}" fill-opacity="0.07" stroke="{col}" stroke-width="1.3" stroke-dasharray="3.5 2.5" '
+            f'stroke-opacity="0.9"/>'
+            f'<polyline points="{pts}" fill="none" stroke="{col}" stroke-width="1.5" stroke-opacity="0.75" '
+            f'stroke-linejoin="round"/>')
+
+
+def delta(x, y0, y1, label, col=INK, side="right", size=12.5):
+    """The quantity a panel actually produces, bracketed between two heights."""
+    k = 7 if side == "right" else -7
+    s = [vrule(x, y0, y1, col, 1.4, op=0.9),
+         rule(x, x + k, y0, col, 1.4, op=0.9), rule(x, x + k, y1, col, 1.4, op=0.9),
+         T(x + (12 if side == "right" else -12), (y0 + y1) / 2 + 4, label, size,
+           "start" if side == "right" else "end", "600", col)]
+    return "".join(s)
 
 
 def defs(uid):
-    """Arrowheads in each colour the diagrams use."""
     out = ["<defs>"]
-    for suf, col in (("", "currentColor"), ("e", EDIT), ("c", CTRL), ("g", GOLD)):
-        out.append(f'<marker id="{uid}{suf}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"'
-                   f' orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{col}"/></marker>')
+    for col in (INK, EDIT, GOLD_D, MUTED):
+        out.append(f'<marker id="{uid}-{col.lstrip("#")}" viewBox="0 0 10 10" refX="8.5" refY="5" '
+                   f'markerWidth="6" markerHeight="6" orient="auto-start-reverse">'
+                   f'<path d="M0,0.8 L9,5 L0,9.2 z" fill="{col}"/></marker>')
     return "".join(out) + "</defs>"
 
 
 def svg(inner, w, h, uid, label):
-    return (f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-label="{label}" '
-            f'xmlns="http://www.w3.org/2000/svg">{defs(uid)}{inner}</svg>')
+    return (f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-label="{esc(label)}" '
+            f'xmlns="http://www.w3.org/2000/svg" font-family="Arial, Helvetica, sans-serif">'
+            f'{defs(uid)}{inner}</svg>')
 
 
-def bar(x, y, w, h=20, col="currentColor", fo=0.055, sw=1.3, rx=4, dash=None):
-    return R(x, y, w, h, col, col, fo, sw, rx=rx, dash=dash)
+def heading(x, y, s):
+    return T(x, y, s, 14, weight="700", fill=INK, ls=0.3)
 
 
-def block(x, y, w, h=20, col=EDIT, fo=0.55, sw=1.2, rx=3, dash=None):
-    return R(x, y, w, h, col, col, fo, sw, rx=rx, dash=dash)
+def caption(x, y, s, anchor="start"):
+    return T(x, y, s, 12.5, anchor, fill=MUTED)
 
 
-def lane_label(x, y, name, sub=None):
-    s = T(x, y, name, 13.5, weight="bold")
-    if sub:
-        s += T(x, y + 17, sub, 11.5, op=0.72)
-    return s
+# ================================================================================================ d1
+def d1_pipeline():
+    """The same window, twice, differenced."""
+    s, uid = [], "d1"
+    LX, LW = 124, 236
+    PX, PW = 614, 286
+    yA, yB = 108, 226
+
+    s.append(heading(20, yA - 38, "NATIVE"))
+    s.append(caption(20, yA - 20, "as it is"))
+    s.append(dna(LX, LX + LW, yA))
+    s.append(motif(LX + LW / 2, yA))
+    s.append(dimer(LX + LW / 2, yA - 4))
+
+    s.append(heading(20, yB - 38, "EDITED"))
+    s.append(caption(20, yB - 20, "one thing changed"))
+    s.append(dna(LX, LX + LW, yB))
+    s.append(scramble(LX + LW / 2, yB, 26))
+
+    s.append(f'<rect x="436" y="{yA - 58}" width="126" height="{yB - yA + 96}" rx="14" fill="{INK}" '
+             f'fill-opacity="0.045" stroke="{INK}" stroke-opacity="0.32" stroke-width="1.2"/>')
+    s.append(T(499, yA + 46, "Alpha", 14, "middle", "700"))
+    s.append(T(499, yA + 63, "Genome", 14, "middle", "700"))
+    s.append(T(499, yA + 86, "1 bp ATAC head,", 11.5, "middle", fill=MUTED))
+    s.append(T(499, yA + 101, "fine-tuned on", 11.5, "middle", fill=MUTED))
+    s.append(T(499, yA + 116, "our own Tn5", 11.5, "middle", fill=MUTED))
+    s.append(arrow(LX + LW + 16, yA, 430, yA, uid))
+    s.append(arrow(LX + LW + 16, yB, 430, yB, uid, col=EDIT))
+    s.append(arrow(568, yA, PX - 14, yA, uid))
+    s.append(arrow(568, yB, PX - 14, yB, uid, col=EDIT))
+
+    s.append(track(PX, PX + PW, yA, [(PX + PW / 2, 26, 48)], seed=1.3))
+    s.append(dna(PX, PX + PW, yA))
+    s.append(track(PX, PX + PW, yB, [(PX + PW / 2, 26, 17)], seed=1.3, col=EDIT, fo=0.14))
+    s.append(dna(PX, PX + PW, yB))
+    s.append(caption(PX, yA - 62, "predicted accessibility"))
+
+    s.append(delta(PX + PW + 36, yA - 48, yB - 17, "log₂ ratio"))
+    s.append(T(PX + PW + 48, yB + 6, "one number", 12, fill=MUTED))
+    s.append(T(PX + PW + 48, yB + 22, "per site", 12, fill=MUTED))
+    s.append(rule(20, 1060, 292, HAIR, 1, dash="4 4"))
+    s.append(tag(20, 318, "both predictions come from the same 131 kb window, so only the edit can move them"))
+    return svg("".join(s), 1100, 338, uid, "One window predicted twice and differenced"), 1100, 338
 
 
-# ==========================================================================================================
-def m1_pipeline():
-    """One site, predicted twice, differenced. Everything else on the slides is a variation on this."""
-    s, uid = [], "p1"
-    s.append(R(20, 56, 212, 74, "currentColor", "currentColor", 0.03, 1.5, rx=9))
-    s.append(TT(126, 82, ["One fibroblast AP-1 site", "TOBIAS footprint, 11 bp", "5,018 sites"], 12, lh=15.5))
-    s.append(R(20, 198, 212, 74, "currentColor", "currentColor", 0.03, 1.5, rx=9))
-    s.append(TT(126, 224, ["131,072 bp of mm10", "centred on the motif", "fetched once"], 12, lh=15.5))
-    s.append(L(126, 130, 126, 196, arrow=uid))
-    s.append(T(136, 168, "fetch once", 11, op=0.7))
+# ================================================================================================ d2
+def d2_transplant():
+    """Three states, left to right: a real site, an empty place, and what the element does to it."""
+    s, uid = [], "d2"
+    W = 258
+    C = (56, 404, 752)                       # three columns, one story
+    yT, yB = 134, 268
 
-    s.append(R(262, 48, 212, 74, INK, INK, 0.05, 1.7, rx=9))
-    s.append(TT(368, 74, ["NATIVE sequence", "unchanged"], 12.5, weight="bold", lh=17))
-    s.append(R(262, 190, 212, 92, EDIT, EDIT, 0.08, 1.7, rx=9))
-    s.append(TT(368, 214, ["EDITED sequence"], 12.5, weight="bold"))
-    s.append(TT(368, 234, ["shuffle · mutate · insert · swap", "10 replicate edits per site"], 11.5, lh=15))
-    s.append(P([(232, 235), (248, 235), (248, 85), (260, 85)], arrow=uid))
-    s.append(P([(232, 235), (260, 235)], arrow=uid))
+    s.append(heading(C[0], 46, "1   A REAL SITE"))
+    s.append(track(C[0], C[0] + W, yT, [(C[0] + W / 2, 32, 52)], seed=2.2))
+    s.append(dna(C[0], C[0] + W, yT))
+    s.append(motif(C[0] + W / 2, yT)); s.append(dimer(C[0] + W / 2, yT - 4))
+    s.append(f'<rect x="{C[0] + W / 2 - 86}" y="{yT + 8}" width="172" height="18" rx="4" fill="none" '
+             f'stroke="{INK}" stroke-width="1.3" stroke-dasharray="4 3" stroke-opacity="0.6"/>')
+    s.append(caption(C[0] + W / 2, yT + 44, "lift out its whole peak", "middle"))
 
-    s.append(R(518, 48, 196, 234, "currentColor", "currentColor", 0.045, 1.7, rx=9))
-    s.append(TT(616, 76, ["AlphaGenome"], 13, weight="bold"))
-    s.append(TT(616, 100, ["fine-tuned 1 bp ATAC head", "on our own fibroblast Tn5 data"], 11.5, lh=15))
-    s.append(L(540, 128, 692, 128, "currentColor", 1, op=0.25))
-    s.append(TT(616, 150, ["held-out Spearman 0.68", "(0.27 for the built-in head)"], 11.5, lh=15))
-    s.append(L(540, 174, 692, 174, "currentColor", 1, op=0.25))
-    s.append(TT(616, 196, ["trackset FB = the mean of", "the four conditions", "(young/old × sed/exercise)"], 11.5, lh=15))
-    s.append(TT(616, 258, ["same weights for both lanes"], 11, op=0.7))
-    s.append(L(474, 85, 516, 85, INK, 1.7, arrow=uid))
-    s.append(L(474, 235, 516, 235, EDIT, 1.7, arrow=uid + "e"))
+    s.append(heading(C[1], 46, "2   AN EMPTY PLACE"))
+    s.append(track(C[1], C[1] + W, yT, [], seed=4.1))
+    s.append(dna(C[1], C[1] + W, yT))
+    s.append(caption(C[1] + W / 2, yT + 26, "a closed background", "middle"))
+    s.append(caption(C[1] + W / 2, yT + 44, "with no called peak", "middle"))
 
-    s.append(R(758, 48, 206, 74, INK, "none", 0, 1.7, rx=9))
-    s.append(TT(861, 72, ["native ATAC"], 12.5, weight="bold"))
-    s.append(TT(861, 92, ["mean over the motif,", "the 170 bp and the peak"], 11.5, lh=15))
-    s.append(R(758, 190, 206, 92, EDIT, "none", 0, 1.7, rx=9))
-    s.append(TT(861, 222, ["edited ATAC"], 12.5, weight="bold", fill=EDIT))
-    s.append(TT(861, 244, ["the same regions,", "the same tracks"], 11.5, lh=15))
-    s.append(L(714, 85, 756, 85, INK, 1.7, arrow=uid))
-    s.append(L(714, 235, 756, 235, EDIT, 1.7, arrow=uid + "e"))
-
-    s.append(R(518, 320, 422, 58, "currentColor", CTRL, 0.10, 1.7, rx=9))
-    s.append(TT(729, 344, ["effect = log₂( (edited + c) ⁄ (native + c) )"], 13.5, weight="bold"))
-    s.append(TT(729, 364, ["averaged over the replicate edits — one number per site"], 11.5))
-    s.append(P([(964, 85), (980, 85), (980, 349), (942, 349)], INK, arrow=uid))
-    s.append(P([(861, 282), (861, 318)], EDIT, arrow=uid + "e"))
-
-    s.append(TT(20, 318, ["The two predictions come from the same 131 kb", "window, so a change can only come from the edit.",
-                          "c is 5% of the median native value, which keeps", "the ratio stable near zero."],
-                11.5, anchor="start", lh=16, op=0.8))
-    return svg("".join(s), 1000, 398, uid, "How an effect is measured"), 1000, 398
-
-
-# ==========================================================================================================
-def m2_transplant():
-    """An element lifted out and dropped into chromatin that has none, against the same letters shuffled."""
-    s, uid = [], "p2"
-    s.append(lane_label(20, 62, "The element", "its whole peak, lifted out"))
-    s.append(bar(250, 48, 320, 26))
-    s.append(block(400, 44, 18, 34, GOLD, 0.75, 1.3))
-    s.append(T(409, 36, "AP-1", 11, "middle", weight="bold", fill="#8A6400"))
-    s.append(L(409, 82, 409, 118, arrow=uid))
-
-    for x, lab, sub, shuf in ((250, "the element", "as it is", False),
-                              (490, "the same letters", "shuffled", True)):
-        s.append(R(x, 126, 200, 108, EDIT if shuf else INK, EDIT if shuf else INK, 0.045, 1.5, rx=9))
-        s.append(T(x + 100, 150, lab, 12.5, "middle", weight="bold", fill=EDIT if shuf else INK))
-        s.append(T(x + 100, 168, sub, 11.5, "middle", op=0.75))
-        for j, op_ in enumerate((0.22, 0.45, 1.0)):      # the same pair goes into 20 hosts, drawn as a short stack
-            s.append(L(x + 16, 194 + j * 10, x + 184, 194 + j * 10, HAIR, 2.4, op=op_))
+    s.append(heading(C[2], 46, "3   WHAT IT BUILDS THERE"))
+    for yy, lab, amp, col, shuf in ((yT, "the element", 46, SIG, False),
+                                    (yB, "the same letters, shuffled", 6, EDIT, True)):
+        s.append(track(C[2], C[2] + W, yy, [(C[2] + W / 2, 28, amp)], seed=2.6, col=col,
+                       fo=0.13 if shuf else 0.16))
+        s.append(dna(C[2], C[2] + W, yy))
         if shuf:
-            s.append(block(x + 82, 202, 36, 24, EDIT, 0.45, 1.1))
+            s.append(scramble(C[2] + W / 2, yy, 28))
         else:
-            s.append(bar(x + 70, 201, 60, 26, INK, 0.10, 1.3))
-            s.append(block(x + 93, 197, 14, 34, GOLD, 0.75, 1.2))
-    s.append(R(458, 166, 28, 28, "currentColor", "#ffffff", 1.0, 1.3, rx=14))
-    s.append(T(472, 185, "vs", 12, "middle", weight="bold"))
-    s.append(T(470, 254, "each into the same 20 closed backgrounds", 11.5, "middle", op=0.82))
+            s.append(motif(C[2] + W / 2, yy)); s.append(dimer(C[2] + W / 2, yy - 4))
+        s.append(T(C[2], yy + 22, lab, 12.5, fill=EDIT_D if shuf else INK, weight="400" if shuf else "600"))
+    s.append(delta(C[2] + W + 26, yT - 46, yB - 8, "effect"))
+    s.append(caption(C[2], yB + 46, "the host is in both, so it cancels"))
 
-    s.append(R(250, 278, 440, 62, "currentColor", CTRL, 0.10, 1.6, rx=9))
-    s.append(TT(470, 302, ["effect = log₂( element ⁄ same sequence shuffled )"], 13, weight="bold"))
-    s.append(TT(470, 323, ["the host contributes to both, so it cancels"], 11.5, op=0.85))
+    s.append(arrow(C[0] + W + 20, yT - 16, C[1] - 20, yT - 16, uid, col=MUTED, w=1.4, op=0.6))
+    s.append(arrow(C[1] + W + 20, yT - 16, C[2] - 20, yT - 16, uid, col=MUTED, w=1.4, op=0.6))
 
-    s.append(TT(752, 150, ["50 donor elements per class", "20 backgrounds each",
-                           "scored at the whole-peak width"], 12.5, anchor="start", lh=23))
-    s.append(TT(752, 240, ["A background is a genomic window with no",
-                           "called ATAC peak, so there is nothing there",
-                           "for the element to add to."], 11.5, anchor="start", lh=17, op=0.8))
+    s.append(rule(20, 1080, 320, HAIR, 1, dash="4 4"))
+    s.append(tag(20, 346, "20 backgrounds per element   ·   50 elements per class   ·   whole-peak width"))
     return svg("".join(s), 1100, 366, uid, "Transplant into closed chromatin"), 1100, 366
 
 
-# ==========================================================================================================
-def m3_swap():
-    """Every element written into every other element's location, at two widths."""
-    s, uid = [], "p3"
-    BX0, BW = 250, 420
-    rows = (("Donor", "where the sequence comes from", "donor"),
-            ("Recipient", "the location it is written into", "recip"),
-            ("Result", "donor sequence, recipient location", "res"))
-    for i, (name, sub, kind) in enumerate(rows):
-        y = 50 + i * 82
-        s.append(lane_label(20, y + 16, name, sub))
-        if kind == "donor":
-            s.append(bar(BX0, y, BW, 26, EDIT, 0.10))
-            s.append(block(BX0 + 200, y - 4, 18, 34, GOLD, 0.75, 1.3))
-        elif kind == "recip":
-            s.append(bar(BX0, y, BW, 26))
-            s.append(block(BX0 + 200, y - 4, 18, 34, GOLD, 0.30, 1.2))
+# ================================================================================================ d3
+def d3_swap():
+    """Is a site's level set by its sequence, or by where it sits?"""
+    s, uid = [], "d3"
+    AX, AW = 50, 238
+    BX, BW = 660, 270
+    yD, yR = 112, 246
+
+    s.append(heading(AX, 44, "DONOR"))
+    s.append(caption(AX, 62, "a strong element"))
+    s.append(track(AX, AX + AW, yD, [(AX + AW / 2, 28, 50)], seed=3.1))
+    s.append(dna(AX, AX + AW, yD))
+    s.append(motif(AX + AW / 2, yD)); s.append(dimer(AX + AW / 2, yD - 4))
+
+    s.append(heading(AX, yR - 44, "RECIPIENT"))
+    s.append(caption(AX, yR - 26, "a weak location"))
+    s.append(track(AX, AX + AW, yR, [(AX + AW / 2, 28, 15)], seed=5.4))
+    s.append(dna(AX, AX + AW, yR))
+    s.append(motif(AX + AW / 2, yR, op=0.45))
+
+    s.append(f'<path d="M {AX + AW + 14} {yD - 12} C {AX + AW + 86} {yD - 12}, {AX + AW + 86} {yR - 12}, '
+             f'{AX + AW + 16} {yR - 12}" fill="none" stroke="{EDIT}" stroke-width="1.8" '
+             f'marker-end="url(#{uid}-{EDIT.lstrip("#")})"/>')
+    s.append(T(AX + AW + 98, (yD + yR) / 2 - 9, "write the donor's sequence", 12.5, fill=EDIT_D, weight="600"))
+    s.append(T(AX + AW + 98, (yD + yR) / 2 + 9, "into the recipient's place", 12.5, fill=EDIT_D, weight="600"))
+
+    s.append(vrule(612, 34, 300, HAIR, 1, dash="5 5"))
+    s.append(heading(BX, 44, "WHICH HEIGHT DOES IT TAKE?"))
+    # the two possibilities, as outlines: neither has happened yet
+    for yy, amp, col, lab, sub in ((yD + 24, 50, SIG, "the donor's", "the sequence wins"),
+                                   (yR + 18, 15, EDIT, "the recipient's", "the place wins")):
+        s.append(track(BX, BX + BW, yy, [(BX + BW / 2, 26, amp)], seed=3.1 if amp > 30 else 5.4,
+                       col=col, fo=0.07))
+        s.append(dna(BX, BX + BW, yy))
+        s.append(motif(BX + BW / 2, yy)); s.append(dimer(BX + BW / 2, yy - 4, op=0.85))
+        s.append(T(BX + BW + 22, yy - 6, lab, 12.5, fill=col if col != SIG else SIG, weight="600"))
+        s.append(T(BX + BW + 22, yy + 10, sub, 12, fill=MUTED))
+    s.append(T(BX + BW / 2, (yD + yR) / 2 + 34, "?", 42, "middle", "700", MUTED, op=0.35))
+
+    s.append(rule(20, 1080, 312, HAIR, 1, dash="4 4"))
+    s.append(tag(20, 338, "62,250 swaps   ·   two widths: 170 bp and the whole peak   ·   "
+                          "intervals from a cluster bootstrap over the 250 donors"))
+    return svg("".join(s), 1100, 358, uid, "The element swap"), 1100, 358
+
+
+# ================================================================================================ d4
+def d4_shuffle():
+    """One motif at a time, against the same stretch of sequence where no motif sits."""
+    s, uid = [], "d4"
+    X0, W = 232, 556
+    CX = X0 + W / 2
+    PA, PB = CX - 146, CX + 146
+    CTRLX = CX - 60
+    y0 = 118
+
+    s.append(heading(20, 46, "ONE SITE"))
+    s.append(caption(20, 64, "its own motif,"))
+    s.append(caption(20, 80, "and its partners"))
+    s.append(track(X0, X0 + W, y0, [(CX, 26, 46), (PA, 18, 12), (PB, 18, 10)], seed=6.3))
+    s.append(dna(X0, X0 + W, y0))
+    s.append(motif(CX, y0)); s.append(dimer(CX, y0 - 4))
+    s.append(blob(PA, y0)); s.append(blob(PB, y0))
+    s.append(T(CX, y0 + 24, "AP-1", 12, "middle", "700", GOLD_D))
+    s.append(T(PA, y0 + 24, "partner", 12, "middle", fill=PART))
+    s.append(T(PB, y0 + 24, "partner", 12, "middle", fill=PART))
+    s.append(rule(20, 1080, 156, HAIR, 1, dash="4 4"))
+
+    rows = (("scramble AP-1", "ap1", "big drop"),
+            ("scramble a partner", "partner", "small drop"),
+            ("scramble an empty window", "control", "no drop"))
+    for i, (lab, kind, out) in enumerate(rows):
+        y = 214 + i * 66
+        ctrl = kind == "control"
+        s.append(T(20, y + 4, lab, 12.5, weight="400" if ctrl else "600", fill=MUTED if ctrl else INK))
+        peaks = {"ap1": [(CX, 26, 14), (PA, 18, 12), (PB, 18, 10)],
+                 "partner": [(CX, 26, 46), (PA, 18, 2), (PB, 18, 10)],
+                 "control": [(CX, 26, 46), (PA, 18, 12), (PB, 18, 10)]}[kind]
+        s.append(track(X0, X0 + W, y, peaks, seed=6.3, floor=1.4, col=SIG if ctrl else EDIT, fo=0.13))
+        s.append(dna(X0, X0 + W, y))
+        if kind == "ap1":
+            s.append(scramble(CX, y, 26)); s.append(blob(PA, y, op=0.9)); s.append(blob(PB, y, op=0.9))
+        elif kind == "partner":
+            s.append(scramble(PA, y, 24)); s.append(dimer(CX, y - 4)); s.append(blob(PB, y, op=0.9))
         else:
-            s.append(bar(BX0, y, BW, 26, "currentColor", 0.035))
-            s.append(block(BX0, y - 4, BW, 34, EDIT, 0.26, 1.3))
-            s.append(block(BX0 + 200, y - 4, 18, 34, GOLD, 0.75, 1.3))
-    s.append(P([(BX0 + BW + 12, 63), (BX0 + BW + 36, 63), (BX0 + BW + 36, 145), (BX0 + BW + 14, 145)],
-               EDIT, 1.7, arrow=uid + "e"))
+            s.append(scramble(CTRLX, y, 24, col=HAIR)); s.append(ghost_window(CTRLX, y, 30))
+            s.append(dimer(CX, y - 4)); s.append(blob(PA, y, op=0.9)); s.append(blob(PB, y, op=0.9))
+        s.append(T(X0 + W + 24, y + 4, out, 12.5, fill=MUTED if ctrl else EDIT_D,
+                   weight="400" if ctrl else "600"))
 
-    s.append(R(752, 48, 328, 72, "currentColor", "currentColor", 0.04, 1.5, rx=9))
-    s.append(TT(916, 72, ["Two widths"], 12.5, weight="bold"))
-    s.append(TT(916, 92, ["the 170 bp window,", "and the whole peak"], 11.5, lh=16))
-    s.append(R(752, 136, 328, 72, "currentColor", "currentColor", 0.04, 1.5, rx=9))
-    s.append(TT(916, 160, ["62,250 swaps"], 12.5, weight="bold"))
-    s.append(TT(916, 180, ["every element into every other", "location; self-swaps excluded"], 11.5, lh=16))
+    bx = X0 + W + 132
+    s.append(f'<path d="M {bx} 274 L {bx + 11} 274 L {bx + 11} 350 L {bx} 350" fill="none" '
+             f'stroke="{INK}" stroke-width="1.4" stroke-opacity="0.85"/>')
+    s.append(T(bx + 20, 300, "a partner's effect", 12, fill=MUTED))
+    s.append(T(bx + 20, 316, "is the difference", 12.5, fill=INK, weight="700"))
 
-    s.append(R(250, 258, 830, 60, "currentColor", CTRL, 0.10, 1.6, rx=9))
-    s.append(TT(665, 281, ["regress the swapped site's accessibility on both:"], 13, weight="bold"))
-    s.append(TT(665, 301, ["what the donor element was, and where the recipient location was"], 11.5, op=0.85))
-    s.append(TT(250, 340, ["Each donor appears in about 250 of those rows, so the confidence intervals come from",
-                           "a cluster bootstrap over donors, not from the 62,250 swaps."],
-                11.5, anchor="start", lh=17, op=0.8))
-    return svg("".join(s), 1100, 380, uid, "The element swap"), 1100, 380
+    s.append(rule(20, 1080, 376, HAIR, 1, dash="4 4"))
+    s.append(tag(20, 402, "the empty window is the same width, at the mirrored distance, with no footprint in it "
+                          "— so the comparison never leaves the site"))
+    return svg("".join(s), 1100, 422, uid, "Shuffling one motif at a time"), 1100, 422
 
 
-# ==========================================================================================================
-X0, X1 = 250, 1080                      # the drawn peak for the two in-place diagrams, ~1 kb across
-CX = (X0 + X1) / 2
-PXBP = (X1 - X0) / 1000.0
-FOOTPRINTS = (-260, -150, 95, 210)      # illustrative partner footprints
+# ================================================================================================ d5
+def d5_scan():
+    """Walk a window across the locus; then zoom in and change every base."""
+    s, uid = [], "d5"
+    X0, W = 176, 740
+    CX = X0 + W / 2
+    y0 = 124
+
+    s.append(heading(20, 46, "WALK A 10 bp WINDOW ACROSS THE LOCUS"))
+    s.append(track(X0, X0 + W, y0, [(CX, 26, 48)], seed=7.7))
+    s.append(dna(X0, X0 + W, y0))
+    s.append(motif(CX, y0)); s.append(dimer(CX, y0 - 4))
+    s.append(T(CX, y0 - 62, "AP-1", 12, "middle", "700", GOLD_D))
+
+    tw = W / 60.0
+    for k in range(60):
+        x = X0 + (k + 0.5) * tw
+        live = k == 21
+        s.append(f'<rect x="{x - tw / 2 + 0.7:.1f}" y="{y0 + 12:.1f}" width="{tw - 1.4:.1f}" height="16" rx="1.6" '
+                 f'fill="{EDIT}" fill-opacity="{0.78 if live else 0.0}" stroke="{EDIT}" '
+                 f'stroke-width="{1.0 if live else 0.7}" stroke-opacity="{1.0 if live else 0.30}"/>')
+    s.append(rule(X0, X0 + W, y0 + 42, HAIR, 1))
+    s.append(caption(X0, y0 + 62, "−300 bp"))
+    s.append(caption(X0 + W, y0 + 62, "+290 bp", "end"))
+    s.append(caption(CX, y0 + 62, "60 tiles, one prediction each", "middle"))
+
+    s.append(rule(20, 1080, 230, HAIR, 1, dash="4 4"))
+    s.append(heading(20, 268, "THEN ZOOM IN AND CHANGE EVERY BASE"))
+
+    seq, bw, yS, hi = "ACGTTCCTGAGTCACCGT", 24.0, 318, 9
+    sx = CX - len(seq) * bw / 2
+    for i, ch in enumerate(seq):
+        x = sx + i * bw
+        on = i == hi
+        s.append(f'<rect x="{x + 1.5:.1f}" y="{yS - 11:.1f}" width="{bw - 3:.1f}" height="23" rx="3" '
+                 f'fill="{EDIT if on else INK}" fill-opacity="{0.20 if on else 0.045}" '
+                 f'stroke="{EDIT if on else HAIR}" stroke-width="{1.2 if on else 0.9}"/>')
+        s.append(T(x + bw / 2, yS + 6, ch, 12.5, "middle", "700" if on else "400", EDIT_D if on else INK))
+    s.append(f'<path d="M {sx:.1f} {yS - 26:.1f} L {X0 + 290:.1f} {y0 + 30:.1f}" fill="none" stroke="{HAIR}" '
+             f'stroke-width="1" stroke-dasharray="3 3"/>')
+    s.append(f'<path d="M {sx + len(seq) * bw:.1f} {yS - 26:.1f} L {X0 + 300:.1f} {y0 + 30:.1f}" fill="none" '
+             f'stroke="{HAIR}" stroke-width="1" stroke-dasharray="3 3"/>')
+
+    hx = sx + hi * bw + bw / 2
+    s.append(vrule(hx, yS + 14, yS + 28, EDIT, 1.2, op=0.8))
+    for j, alt in enumerate("ACG"):
+        x = hx + (j - 1) * 30
+        s.append(f'<rect x="{x - 11:.1f}" y="{yS + 30:.1f}" width="22" height="22" rx="3" fill="{EDIT}" '
+                 f'fill-opacity="0.12" stroke="{EDIT}" stroke-width="1.1"/>')
+        s.append(T(x, yS + 46, alt, 12.5, "middle", "700", EDIT_D))
+    s.append(rule(hx - 41, hx + 41, yS + 26, EDIT, 1.1, op=0.6))
+    s.append(caption(hx + 72, yS + 46, "each of the other three bases, one prediction each"))
+    s.append(caption(sx - 14, yS + 6, "61 positions", "end"))
+
+    s.append(rule(20, 1080, 398, HAIR, 1, dash="4 4"))
+    s.append(tag(20, 424, "each site's own noise floor is removed before its profile is normalised, because a less "
+                          "accessible site is a noisier one"))
+    return svg("".join(s), 1100, 444, uid, "Tile scan and saturation"), 1100, 444
 
 
-def site_row(s, y, uid, show_footprints=True, scale=True):
-    """The reference bar both in-place diagrams are read against, drawn to scale."""
-    s.append(lane_label(20, y + 16, "The site", "ATAC peak, median 0.8 kb"))
-    s.append(bar(X0, y, X1 - X0, 26))
-    if show_footprints:
-        for d in FOOTPRINTS:
-            s.append(block(CX + d * PXBP - 10, y + 4, 20, 18, CTRL, 0.30, 1.1))
-    s.append(block(CX - 8, y - 4, 16, 34, GOLD, 0.75, 1.3))
-    s.append(T(CX, y - 12, "AP-1, 11 bp", 12, "middle", weight="bold", fill="#8A6400"))
-    if scale:
-        for bp in (-400, -200, 0, 200, 400):
-            x = CX + bp * PXBP
-            s.append(L(x, y + 26, x, y + 33, HAIR, 1))
-            s.append(T(x, y + 48, "0" if bp == 0 else f"{bp:+d}", 11, "middle", op=0.7))
-        s.append(T(X0 - 12, y + 48, "bp", 11, "end", op=0.7))
+# ================================================================================================ d6
+def d6_titration():
+    """Weaken the motif a base at a time; or add a second copy at a set distance."""
+    s, uid = [], "d6"
+    y = 142
+    xs = (132, 352, 572, 792)
+    core = "TGAGTCA"
+    states = ((core, "perfect core", 1.00, 0.0),
+              ("TGACTCA", "1 base changed", 0.78, 5.0),
+              ("TCACTTA", "3 bases changed", 0.48, 12.0),
+              ("CATCAGG", "core gone", 0.0, 0.0))
 
-
-def m4_shuffle():
-    """The site's own AP-1 motif, and one partner motif at a time against a matched control."""
-    s, uid = [], "p4"
-    site_row(s, 50, uid)
-    s.append(T(X1, 14, "green = a partner motif footprint", 11.5, "end", fill=CTRL, op=0.95))
-    s.append(L(20, 132, X1, 132, HAIR, 1, dash="4 4"))
-
-    y = 172
-    s.append(lane_label(20, y + 14, "Its own AP-1 motif", "the 11 bp footprint, letters permuted"))
-    s.append(bar(X0, y, X1 - X0, 24, "currentColor", 0.035))
-    s.append(block(CX - 8, y - 4, 16, 32))
-    s.append(T(CX + 18, y + 16, "11 bp", 11.5, fill=EDIT, weight="bold"))
-
-    y = 268
-    s.append(lane_label(20, y + 14, "One partner motif", "scored against a matched control"))
-    s.append(bar(X0, y, X1 - X0, 24, "currentColor", 0.035))
-    for d in (-260, -150, 210):
-        s.append(block(CX + d * PXBP - 10, y + 3, 20, 18, CTRL, 0.10, 1.0))
-    px, cx_ = CX + 95 * PXBP, CX - 95 * PXBP
-    s.append(block(px - 10, y - 4, 20, 32))
-    s.append(T(px, y - 12, "shuffled", 11.5, "middle", fill=EDIT, weight="bold"))
-    s.append(block(cx_ - 10, y - 4, 20, 32, CTRL, 0.12, 1.3, dash="3 3"))
-    s.append(T(cx_, y - 12, "matched control", 11.5, "middle", weight="bold", fill=CTRL))
-    s.append(L(cx_ + 12, y + 40, px - 12, y + 40, "currentColor", 1, dash="4 4", op=0.45))
-    s.append(T(CX, y + 56, "same width, mirrored distance, no footprint there", 11.5, "middle", op=0.82))
-
-    s.append(TT(20, 356, ["Both effects are measured inside one site, so the accessibility gap between the classes "
-                          "cannot reach the comparison. Repeated for every partner family the site carries."],
-                11.5, anchor="start", op=0.8))
-    return svg("".join(s), 1100, 376, uid, "Shuffling one motif at a time"), 1100, 376
-
-
-# ==========================================================================================================
-def m5_scan():
-    """Where along the sequence the dependence sits: tiles, then single bases."""
-    s, uid = [], "p5"
-    site_row(s, 50, uid, show_footprints=False)
-    s.append(L(20, 132, X1, 132, HAIR, 1, dash="4 4"))
-
-    y = 176
-    s.append(lane_label(20, y + 14, "Tile scan", "each 10 bp tile replaced in turn"))
-    s.append(bar(X0, y, X1 - X0, 24, "currentColor", 0.035))
-    tw = 10 * PXBP
-    for k in range(-30, 30):
-        x = CX + k * tw
-        on = k == -8
-        s.append(R(x + 0.6, y - 3, tw - 1.2, 30, EDIT, EDIT, 0.55 if on else 0.0,
-                   1.0 if on else 0.7, rx=1.5, so=1.0 if on else 0.5))
-    s.append(L(CX - 30 * tw, y + 40, CX + 30 * tw, y + 40, "currentColor", 1, op=0.4))
-    s.append(T(CX, y + 56, "60 tiles from −300 to +290 bp, one prediction each", 11.5, "middle", op=0.82))
-
-    y = 282
-    s.append(lane_label(20, y + 14, "Saturation", "every base, one at a time"))
-    s.append(bar(X0, y, X1 - X0, 24, "currentColor", 0.035))
-    sw_ = 30 * PXBP
-    s.append(block(CX - sw_, y - 3, 2 * sw_, 30))
-    for k in range(-5, 6):
-        s.append(L(CX + k * sw_ / 5.5, y - 3, CX + k * sw_ / 5.5, y + 27, "#ffffff", 0.9, op=0.85))
-    s.append(L(CX - sw_, y + 30, CX - 150, y + 48, HAIR, 0.9, dash="3 3"))
-    s.append(L(CX + sw_, y + 30, CX + 150, y + 48, HAIR, 0.9, dash="3 3"))
-    s.append(T(CX, y + 62, "61 positions × 3 alternative bases — the only row not drawn to scale",
-               11.5, "middle", op=0.82))
-    return svg("".join(s), 1100, 376, uid, "Tile scan and saturation"), 1100, 376
-
-
-# ==========================================================================================================
-def m6_titration():
-    """The AP-1 affinity ladder and the spacing experiments."""
-    s, uid = [], "p6"
-    native = "ACGTTCCTGAGTCACCGTAGA"        # motif at 5..15, core TGAGTCA at 7..13
-    rows = [
-        ("native", native, None, "the site as it is"),
-        ("1 base of the core changed", "ACGTTCCTCAGTCACCGTAGA", [8], "the gentlest rung"),
-        ("3 bases changed", "ACGTTCCTCATTAACCGTAGA", [8, 10, 12], "the ladder runs from 1 to 7 bases"),
-        ("whole core changed", "ACGTTCCCATCAGGCCGTAGA", range(7, 14), "no AP-1 half-site left"),
-        ("half site", "ACGTTCCTGACCTACCGTAGA", [10, 11, 12], "one half kept, the other destroyed"),
-        ("reverse complement", "ACGTTGGTGACTCAGGGTAGA", [5, 6, 10, 14, 15],
-         "same motif, other strand — only 5 of the 11 bases move"),
-    ]
-    x0, lw = 268, 25
-    s.append(T(20, 22, "the same 21 bp excerpt under each edit;  orange = changed bases", 12, op=0.8))
-    s.append(L(x0 + 5 * lw, 50, x0 + 16 * lw - 3, 50, "currentColor", 1.4))
-    s.append(T(x0 + 10.5 * lw, 44, "11 bp motif", 11.5, "middle"))
-    s.append(L(x0 + 7 * lw, 60, x0 + 14 * lw - 3, 60, GOLD, 2.2))
-    s.append(T(x0 + 10.5 * lw, 74, "7 bp core  TGA[C/G]TCA", 11, "middle", fill="#8A6400", weight="bold"))
-    for r, (name, seq, chg, desc) in enumerate(rows):
-        y = 86 + r * 32
-        s.append(T(20, y + 17, name, 12, weight="bold" if r == 0 else "normal"))
-        for i, ch in enumerate(seq):
-            hot = chg is not None and i in chg
-            col = EDIT if hot else "currentColor"
-            s.append(R(x0 + i * lw, y, lw - 2, 25, col, col, 0.42 if hot else 0.055, 1.1, rx=3))
-            s.append(T(x0 + i * lw + (lw - 2) / 2, y + 17, ch, 12.5, "middle", weight="bold"))
-        s.append(T(x0 + 21 * lw + 12, y + 17, desc, 11.5, op=0.88))
-
-    # the core upgrade only makes sense as a before and after, since this excerpt's core is already perfect
-    uy = 86 + len(rows) * 32 + 14
-    s.append(L(20, uy - 14, 1180, uy - 14, HAIR, 1, dash="4 4"))
-    s.append(T(20, uy + 17, "core upgraded", 12))
-    for j, (bx, seq7, hot, cap) in enumerate(((x0, "TGAGTAA", None, "an imperfect core"),
-                                              (x0 + 250, "TGAGTCA", [5], "made TGAGTCA"))):
-        for i, ch in enumerate(seq7):
-            on = hot is not None and i in hot
-            col = EDIT if on else "currentColor"
-            s.append(R(bx + i * lw, uy, lw - 2, 25, col, col, 0.42 if on else 0.055, 1.1, rx=3))
-            s.append(T(bx + i * lw + (lw - 2) / 2, uy + 17, ch, 12.5, "middle", weight="bold"))
-        s.append(T(bx + 3.5 * lw, uy + 40, cap, 11, "middle", op=0.8))
-    s.append(L(x0 + 7 * lw + 12, uy + 12, x0 + 250 - 12, uy + 12, "currentColor", 1.3, arrow=uid))
-    s.append(T(x0 + 21 * lw + 12, uy + 17, "run only where the core is not already perfect — 1 or 2 bases",
-               11.5, op=0.88))
-
-    # spacing block
-    ty = uy + 78
-    s.append(T(20, ty, "Spacing  —  a second copy, or the same copy moved, at a set distance", 13.5, weight="bold"))
-    BX0, BX1 = 404, 1044
-    CX = (BX0 + BX1) / 2
-    for i, (name, sub, kind) in enumerate((("second copy at ±d", "and a width-matched insert as the control", "dup"),
-                                           ("motif moved to ±d", "and the same move to a footprint-free spot", "move"))):
-        y = ty + 28 + i * 86
-        s.append(lane_label(20, y + 14, name, sub))
-        s.append(bar(BX0, y, BX1 - BX0, 22))
-        if kind == "dup":
-            s.append(block(CX - 8, y - 3, 16, 28, GOLD, 0.75, 1.3))
-            s.append(block(CX + 150, y - 3, 16, 28, GOLD, 0.75, 1.3))
-            s.append(block(CX - 158, y - 3, 16, 28, CTRL, 0.12, 1.3, dash="3 3"))
-            s.append(T(CX + 158, y - 10, "second AP-1", 10.5, "middle", weight="bold", fill="#8A6400"))
-            s.append(T(CX - 150, y - 10, "scrambled control, same width", 10.5, "middle", weight="bold", fill=CTRL))
-            s.append(L(CX, y + 36, CX - 150, y + 36, "currentColor", 1.2, op=0.55, arrow=uid))
+    s.append(heading(20, 46, "WEAKEN THE MOTIF, ONE BASE AT A TIME"))
+    s.append(arrow(xs[0] + 96, y - 56, xs[-1] - 96, y - 56, uid, col=MUTED, w=1.2, op=0.3))
+    s.append(T((xs[0] + xs[-1]) / 2, y - 64, "weaker grip", 12.5, "middle", fill=MUTED))
+    for (alt, lab, grip, tilt), x in zip(states, xs):
+        s.append(dna(x - 78, x + 78, y))
+        if grip > 0:
+            s.append(motif(x, y, 46, op=0.35 + 0.65 * grip))
+            s.append(dimer(x, y - 4, op=0.32 + 0.68 * grip, tilt=tilt))
         else:
-            s.append(block(CX - 8, y - 3, 16, 28, EDIT, 0.30, 1.3, dash="3 3"))
-            s.append(block(CX + 150, y - 3, 16, 28, GOLD, 0.75, 1.3))
-            s.append(T(CX, y - 10, "removed", 10.5, "middle", weight="bold", fill=EDIT))
-            s.append(T(CX + 158, y - 10, "placed here", 10.5, "middle", weight="bold", fill="#8A6400"))
-        s.append(L(CX, y + 36, CX + 158, y + 36, "currentColor", 1.2, op=0.55, arrow=uid))
-        s.append(T(CX + 79, y + 50, "d", 11, "middle", op=0.8))
-    s.append(T(CX, ty + 182, "d = 20, 40, 60, 100 or 150 bp, either side — the control version is run separately",
-               11, "middle", op=0.8))
-    return svg("".join(s), 1220, ty + 206, uid, "The AP-1 titration ladder"), 1220, ty + 206
+            s.append(scramble(x, y, 46))
+        for i, ch in enumerate(alt):
+            cx = x - 42 + i * 14
+            hot = ch != core[i]
+            s.append(f'<rect x="{cx - 6.2:.1f}" y="{y + 20:.1f}" width="12.6" height="17" rx="2.5" '
+                     f'fill="{EDIT if hot else INK}" fill-opacity="{0.22 if hot else 0.05}" '
+                     f'stroke="{EDIT if hot else HAIR}" stroke-width="{1.1 if hot else 0.9}"/>')
+            s.append(T(cx, y + 33, ch, 11.5, "middle", "700" if hot else "400", EDIT_D if hot else INK))
+        s.append(caption(x, y + 56, lab, "middle"))
+    s.append(T(916, y - 16, "also run", 12.5, fill=MUTED, ls=0.2))
+    for i, t in enumerate(("upgrade the core", "half site", "reverse complement")):
+        s.append(T(916, y + 6 + i * 19, "·  " + t, 12.5, fill=INK))
+
+    s.append(rule(20, 1080, 240, HAIR, 1, dash="4 4"))
+    yy = 320
+    s.append(heading(20, 278, "OR ADD A SECOND COPY AT A SET DISTANCE"))
+    BX, BW = 250, 520
+    s.append(dna(BX, BX + BW, yy))
+    s.append(motif(BX + 160, yy)); s.append(dimer(BX + 160, yy - 4))
+    s.append(motif(BX + 360, yy)); s.append(dimer(BX + 360, yy - 4))
+    s.append(rule(BX + 160, BX + 360, yy + 26, MUTED, 1.2, op=0.7))
+    s.append(vrule(BX + 160, yy + 21, yy + 31, MUTED, 1.2, op=0.7))
+    s.append(vrule(BX + 360, yy + 21, yy + 31, MUTED, 1.2, op=0.7))
+    s.append(T(BX + 260, yy + 20, "d", 12.5, "middle", "600", MUTED))
+    s.append(T(BX + BW + 26, yy + 4, "a second AP-1", 12.5, fill=GOLD_D, weight="600"))
+
+    s.append(dna(BX, BX + BW, yy + 76))
+    s.append(motif(BX + 160, yy + 76)); s.append(dimer(BX + 160, yy + 72))
+    s.append(scramble(BX + 360, yy + 76, 24, col=HAIR)); s.append(ghost_window(BX + 360, yy + 76, 30))
+    s.append(T(20, yy + 80, "control", 12.5, fill=MUTED))
+    s.append(T(BX + BW + 26, yy + 80, "or the same width of scramble", 12.5, fill=MUTED))
+    s.append(caption(BX + 260, yy + 112, "d = 20 to 150 bp, either side", "middle"))
+    return svg("".join(s), 1100, 452, uid, "The AP-1 ladder and the spacing designs"), 1100, 452
 
 
-# ==========================================================================================================
-DIAGRAMS = {"m1_pipeline": m1_pipeline, "m2_transplant": m2_transplant, "m3_swap": m3_swap,
-            "m4_shuffle": m4_shuffle, "m5_scan": m5_scan, "m6_titration": m6_titration}
+# ================================================================================================
+DIAGRAMS = {"d1_pipeline": d1_pipeline, "d2_transplant": d2_transplant, "d3_swap": d3_swap,
+            "d4_shuffle": d4_shuffle, "d5_scan": d5_scan, "d6_titration": d6_titration}
 
 
 def rasterise(name, w, h, scale=3):
-    """Headless Chrome is the only rasteriser here; it honours the SVG's own pixel size at the given scale."""
     html = OUT / f"{name}.html"
-    html.write_text(
-        "<!doctype html><meta charset=utf-8><style>html,body{margin:0;padding:0;background:#fff}"
-        "svg{display:block;color:#111111;"
-        "font-family:Arial,Helvetica,sans-serif}</style><body>"
-        + (OUT / f"{name}.svg").read_text() + "</body>")
+    html.write_text("<!doctype html><meta charset=utf-8><style>html,body{margin:0;padding:0;background:#fff}"
+                    "svg{display:block}</style><body>" + (OUT / f"{name}.svg").read_text() + "</body>")
     r = subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars",
                         f"--force-device-scale-factor={scale}", f"--window-size={w},{h}",
-                        f"--screenshot={OUT / (name + '.png')}", str(html)],
-                       capture_output=True, text=True)
+                        f"--screenshot={OUT / (name + '.png')}", str(html)], capture_output=True, text=True)
     html.unlink(missing_ok=True)
     if r.returncode != 0:
         print(f"  ! chrome failed for {name}: {r.stderr.strip()[:200]}")
@@ -401,11 +508,14 @@ def rasterise(name, w, h, scale=3):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-png", action="store_true")
+    ap.add_argument("--only", default=None)
     a = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in DIAGRAMS.items():
+        if a.only and a.only not in name:
+            continue
         body, w, h = fn()
         (OUT / f"{name}.svg").write_text(body)
         ok = True if a.no_png else rasterise(name, w, h)
-        print(f"  wrote {OUT / (name + '.svg')}  ({w}x{h}){'  + png' if ok and not a.no_png else ''}")
+        print(f"  {name}  {w}x{h}{'  + png' if ok and not a.no_png else ''}")
     print("done")

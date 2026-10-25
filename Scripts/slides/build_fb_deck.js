@@ -122,7 +122,7 @@ const bullets = (items) => items.map((t) => (typeof t === "string"
 // ================================================================== 2. how an effect is measured
 diagramSlide({
   title: "Everything here is one prediction minus another",
-  figure: "Analysis/slide_figures/m1_pipeline.png",
+  figure: "Analysis/slide_figures/d1_pipeline.png",
   takeaway: "No edit is ever compared against another site. The native and the edited sequence are the same 131 kb "
     + "window through the same weights, so whatever changes in the prediction came from the edit.",
   notes: "Worth saying out loud at the start, because it is what makes the rest defensible: the comparison is always "
@@ -138,7 +138,7 @@ diagramSlide({
 // ================================================================== 3. transplant, the design
 diagramSlide({
   title: "Transplant: can the element build a site on its own?",
-  figure: "Analysis/slide_figures/m2_transplant.png",
+  figure: "Analysis/slide_figures/d2_transplant.png",
   takeaway: "The control is the same letters shuffled, dropped into the same background — so whatever the host "
     + "contributes, it contributes to both and cancels in the ratio.",
   notes: "Hosts are genomic windows with no called ATAC peak. 20 per element, 50 donor elements per class, scored "
@@ -171,7 +171,7 @@ resultSlide({
 // ================================================================== 5. swap, the design
 diagramSlide({
   title: "Swap: is the level set by the element, or by the place?",
-  figure: "Analysis/slide_figures/m3_swap.png",
+  figure: "Analysis/slide_figures/d3_swap.png",
   takeaway: "Write every element into every other element's location and regress the result on both. "
     + "Whichever term carries more weight is the one that sets a site's accessibility.",
   notes: "62,250 swaps, self-swaps excluded, at two widths: the 170 bp MPRA-sized window and the whole peak.\n\n"
@@ -199,7 +199,7 @@ resultSlide({
 // ================================================================== 7. motif shuffle, the design
 diagramSlide({
   title: "Shuffling one motif at a time, inside the site",
-  figure: "Analysis/slide_figures/m4_shuffle.png",
+  figure: "Analysis/slide_figures/d4_shuffle.png",
   takeaway: "Each partner motif is scored against a footprint-free window of the same width at the mirrored "
     + "distance, so the two differ only in whether a motif was there. Everything stays inside one site.",
   notes: "This is the control that makes the next two slides immune to the accessibility gap. Dynamic sites are "
@@ -238,7 +238,7 @@ resultSlide({
 // ================================================================== 9. the scan, the design
 diagramSlide({
   title: "Scanning the whole window, tile by tile and base by base",
-  figure: "Analysis/slide_figures/m5_scan.png",
+  figure: "Analysis/slide_figures/d5_scan.png",
   takeaway: "Rather than choosing a region to destroy, replace every 10 bp tile across 600 bp in turn — and then "
     + "every single base across the middle 61 — and ask where the cost lands.",
   notes: "60 tiles of 10 bp from -300 to +290, one prediction each; then 61 positions x 3 alternative bases.\n\n"
@@ -302,7 +302,7 @@ resultSlide({
 // ================================================================== 12. the AP-1 ladder
 diagramSlide({
   title: "The AP-1 ladder, and the spacing experiments",
-  figure: "Analysis/slide_figures/m6_titration.png",
+  figure: "Analysis/slide_figures/d6_titration.png",
   takeaway: "Rather than only destroying the motif, weaken it one base at a time, strengthen it, flip it, duplicate "
     + "it or move it — each against a control that changes the same amount of sequence but no motif.",
   notes: "This is where the next slide's numbers come from. 2,359 sites; 860 accessibility-matched pairs at caliper "
