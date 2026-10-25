@@ -82,19 +82,20 @@ def lane_label(x, y, name, sub=None):
 def m1_pipeline():
     """One site, predicted twice, differenced. Everything else on the slides is a variation on this."""
     s, uid = [], "p1"
-    s.append(R(20, 56, 196, 74, "currentColor", "currentColor", 0.03, 1.4, rx=9))
-    s.append(TT(118, 82, ["One fibroblast AP-1 site", "TOBIAS footprint, 11 bp", "5,018 sites"], 12, lh=15.5))
-    s.append(R(20, 198, 196, 74, "currentColor", "currentColor", 0.03, 1.4, rx=9))
-    s.append(TT(118, 224, ["131,072 bp of mm10", "centred on the motif", "fetched once"], 12, lh=15.5))
-    s.append(L(118, 130, 118, 196, arrow=uid))
+    s.append(R(20, 56, 212, 74, "currentColor", "currentColor", 0.03, 1.5, rx=9))
+    s.append(TT(126, 82, ["One fibroblast AP-1 site", "TOBIAS footprint, 11 bp", "5,018 sites"], 12, lh=15.5))
+    s.append(R(20, 198, 212, 74, "currentColor", "currentColor", 0.03, 1.5, rx=9))
+    s.append(TT(126, 224, ["131,072 bp of mm10", "centred on the motif", "fetched once"], 12, lh=15.5))
+    s.append(L(126, 130, 126, 196, arrow=uid))
+    s.append(T(136, 168, "fetch once", 11, op=0.7))
 
     s.append(R(262, 48, 212, 74, INK, INK, 0.05, 1.7, rx=9))
     s.append(TT(368, 74, ["NATIVE sequence", "unchanged"], 12.5, weight="bold", lh=17))
     s.append(R(262, 190, 212, 92, EDIT, EDIT, 0.08, 1.7, rx=9))
     s.append(TT(368, 214, ["EDITED sequence"], 12.5, weight="bold"))
     s.append(TT(368, 234, ["shuffle · mutate · insert · swap", "10 replicate edits per site"], 11.5, lh=15))
-    s.append(P([(216, 235), (240, 235), (240, 85), (260, 85)], arrow=uid))
-    s.append(P([(216, 235), (260, 235)], arrow=uid))
+    s.append(P([(232, 235), (248, 235), (248, 85), (260, 85)], arrow=uid))
+    s.append(P([(232, 235), (260, 235)], arrow=uid))
 
     s.append(R(518, 48, 196, 234, "currentColor", "currentColor", 0.045, 1.7, rx=9))
     s.append(TT(616, 76, ["AlphaGenome"], 13, weight="bold"))
@@ -110,17 +111,17 @@ def m1_pipeline():
     s.append(R(758, 48, 206, 74, INK, "none", 0, 1.7, rx=9))
     s.append(TT(861, 72, ["native ATAC"], 12.5, weight="bold"))
     s.append(TT(861, 92, ["mean over the motif,", "the 170 bp and the peak"], 11.5, lh=15))
-    s.append(R(758, 190, 206, 74, EDIT, "none", 0, 1.7, rx=9))
-    s.append(TT(861, 214, ["edited ATAC"], 12.5, weight="bold", fill=EDIT))
-    s.append(TT(861, 234, ["the same regions,", "the same tracks"], 11.5, lh=15))
+    s.append(R(758, 190, 206, 92, EDIT, "none", 0, 1.7, rx=9))
+    s.append(TT(861, 222, ["edited ATAC"], 12.5, weight="bold", fill=EDIT))
+    s.append(TT(861, 244, ["the same regions,", "the same tracks"], 11.5, lh=15))
     s.append(L(714, 85, 756, 85, INK, 1.7, arrow=uid))
     s.append(L(714, 235, 756, 235, EDIT, 1.7, arrow=uid + "e"))
 
-    s.append(R(518, 320, 446, 58, "currentColor", CTRL, 0.10, 1.7, rx=9))
-    s.append(TT(741, 344, ["effect = log₂( (edited + c) ⁄ (native + c) )"], 13.5, weight="bold"))
-    s.append(TT(741, 364, ["averaged over the replicate edits — one number per site"], 11.5))
-    s.append(P([(964, 85), (990, 85), (990, 349), (966, 349)], INK, arrow=uid))
-    s.append(P([(861, 264), (861, 318)], EDIT, arrow=uid + "e"))
+    s.append(R(518, 320, 422, 58, "currentColor", CTRL, 0.10, 1.7, rx=9))
+    s.append(TT(729, 344, ["effect = log₂( (edited + c) ⁄ (native + c) )"], 13.5, weight="bold"))
+    s.append(TT(729, 364, ["averaged over the replicate edits — one number per site"], 11.5))
+    s.append(P([(964, 85), (980, 85), (980, 349), (942, 349)], INK, arrow=uid))
+    s.append(P([(861, 282), (861, 318)], EDIT, arrow=uid + "e"))
 
     s.append(TT(20, 318, ["The two predictions come from the same 131 kb", "window, so a change can only come from the edit.",
                           "c is 5% of the median native value, which keeps", "the ratio stable near zero."],
@@ -144,7 +145,14 @@ def m2_within_site():
         s.append(block(CX + d * PXBP - 9, y + 3, 18, 18, CTRL, 0.30, 1.1))
     s.append(block(CX - 7, y - 3, 14, 30, GOLD, 0.75, 1.3))
     s.append(T(CX, y - 10, "AP-1, 11 bp", 11.5, "middle", weight="bold", fill="#8A6400"))
-    s.append(T(X1 + 8, y + 17, "green = a partner motif footprint", 11, fill=CTRL, op=0.95))
+    s.append(T(X1 + 10, y + 17, "green = a partner", 11, fill=CTRL, op=0.95))
+    s.append(T(X1 + 10, y + 31, "motif footprint", 11, fill=CTRL, op=0.95))
+    for bp in (-400, -200, 0, 200, 400):                 # a real scale, since the rows are drawn to one
+        x = CX + bp * PXBP
+        s.append(L(x, y + 24, x, y + 30, HAIR, 1))
+        s.append(T(x, y + 44, "0" if bp == 0 else f"{bp:+d}", 10.5, "middle", op=0.7))
+    s.append(T(X0 - 10, y + 44, "bp", 10.5, "end", op=0.7))
+    s.append(L(20, y + 62, X1, y + 62, HAIR, 1, dash="4 4"))
 
     rows = [
         ("Motif shuffle", "letters permuted", "motif"),
@@ -154,9 +162,9 @@ def m2_within_site():
         ("Saturation", "every base, ±30 bp", "sat"),
         ("Partner shuffle", "one at a time, vs a control", "partner"),
     ]
-    GAP = [0, 0, 0, 0, 6, 26]                   # the scan, saturation and partner rows carry notes under the bar
+    GAP = [0, 0, 0, 2, 12, 34]                  # the scan, saturation and partner rows carry notes under the bar
     for i, (name, sub, kind) in enumerate(rows):
-        y = 126 + i * 58 + GAP[i]
+        y = 152 + i * 58 + GAP[i]
         s.append(lane_label(20, y + 12, name, sub))
         s.append(bar(X0, y, X1 - X0, 20, "currentColor", 0.035))
         if kind == "motif":
@@ -187,6 +195,8 @@ def m2_within_site():
             s.append(L(CX + sw_, y + 26, CX + 120, y + 44, HAIR, 0.9, dash="3 3"))
             s.append(T(CX, y + 54, "61 positions × 3 alternative bases, one prediction each", 11, "middle", op=0.8))
         elif kind == "partner":
+            for d in (-260, -150, 210):              # the other footprints, so the shuffled one is clearly one of several
+                s.append(block(CX + d * PXBP - 9, y + 1, 18, 18, CTRL, 0.10, 1.0))
             px = CX + 95 * PXBP
             s.append(block(px - 9, y - 3, 18, 26))
             s.append(T(px, y - 12, "shuffled", 10.5, "middle", fill=EDIT, weight="bold"))
@@ -195,8 +205,9 @@ def m2_within_site():
             s.append(T(cx_, y - 12, "matched control", 10.5, "middle", weight="bold", fill=CTRL))
             s.append(L(cx_ + 11, y + 36, px - 11, y + 36, "currentColor", 1, dash="4 4", op=0.45))
             s.append(T(CX, y + 50, "same width, mirrored distance, no footprint there", 10.5, "middle", op=0.8))
-    s.append(T(20, 528, "drawn to scale across 1 kb, except the saturation row", 11, op=0.7))
-    return svg("".join(s), 1220, 544, uid, "Edits made in place"), 1220, 544
+    s.append(T(20, 560, "the saturation row is the one thing not drawn to scale: 61 bp is 45 px here",
+               11, op=0.7))
+    return svg("".join(s), 1220, 578, uid, "Edits made in place"), 1220, 578
 
 
 # ==========================================================================================================
@@ -214,23 +225,25 @@ def m3_move():
 
     for k, (x, lab, sub, shuf) in enumerate(((20, "the element", "as it is", False),
                                              (250, "the same letters", "shuffled", True))):
-        s.append(R(x, 138, 200, 110, EDIT if shuf else INK, EDIT if shuf else INK, 0.045, 1.5, rx=9))
+        s.append(R(x, 138, 200, 102, EDIT if shuf else INK, EDIT if shuf else INK, 0.045, 1.5, rx=9))
         s.append(T(x + 100, 159, lab, 12, "middle", weight="bold", fill=EDIT if shuf else INK))
         s.append(T(x + 100, 175, sub, 11, "middle", op=0.75))
-        s.append(L(x + 14, 208, x + 186, 208, HAIR, 2.6))
+        for j, op_ in enumerate((0.22, 0.45, 1.0)):      # the same pair goes into 20 hosts, drawn as a short stack
+            s.append(L(x + 14, 196 + j * 9, x + 186, 196 + j * 9, HAIR, 2.4, op=op_))
         if shuf:
-            s.append(block(x + 84, 197, 32, 22, EDIT, 0.45, 1.1))
+            s.append(block(x + 84, 203, 32, 22, EDIT, 0.45, 1.1))
         else:
-            s.append(bar(x + 72, 196, 56, 24, INK, 0.10, 1.3))
-            s.append(block(x + 93, 193, 14, 30, GOLD, 0.75, 1.2))
-        s.append(T(x + 100, 238, "dropped into a closed background", 10.5, "middle", op=0.8))
-    s.append(L(220, 208, 248, 208, "currentColor", 1.3, dash="3 3", op=0.5))
+            s.append(bar(x + 72, 202, 56, 24, INK, 0.10, 1.3))
+            s.append(block(x + 93, 199, 14, 30, GOLD, 0.75, 1.2))
+    s.append(R(223, 203, 24, 24, "currentColor", "#ffffff", 1.0, 1.3, rx=12))
+    s.append(T(235, 219, "vs", 11.5, "middle", weight="bold"))
+    s.append(T(235, 258, "each into the same 20 closed backgrounds", 11, "middle", op=0.82))
 
-    s.append(R(20, 270, 430, 54, "currentColor", CTRL, 0.10, 1.6, rx=9))
-    s.append(TT(235, 292, ["effect = log₂( element ⁄ same sequence shuffled )"], 12.5, weight="bold"))
-    s.append(TT(235, 311, ["the host contributes to both, so it cancels"], 11, op=0.85))
-    s.append(TT(20, 348, ["20 closed backgrounds per element · 50 donor elements per class",
-                          "backgrounds are genomic windows with no called ATAC peak"], 11.5, anchor="start", lh=16, op=0.85))
+    s.append(R(20, 276, 430, 54, "currentColor", CTRL, 0.10, 1.6, rx=9))
+    s.append(TT(235, 298, ["effect = log₂( element ⁄ same sequence shuffled )"], 12.5, weight="bold"))
+    s.append(TT(235, 317, ["the host contributes to both, so it cancels"], 11, op=0.85))
+    s.append(TT(20, 356, ["50 donor elements per class; backgrounds are genomic",
+                          "windows with no called ATAC peak"], 11, anchor="start", lh=15, op=0.8))
 
     # ---- swap -------------------------------------------------------------
     s.append(T(530, 24, "Swap  —  the element, or the place it sits?", 13.5, weight="bold"))
@@ -291,7 +304,8 @@ def m4_titration():
         s.append(T(x0 + 21 * lw + 12, y + 17, desc, 11.5, op=0.88))
 
     # the core upgrade only makes sense as a before and after, since this excerpt's core is already perfect
-    uy = 86 + len(rows) * 32 + 6
+    uy = 86 + len(rows) * 32 + 14
+    s.append(L(20, uy - 14, 1180, uy - 14, HAIR, 1, dash="4 4"))
     s.append(T(20, uy + 17, "core upgraded", 12))
     for j, (bx, seq7, hot, cap) in enumerate(((x0, "TGAGTAA", None, "an imperfect core"),
                                               (x0 + 250, "TGAGTCA", [5], "made TGAGTCA"))):
@@ -312,23 +326,26 @@ def m4_titration():
     CX = (BX0 + BX1) / 2
     for i, (name, sub, kind) in enumerate((("second copy at ±d", "and a width-matched insert as the control", "dup"),
                                            ("motif moved to ±d", "and the same move to a footprint-free spot", "move"))):
-        y = ty + 28 + i * 72
+        y = ty + 28 + i * 86
         s.append(lane_label(20, y + 14, name, sub))
         s.append(bar(BX0, y, BX1 - BX0, 22))
         if kind == "dup":
             s.append(block(CX - 8, y - 3, 16, 28, GOLD, 0.75, 1.3))
             s.append(block(CX + 150, y - 3, 16, 28, GOLD, 0.75, 1.3))
-            s.append(block(CX - 166, y - 3, 16, 28, CTRL, 0.12, 1.3, dash="3 3"))
+            s.append(block(CX - 158, y - 3, 16, 28, CTRL, 0.12, 1.3, dash="3 3"))
             s.append(T(CX + 158, y - 10, "second AP-1", 10.5, "middle", weight="bold", fill="#8A6400"))
-            s.append(T(CX - 158, y - 10, "scrambled control", 10.5, "middle", weight="bold", fill=CTRL))
+            s.append(T(CX - 150, y - 10, "scrambled control, same width", 10.5, "middle", weight="bold", fill=CTRL))
+            s.append(L(CX, y + 36, CX - 150, y + 36, "currentColor", 1.2, op=0.55, arrow=uid))
         else:
             s.append(block(CX - 8, y - 3, 16, 28, EDIT, 0.30, 1.3, dash="3 3"))
             s.append(block(CX + 150, y - 3, 16, 28, GOLD, 0.75, 1.3))
             s.append(T(CX, y - 10, "removed", 10.5, "middle", weight="bold", fill=EDIT))
             s.append(T(CX + 158, y - 10, "placed here", 10.5, "middle", weight="bold", fill="#8A6400"))
         s.append(L(CX, y + 36, CX + 158, y + 36, "currentColor", 1.2, op=0.55, arrow=uid))
-        s.append(T(CX + 79, y + 50, "d = 20, 40, 60, 100, 150 bp, each side", 11, "middle", op=0.8))
-    return svg("".join(s), 1220, ty + 184, uid, "The AP-1 titration ladder"), 1220, ty + 184
+        s.append(T(CX + 79, y + 50, "d", 11, "middle", op=0.8))
+    s.append(T(CX, ty + 182, "d = 20, 40, 60, 100 or 150 bp, either side — the control version is run separately",
+               11, "middle", op=0.8))
+    return svg("".join(s), 1220, ty + 206, uid, "The AP-1 titration ladder"), 1220, ty + 206
 
 
 # ==========================================================================================================

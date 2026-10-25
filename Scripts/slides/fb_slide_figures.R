@@ -26,8 +26,28 @@ set.seed(55)
 
 INK <- "#111111"; MUTED <- "#4d4d4d"; RULE <- "#111111"; FAINT <- "#9a9993"
 BLUE <- "#347CBA"            # Stable
-ROSE <- "#C73A6B"            # Dynamic, pooled and the age classes
+ROSE <- "#C73A6B"            # Dynamic, pooled
 ROSE_DK <- "#9E1F4C"; ROSE_LT <- "#E291AC"
+
+# The five site classes, used in the same order and the same colours on every panel. The names are the labels as
+# given (age_class / ex_class); Up means AP-1 gained, Down means AP-1 lost. A site that is dynamic with both age and
+# exercise is counted under its age class, so the two exercise groups are the sites that are NOT also age-dynamic.
+CLS5 <- c("Stable", "Age Up", "Age Down", "Exercise Up", "Exercise Down")
+COL5 <- setNames(c(BLUE, "#C73A6B", "#8E1540", "#A85C7C", "#73314F"), CLS5)
+
+site_classes <- function() {
+  S <- read.csv(file.path(ROOT, "Katana/data/fb_subset_scan.csv"))[,
+         c("site_id", "age_class", "ex_class", "stable_dynamic")]
+  S <- S[!duplicated(S$site_id), ]
+  S$cls <- ifelse(S$stable_dynamic == "Stable", "Stable",
+           ifelse(S$age_class == "Age Up", "Age Up",
+           ifelse(S$age_class == "Age Down", "Age Down",
+           ifelse(S$ex_class == "Exercise Up", "Exercise Up",
+           ifelse(S$ex_class == "Exercise Down", "Exercise Down", NA)))))
+  S
+}
+# BH across the four comparisons each panel makes against Stable
+fdr <- function(p) p.adjust(p, method = "BH")
 GOLD <- "#E3B23C"; GOLD_PALE <- "#F9EAC4"   # the AP-1 core
 TEAL <- "#2F6F6F"            # "what the element is", used nowhere else
 GREY <- "#BDBCB8"; GREY_DK <- "#8C8B87"
@@ -94,14 +114,13 @@ save_fig <- function(p, name, w, h) {
 # 1. elements transplanted into closed chromatin - horizontal boxes, one row per class, donors behind them
 # ==========================================================================================================
 td <- read.csv(file.path(OUT, "s_fb_transplant_per_donor.csv"))
-CLS <- c("Stable", "Age Up", "Age Down", "Exercise Up", "Exercise Down")
-td <- td[td$donor_class %in% CLS, ]
-td$cls <- factor(td$donor_class, levels = rev(CLS))          # rev: ggplot draws the first level at the bottom
+td <- td[td$donor_class %in% CLS5, ]
+td$cls <- factor(td$donor_class, levels = rev(CLS5))         # rev: ggplot draws the first level at the bottom
 p_tr <- wilcox.test(lift ~ grp, data = td)$p.value
 med <- aggregate(lift ~ cls, td, median)
 nn  <- aggregate(lift ~ cls, td, length); names(nn)[2] <- "n"
 labs_tr <- setNames(sprintf("%s", levels(td$cls)), levels(td$cls))
-COL1 <- c(Stable = BLUE, `Age Up` = ROSE, `Age Down` = ROSE, `Exercise Up` = ROSE, `Exercise Down` = ROSE)
+COL1 <- COL5
 
 VCOL <- 8.95                                                  # the median column, parked outside the data range
 
@@ -122,7 +141,7 @@ g1 <- ggplot(td, aes(cls, lift)) +
   coord_flip(ylim = c(-0.55, 8.35), expand = FALSE, clip = "off") +
   labs(x = NULL, y = "Opening of a closed site (fold)") +
   theme_pub() + no_cat_axis("y") +
-  theme(axis.text.y = element_text(colour = c(rep(ROSE, 4), BLUE), hjust = 0, size = 15),
+  theme(axis.text.y = element_text(colour = unname(rev(COL5)), hjust = 0, size = 15),
         plot.margin = margin(6, 56, 4, 6))
 save_fig(g1, "r_fb_transplant", 10.6, 3.85)
 cat(sprintf("     per-class median fold: %s\n",
@@ -179,15 +198,14 @@ if (file.exists(cif)) {
 #    notched boxes: the notch is a 95% interval on the median, so the comparison is inside the box
 # ==========================================================================================================
 J <- read.csv(file.path(ROOT, "Analysis/fb_partner_shuffle/tables/own_vs_partners_per_site.csv"))
-ORD <- c("Stable", "AP-1 gain", "other Dynamic", "AP-1 loss")        # ordered by how far they sit from Stable
-CL <- c(Stable = "Stable", `AP-1 gain` = "AP-1 gained\nwith age",
-        `other Dynamic` = "Dynamic, not\nage-driven", `AP-1 loss` = "AP-1 lost\nwith age")
-COL3 <- setNames(c(BLUE, ROSE_LT, ROSE, ROSE_DK), CL[ORD])
+SI <- site_classes()
+J$cls <- SI$cls[match(J$site_id, SI$site_id)]
+J <- J[!is.na(J$cls), ]
 L <- rbind(
-  data.frame(grp = J$grp, what = "Its own AP-1 motif", eff = J$own_ap1),
-  data.frame(grp = J$grp, what = "Its partner motifs", eff = J$partners_mean_net))
-L <- L[L$grp %in% ORD & is.finite(L$eff), ]
-L$grp <- factor(L$grp, levels = ORD, labels = CL[ORD])
+  data.frame(grp = J$cls, what = "Its own AP-1 motif", eff = J$own_ap1),
+  data.frame(grp = J$cls, what = "Its partner motifs", eff = J$partners_mean_net))
+L <- L[is.finite(L$eff), ]
+L$grp <- factor(L$grp, levels = CLS5)
 L$what <- factor(L$what, levels = c("Its own AP-1 motif", "Its partner motifs"))
 
 # box drawn from precomputed statistics so the whiskers stop at the 5th and 95th centile and nothing runs off the
@@ -203,21 +221,22 @@ B <- do.call(rbind, lapply(split(L, list(L$grp, L$what), drop = TRUE), function(
   cbind(grp = levels(L$grp)[d$grp[1]], what = levels(L$what)[d$what[1]], bstat(d$eff))))
 B$grp <- factor(B$grp, levels = levels(L$grp)); B$what <- factor(B$what, levels = levels(L$what))
 B$key <- paste(B$grp, B$what)
-FILL3 <- c(setNames(paste0(COL3, "33"), paste(levels(L$grp), levels(L$what)[1])),
-           setNames(rep("white", 4), paste(levels(L$grp), levels(L$what)[2])))
+FILL3 <- c(setNames(paste0(COL5, "33"), paste(CLS5, levels(L$what)[1])),
+           setNames(rep("white", length(CLS5)), paste(CLS5, levels(L$what)[2])))
 
 pv <- function(w, cls) {
-  a <- L$eff[L$grp == CL["Stable"] & L$what == w]
-  b <- L$eff[L$grp == CL[cls] & L$what == w]
+  a <- L$eff[L$grp == "Stable" & L$what == w]
+  b <- L$eff[L$grp == cls & L$what == w]
   wilcox.test(a, b)$p.value
 }
-p_own <- sapply(ORD[-1], function(k) pv("Its own AP-1 motif", k))
-p_par <- sapply(ORD[-1], function(k) pv("Its partner motifs", k))
-nlab <- sprintf("%s\n(n = %d)", levels(L$grp), as.integer(table(L$grp[L$what == "Its own AP-1 motif"])))
+# four comparisons against Stable, so the panel prints the BH-adjusted value
+q_own <- fdr(sapply(CLS5[-1], function(k) pv("Its own AP-1 motif", k)))
+q_par <- fdr(sapply(CLS5[-1], function(k) pv("Its partner motifs", k)))
+nlab <- sprintf("%s\n(n = %d)", CLS5, as.integer(table(L$grp[L$what == "Its own AP-1 motif"])))
 dw <- 0.60
-# the test sits over the box it belongs to, which four classes make far easier to follow than four brackets
-PS <- data.frame(x = (1:4) - dw / 4, y = 0.30,
-                 lab = c("reference", sapply(p_own, fmtP)))
+# the test sits over the box it belongs to, which five classes make far easier to follow than five brackets
+PS <- data.frame(x = (seq_along(CLS5)) - dw / 4, y = 0.30,
+                 lab = c("reference", sub("^P", "FDR", sapply(q_own, fmtP))))
 
 g3 <- ggplot(B, aes(grp)) +
   geom_hline(yintercept = 0, linewidth = 0.35, colour = FAINT) +
@@ -229,34 +248,34 @@ g3 <- ggplot(B, aes(grp)) +
                notch = TRUE, notchwidth = 0.58, linewidth = 0.6, show.legend = FALSE) +
   geom_text(data = PS, aes(x, y, label = lab), inherit.aes = FALSE, family = "Arial", size = 4.2,
             colour = MUTED) +
-  annotate("text", x = 0.74, y = 0.56, label = "vs Stable, at the site's own AP-1 motif", hjust = 0,
-           family = "Arial", size = 4.2, colour = MUTED) +
-  annotate("point", x = 2.40, y = 0.95, size = 4.4, shape = 22, fill = "#1111112b", colour = INK, stroke = 0.6) +
-  annotate("text", x = 2.48, y = 0.95, label = "its own AP-1 motif", hjust = 0, vjust = 0.42,
+  annotate("text", x = 0.30, y = 0.56, label = "vs Stable, at the site's own AP-1 motif (BH across the four)",
+           hjust = 0, family = "Arial", size = 4.2, colour = MUTED) +
+  annotate("point", x = 2.95, y = 0.95, size = 4.4, shape = 22, fill = "#1111112b", colour = INK, stroke = 0.6) +
+  annotate("text", x = 3.03, y = 0.95, label = "its own AP-1 motif", hjust = 0, vjust = 0.42,
            family = "Arial", size = 4.4, colour = INK) +
-  annotate("point", x = 2.40, y = 0.70, size = 4.4, shape = 22, fill = "white", colour = INK, stroke = 0.6) +
-  annotate("text", x = 2.48, y = 0.70, label = "its partner motifs, net of a matched control",
+  annotate("point", x = 2.95, y = 0.70, size = 4.4, shape = 22, fill = "white", colour = INK, stroke = 0.6) +
+  annotate("text", x = 3.03, y = 0.70, label = "its partner motifs, net of a matched control",
            hjust = 0, vjust = 0.42, family = "Arial", size = 4.4, colour = INK) +
-  scale_colour_manual(values = COL3) +
+  scale_colour_manual(values = COL5) +
   scale_fill_manual(values = FILL3) +
-  scale_x_discrete(labels = nlab, expand = expansion(add = 0.50)) +
+  scale_x_discrete(labels = nlab, expand = expansion(add = c(0.95, 0.5))) +
   scale_y_continuous(breaks = seq(-2.5, 0, 0.5)) +
   coord_cartesian(ylim = c(min(B$ymin) - 0.12, 1.14), expand = FALSE, clip = "on") +
   labs(x = NULL, y = expression(paste("Effect of shuffling it (log"[2], ")"))) +
   theme_pub() + theme(legend.position = "none",
-                      axis.text.x = element_text(colour = unname(COL3), size = 14, lineheight = 0.95))
-save_fig(g3, "r_fb_specificity", 10.4, 4.0)
-cat(sprintf("     own AP-1 vs Stable: %s\n", paste(sprintf("%s %.3g", ORD[-1], p_own), collapse = ", ")))
-cat(sprintf("     partners vs Stable: %s\n", paste(sprintf("%s %.3g", ORD[-1], p_par), collapse = ", ")))
+                      axis.text.x = element_text(colour = unname(COL5), size = 13, lineheight = 0.95))
+save_fig(g3, "r_fb_specificity", 10.8, 4.0)
+cat(sprintf("     own AP-1 vs Stable, BH: %s\n", paste(sprintf("%s %.3g", CLS5[-1], q_own), collapse = ", ")))
+cat(sprintf("     partners vs Stable, BH: %s\n", paste(sprintf("%s %.3g", CLS5[-1], q_par), collapse = ", ")))
 
 # ==========================================================================================================
 # 4. how a site divides its motif dependence - a composition, split by class
 #    The two parts are complementary, so a median split sums to 100% and the bar is an honest whole.
 # ==========================================================================================================
 J$share <- abs(J$own_ap1) / (abs(J$own_ap1) + abs(J$partners_mean_net))
-K <- J[is.finite(J$share) & J$grp %in% ORD, ]
-K$cls <- factor(K$grp, levels = rev(ORD), labels = rev(gsub("\n", " ", CL[ORD])))
-K$sd2 <- factor(ifelse(K$grp == "Stable", "Stable", "Dynamic"), levels = c("Stable", "Dynamic"))
+K <- J[is.finite(J$share), ]
+K$cls <- factor(K$cls, levels = rev(CLS5))
+K$sd2 <- factor(ifelse(K$cls == "Stable", "Stable", "Dynamic"), levels = c("Stable", "Dynamic"))
 p_sh <- wilcox.test(share ~ sd2, data = K)$p.value
 boot_med_ci <- function(x, n = 4000) {
   b <- replicate(n, median(sample(x, length(x), replace = TRUE)))
@@ -276,18 +295,18 @@ g4 <- ggplot(ST, aes(cls, pct, fill = part)) +
   geom_col(width = 0.56, colour = "white", linewidth = 1.0, position = position_stack(reverse = TRUE)) +
   geom_errorbar(data = C4, aes(cls, ymin = lo, ymax = hi), inherit.aes = FALSE,
                 width = 0.17, linewidth = 0.7, colour = INK) +
-  geom_text(data = C4, aes(cls, ap1 - 4.5, label = sprintf("%.0f%%", ap1)), inherit.aes = FALSE,
+  geom_text(data = C4, aes(cls, ap1 - 7.5, label = sprintf("%.0f%%", ap1)), inherit.aes = FALSE,
             hjust = 1, family = "Arial", fontface = "bold", size = 5.8, colour = "#5B4300") +
   geom_text(data = C4, aes(cls, 100, label = sprintf("%.0f%%", partners)), inherit.aes = FALSE,
             hjust = 1.3, family = "Arial", fontface = "bold", size = 5.8, colour = "#44433F") +
   geom_text(data = C4, aes(cls, 2, label = sprintf("n = %d", n)), inherit.aes = FALSE,
             hjust = 0, family = "Arial", size = 4.1, colour = "#7A5E00") +
-  annotate("text", x = 4.74, y = 0, label = "AP-1 motif itself", hjust = 0, family = "Arial",
+  annotate("text", x = 5.74, y = 0, label = "AP-1 motif itself", hjust = 0, family = "Arial",
            fontface = "bold", size = 4.8, colour = "#9A7400") +
-  annotate("text", x = 4.74, y = 100, label = "partner motifs", hjust = 1, family = "Arial",
+  annotate("text", x = 5.74, y = 100, label = "partner motifs", hjust = 1, family = "Arial",
            fontface = "bold", size = 4.8, colour = "#6E6D69") +
-  annotate("text", x = 4.74, y = 50, label = sprintf("Stable vs Dynamic, %s", fmtP(p_sh)), hjust = 0.5,
-           family = "Arial", size = 4.3, colour = INK) +
+  annotate("text", x = 5.74, y = 50, label = sprintf("every class below Stable, %s pooled", fmtP(p_sh)),
+           hjust = 0.5, family = "Arial", size = 4.3, colour = INK) +
   scale_fill_manual(values = c("AP-1 motif itself" = GOLD, "Partner motifs" = "#D8D7D3")) +
   scale_y_continuous(breaks = seq(0, 100, 25), labels = function(b) paste0(b, "%")) +
   scale_x_discrete(expand = expansion(add = c(0.52, 1.05))) +
@@ -295,9 +314,9 @@ g4 <- ggplot(ST, aes(cls, pct, fill = part)) +
   labs(x = NULL, y = "Share of the site's motif dependence (median per site)") +
   theme_pub() + no_cat_axis("y") +
   theme(legend.position = "none",
-        axis.text.y = element_text(colour = rev(unname(COL3)), hjust = 0, size = 14.5),
+        axis.text.y = element_text(colour = rev(unname(COL5)), hjust = 0, size = 14.5),
         plot.margin = margin(6, 16, 4, 6))
-save_fig(g4, "r_fb_share", 10.4, 4.0)
+save_fig(g4, "r_fb_share", 10.4, 4.3)
 print(C4, row.names = FALSE)
 
 # ==========================================================================================================
@@ -310,9 +329,20 @@ tf <- file.path(ROOT, "Analysis/fb_scan/tables/top_tile_tests.csv")
 if (file.exists(zf)) {
   Z <- read.csv(zf)
   TT <- if (file.exists(tf)) read.csv(tf) else NULL
-  Z <- Z[Z$grouping == "grp4", ]
-  Z$class <- factor(Z$class, levels = rev(ORD), labels = rev(gsub("\n", " ", CL[ORD])))
-  ZN <- c("AP-1 core", "Flank, within 50 bp", "Beyond 50 bp")
+  ZN0 <- c("AP-1 core", "Flank, within 50 bp", "Beyond 50 bp")
+  TS <- read.csv(file.path(ROOT, "Analysis/fb_scan/tables/top_tile_per_site.csv"))
+  TS$cls <- ifelse(TS$stable_dynamic == "Stable", "Stable",
+            ifelse(TS$age_class == "Age Up", "Age Up",
+            ifelse(TS$age_class == "Age Down", "Age Down",
+            ifelse(TS$ex_class == "Exercise Up", "Exercise Up",
+            ifelse(TS$ex_class == "Exercise Down", "Exercise Down", NA)))))
+  TS <- TS[!is.na(TS$cls), ]
+  Z <- do.call(rbind, lapply(CLS5, function(g) {
+    v <- TS$top_zone[TS$cls == g]
+    data.frame(class = g, n_sites = length(v), zone = ZN0, pct = 100 * sapply(ZN0, function(z) mean(v == z)))
+  }))
+  Z$class <- factor(Z$class, levels = rev(CLS5))
+  ZN <- ZN0
   Z$zone <- factor(Z$zone, levels = ZN)
   Z <- Z[order(Z$class, Z$zone), ]
   core <- Z[Z$zone == "AP-1 core", ]
@@ -321,13 +351,13 @@ if (file.exists(zf)) {
 
   g5 <- ggplot(Z, aes(class, pct, fill = zone)) +
     geom_col(width = 0.56, colour = "white", linewidth = 1.0, position = position_stack(reverse = TRUE)) +
-    annotate("segment", x = 0.48, xend = 4.52, y = chance, yend = chance, linewidth = 0.45,
+    annotate("segment", x = 0.48, xend = 5.52, y = chance, yend = chance, linewidth = 0.45,
              linetype = "22", colour = INK) +
     geom_text(data = core, aes(class, pct, label = sprintf("%.0f%%", pct)), inherit.aes = FALSE,
               hjust = 1.35, family = "Arial", fontface = "bold", size = 5.8, colour = "#5B4300") +
-    annotate("text", x = 4.74, y = chance, label = "chance: 2 of 60 tiles", hjust = 0, vjust = 0.5,
+    annotate("text", x = 5.74, y = chance, label = "chance: 2 of 60 tiles", hjust = 0, vjust = 0.5,
              family = "Arial", size = 4.2, colour = MUTED) +
-    annotate("text", x = 4.74, y = 100, label = sprintf("Stable vs Dynamic, %s (n.s.)", fmtP(p_core)),
+    annotate("text", x = 5.74, y = 100, label = sprintf("Stable vs Dynamic, %s (n.s.)", fmtP(p_core)),
              hjust = 1, vjust = 0.5, family = "Arial", size = 4.3, colour = INK) +
     scale_fill_manual(values = c("AP-1 core" = GOLD, "Flank, within 50 bp" = GOLD_PALE,
                                  "Beyond 50 bp" = "#EDECE8")) +
@@ -337,10 +367,10 @@ if (file.exists(zf)) {
     labs(x = NULL, y = "Sites whose most important 10 bp tile falls in that zone") +
     theme_pub() + no_cat_axis("y") +
     theme(legend.position = "bottom", legend.justification = "left",
-          axis.text.y = element_text(colour = rev(unname(COL3)), hjust = 0, size = 14.5),
+          axis.text.y = element_text(colour = rev(unname(COL5)), hjust = 0, size = 14.5),
           plot.margin = margin(6, 16, 4, 6))
-  save_fig(g5, "r_fb_top_tile", 10.8, 4.1)
-  print(core[, c("class", "n_sites", "pct", "lo", "hi")], row.names = FALSE)
+  save_fig(g5, "r_fb_top_tile", 10.8, 4.4)
+  print(core[, c("class", "n_sites", "pct")], row.names = FALSE)
 } else {
   cat("  skipped r_fb_top_tile: run Scripts/56_fb_top_tile_rank.py on Katana first\n")
 }

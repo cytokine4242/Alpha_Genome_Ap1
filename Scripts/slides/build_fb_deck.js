@@ -169,7 +169,7 @@ diagramSlide({
 // ================================================================== 5. transplant
 resultSlide({
   title: "A Stable element opens closed chromatin on its own",
-  method: "Each element moved into 20 closed backgrounds and scored against the same sequence shuffled; one point per donor, whole-peak width. Box, median and IQR, whiskers 1.5 × IQR; 50 donors per class; Mann–Whitney, Stable against the four Dynamic classes pooled.",
+  method: "Each element moved into 20 closed backgrounds and scored against the same sequence shuffled; one point per donor, whole-peak width. Box, median and IQR, whiskers 1.5 × IQR; 50 donors per class — Up = AP-1 gained, Down = AP-1 lost; Mann–Whitney, Stable against the four Dynamic classes pooled.",
   figure: "Analysis/slide_figures/r_fb_transplant.png",
   takeaway: "Stable AP-1 elements carry enough sequence to build their own accessible site. Dynamic ones do not — "
     + "they need the neighbourhood they came from. That is \"context, not sequence autonomy\", shown by moving the sequence.",
@@ -203,19 +203,23 @@ resultSlide({
 
 // ================================================================== 7. specificity
 resultSlide({
-  title: "Only the AP-1-losing sites let go — and only of AP-1",
-  method: "The site's own AP-1 motif and each partner motif shuffled separately inside the same window; partners net of a width- and distance-matched footprint-free control. Box, median and IQR, whiskers 5th–95th centile; the notch is a 95% interval on the median. Dynamic split into the age classes as given. Mann–Whitney against Stable.",
+  title: "The sites that lose AP-1 let go of it — whether with age or exercise",
+  method: "The site's own AP-1 motif and each partner motif shuffled separately inside the same window; partners net of a width- and distance-matched footprint-free control. Box, median and IQR, whiskers 5th–95th centile, notch a 95% interval on the median. Classes as given: Up = AP-1 gained, Down = AP-1 lost.",
   figure: "Analysis/slide_figures/r_fb_specificity.png",
-  takeaway: "Sites that lose AP-1 binding with age were never strongly AP-1-driven: they depend 36% less on their own motif "
-    + "while using every other motif exactly as much. Sites that gain AP-1 with age are indistinguishable from Stable — "
-    + "so \"Dynamic\" is not one thing, and splitting it is what shows that.",
-  notes: "2,352 sites. Own AP-1 motif: Stable -1.21 (n=1179), AP-1 gained -1.19 (n=605, p = 0.93 vs Stable), "
-    + "Dynamic but not age-driven -1.10 (n=347, p = 0.055), AP-1 lost -0.78 (n=209, p = 2.3e-5).\n\n"
-    + "Partner motifs, net of control: Stable -0.20, gained -0.25, not age-driven -0.27, lost -0.22 - no class difference "
-    + "(vs Stable: p = 0.13, 0.23, 0.66). "
+  takeaway: "It is the direction that matters, not the stimulus. Both losing classes depend less on their own AP-1 motif "
+    + "— Age Down by 36%, Exercise Down by 21% — while both gaining classes are indistinguishable from Stable. "
+    + "No class differs at its partner motifs.",
+  notes: "2,340 sites. Own AP-1 motif, median log2, with BH-adjusted P against Stable:\n"
+    + "  Stable -1.21 (n=1179, reference) · Age Up -1.19 (n=605, FDR 0.93) · Age Down -0.78 (n=209, FDR 9.1e-5) · "
+    + "Exercise Up -1.14 (n=233, FDR 0.49) · Exercise Down -0.96 (n=114, FDR 0.043)\n\n"
+    + "Partner motifs, net of control: -0.20 / -0.25 / -0.22 / -0.23 / -0.33. Nothing survives BH (smallest adjusted 0.20), "
+    + "so the deficit is AP-1-specific in both losing classes. "
     + "So the deficit is AP-1-specific, not general weakness. No single partner family takes over: nothing survives FDR in the per-family split.\n\n"
     + "Agreement: pooled Stable vs Dynamic at the motif is a null, which matches the manuscript's core-scramble result (no class difference). "
     + "Age-gained being on par with Stable is the sequence-level version of 'age-gained reporter activity on par with stable'.\n\n"
+    + "Note on the split: a site that is dynamic with both age and exercise is counted under its age class, so the two "
+    + "exercise groups are the sites that are NOT also age-dynamic. Splitting them is what separated the old 'other "
+    + "Dynamic' group (p = 0.055, n = 347) into Exercise Up, which looks like Stable, and Exercise Down, which does not.\n\n"
     + "Caveat: the own-AP-1 bar has no matched control, because one at distance 0 would overlap the motif. That inflates AP-1 relative "
     + "to the partners in every class equally, so the class comparison is unaffected.",
 });
@@ -252,11 +256,14 @@ resultSlide({
   title: "Dynamic sites hand more of the load to the partner motifs",
   method: "Per site: |own AP-1| / (|own AP-1| + |partner motifs|), the share of its motif dependence that sits inside the AP-1 motif rather than outside it. Both terms are AlphaGenome shuffle effects measured inside the same window, so accessibility cannot drive the comparison. Median per site; error bar, bootstrap 95% CI; Mann–Whitney.",
   figure: "Analysis/slide_figures/r_fb_share.png",
-  takeaway: "Outside the motif is where the classes differ: a Stable site leaves 20% of its motif dependence to partners, "
-    + "a Dynamic site 25–27% — about 40% more — and every Dynamic class sits on the same side. "
-    + "AP-1 still leads everywhere; it just carries less of the load.",
-  notes: "Stable 0.804 (n=1179) vs Dynamic pooled 0.745 (n=1161), p = 7.2e-11. By class: AP-1 gained 0.755, "
-    + "AP-1 lost 0.734, Dynamic not age-driven 0.727. Kruskal across the four, p = 1.7e-10.\n\n"
+  takeaway: "Outside the motif is where every class differs: a Stable site leaves 20% of its motif dependence to "
+    + "partners, each of the four Dynamic classes 25–27% — about a third more — and all four sit on the same side, "
+    + "gaining and losing alike. AP-1 still leads everywhere; it just carries less of the load.",
+  notes: "Stable 0.804 (n=1179) vs Dynamic pooled 0.745 (n=1161), p = 7.2e-11. By class: Age Up 0.755 (p = 7.9e-5), "
+    + "Age Down 0.734 (p = 4.1e-6), Exercise Up 0.726 (p = 1.9e-5), Exercise Down 0.732 (p = 8.7e-6).\n\n"
+    + "Worth contrasting with the previous slide out loud: there, only the LOSING classes moved. Here all four move, "
+    + "including both gaining classes. So the absolute dependence on AP-1 and the share of the total it carries are "
+    + "two different statements, and only the second separates every Dynamic class from Stable.\n\n"
     + "The 40%: partner share 19.6% for Stable against 24.5 / 26.6 / 27.3% for the Dynamic classes, so 27.3/19.6 = 1.39x. "
     + "It is the same number as 80 vs 73, read from the other end - say it whichever way, but do not say both as if they were two results.\n\n"
     + "Detection check, in case it is asked: footprint calling needs signal, so Stable sites carry more detected partners "
@@ -320,7 +327,7 @@ diagramSlide({
     { text: "C/EBP is the strongest partner motif at fibroblast AP-1 sites (net −0.71 log2, ahead of MEF2 and NFI).", sub: true },
     { text: "Adds", bold: true },
     { text: "The class difference is a whole-peak property, not a 170 bp one.", sub: true },
-    { text: "Within Dynamic, the AP-1-losing sites are the ones that are sequence-different; the gaining ones are not.", sub: true },
+    { text: "Within Dynamic, the AP-1-LOSING sites are the ones that are sequence-different, with age and with exercise alike; the gaining ones look like Stable. Direction, not stimulus.", sub: true },
     { text: "Unprompted, AlphaGenome makes the AP-1 core the most important 10 bp in over half of all sites — equally in both classes. The classes differ in how much of the dependence sits there, not in whether AP-1 leads.", sub: true },
     { text: "Dynamic sites spread their dependence slightly wider, and it survives accessibility matching (33.1% vs 31.3% within ±25 bp, P = 0.006) — the sequence-model version of “attention is more distributed at dynamic enhancers”.", sub: true },
     { text: "Keep off the slides", bold: true },
