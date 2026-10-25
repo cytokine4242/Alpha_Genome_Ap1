@@ -458,6 +458,40 @@ diagramSlide({
     + "would be trustworthy.",
 });
 
+// ================================================================== 12a. how each result handles accessibility
+// Backup slide. Dynamic sites are about half as accessible as Stable ones, so "is it just accessibility?" is the
+// first question every one of these results gets. One row per result, so the answer is on one slide.
+{
+  const s = pres.addSlide({ masterName: "TITLE_BODY" });
+  s.addText("Is it just that Dynamic sites are less accessible?", { placeholder: "title" });
+  s.addText(bullets([
+    { text: "Immune by design — both numbers come from the same window of the same site, so accessibility cancels", bold: true },
+    { text: "Motif specificity · partner share. Partners are also net of a width- and distance-matched footprint-free control at the mirrored distance. No between-class matching needed, and none done.", sub: true },
+    { text: "Accessibility is in the model, not matched out", bold: true },
+    { text: "The swap: each class's regression conditions on both the donor's and the recipient's own native level, so the carried share is already net of the gap.", sub: true },
+    { text: "Matched explicitly, and survived", bold: true },
+    { text: "Importance density: 33.8% vs 30.7% unmatched, and 33.1% vs 31.3% over 860 pairs matched on predicted accessibility (caliper 0.1 log10), +1.5 points, P = 0.006.", sub: true },
+    { text: "Checked, and only survives as a covariate adjustment", bold: true },
+    { text: "Transplant: every element goes into the same 20 hosts, so the host cancels — but the donor classes are not matched. 1:1 matching leaves only 47 pairs and is not significant (P = 0.13). The covariate-adjusted gap is: +0.84 ± 0.30 log2, about 1.8x, P = 0.005. Quote that one.", sub: true },
+    { text: "Checked, and did not survive", bold: true },
+    { text: "Top tile is a core tile: 56% vs 52% raw, matched McNemar P = 0.21 — reported as a shared fact, not a class difference. Plus the two titration results on the next slide.", sub: true },
+  ]), { placeholder: "body" });
+  s.addNotes("Keep this one in the back pocket; it is the first question any of these results gets.\n\n"
+    + "The size of the confound: Stable sites are about twice as accessible as Dynamic ones (measured native 32.2 vs "
+    + "18.0 in the swap donors; predicted 10.5 vs 8.5 across the scan sites).\n\n"
+    + "Two different things are matched on in different places, and it is worth being straight about it: the transplant "
+    + "matches on MEASURED native accessibility, the density and top-tile analyses on PREDICTED. Matching on predicted "
+    + "is the more conservative choice for a prediction-based readout, because it removes the thing the model itself "
+    + "would key on.\n\n"
+    + "Not matched, and said so on the slides: the three alternative density readings. The pooled Stable-vs-Dynamic "
+    + "contrast they re-draw is the one that survives matching; the five-class split has not been matched, because "
+    + "Exercise Down has 115 sites and would not support it.\n\n"
+    + "Why 1:1 matching keeps coming out underpowered: a caliper of 0.1 log10 on populations that differ roughly "
+    + "two-fold throws most of the Dynamic sites away. Where the n allows it (860 pairs in the scan) it is the better "
+    + "test; where it does not (47 donor pairs in the transplant) the covariate adjustment uses every site and is "
+    + "the one to quote.");
+}
+
 // ================================================================== 13. what did not hold
 {
   const s = pres.addSlide({ masterName: "TITLE_BODY" });
