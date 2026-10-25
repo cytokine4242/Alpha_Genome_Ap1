@@ -59,10 +59,10 @@ if [ "$1" = context ] && [ -z "$BATCH" ]; then BATCH=2; fi
 if [ -z "$BATCH" ] && [ "$GPU" != "H200" ] && [ "$GPU" != "GH200" ]; then BATCH=4; fi
 BATCH_VAR=${BATCH:+,AG_BATCH_SIZE=$BATCH}
 O="-o $PWD/logs/pbs/${ACCOUNT:+ -A $ACCOUNT}"
-case "$1" in scan*|titrate*|dynamics*|rerun_dynamics|fb_slide*) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context|rerun_sites|rerun_all) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
+case "$1" in scan*|titrate*|dynamics*|rerun_dynamics) CFG=${CONFIG:-config_cm_only.json} ;; full|phase1*|phase2*|controls|satmut|mpra_neutral|context|rerun_sites|rerun_all) CFG=${CONFIG:-config.json} ;; validate|human_sens) CFG=${CONFIG:-config_validate.json} ;; *) CFG=${CONFIG:-config_pilot.json} ;; esac
 case "$1" in ft_eval*) FT=1 ;; esac
 if [ -n "$FT" ]; then
-  case "$1" in scan*|titrate*|dynamics*|rerun_dynamics|fb_slide*) CFG=${CONFIG:-config_ft_cm_only.json} ;; *) CFG=${CONFIG:-config_ft.json} ;; esac
+  case "$1" in scan*|titrate*|dynamics*|rerun_dynamics) CFG=${CONFIG:-config_ft_cm_only.json} ;; *) CFG=${CONFIG:-config_ft.json} ;; esac
   BATCH_VAR="${BATCH_VAR},RESULTS_DIR=results_ft${AG_FT_CHECKPOINT:+,AG_FT_CHECKPOINT=$AG_FT_CHECKPOINT}"
 fi
 [ -f "$CFG" ] || { echo "config $CFG not found"; exit 1; }
@@ -109,7 +109,7 @@ p5_fbscan()   { sub -J 0-$((FB_SCAN_CHUNKS-1)) -l walltime=02:00:00 -N ag_scan_f
 # 116 s/site, so ~20 sites a chunk finishes inside 45 min. One replicate per position: every 10 bp of sequence is
 # already covered by five overlapping windows.
 FB_SLIDE_CHUNKS=${FB_SLIDE_CHUNKS:-120}
-p5_fbslide()  { sub -J 0-$((FB_SLIDE_CHUNKS-1)) -l walltime=01:30:00 -N ag_slide_fb "EXPERIMENT=slide,PREFIX=slide_,SITES=fb,NCHUNKS=$FB_SLIDE_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
+p5_fbslide()  { sub -J 0-$((FB_SLIDE_CHUNKS-1)) -l walltime=01:00:00 -N ag_slide_fb "EXPERIMENT=slide,PREFIX=slide_,SITES=fb,NCHUNKS=$FB_SLIDE_CHUNKS,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_slide_pilot() { sub -m ae -l walltime=01:00:00 -N ag_slide_fb_pilot "EXPERIMENT=slide,PREFIX=pilot_slide_,SITES=fb,NCHUNKS=1,LIMIT=3,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs; }
 p5_pilot()    { sub -m ae -l walltime=01:00:00 -N ag_scan_fb_pilot "EXPERIMENT=scan,PREFIX=pilot_,SITES=fb,NCHUNKS=1,LIMIT=4,SITES_FILE=../data/fb_subset_scan.csv" pbs/15_scan_titrate.pbs
                 sub -m ae -l walltime=01:00:00 -N ag_fb_swap_pilot "EXPERIMENT=swap,PREFIX=pilot_swap_,NCHUNKS=1,LIMIT=10" pbs/18_fb_swap.pbs
